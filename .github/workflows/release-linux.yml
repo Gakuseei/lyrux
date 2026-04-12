@@ -49,14 +49,25 @@ jobs:
           sudo apt-get install -y \
             appstream \
             binutils \
-            blueprint-compiler \
             build-essential \
             desktop-file-utils \
+            gettext \
             libadwaita-1-dev \
             libepoxy-dev \
             libgtk-4-dev \
             libwebkitgtk-6.0-dev \
+            meson \
+            ninja-build \
+            python3-gi \
             pkg-config
+
+      - name: Install current blueprint-compiler
+        run: |
+          BLUEPRINT_VERSION=v0.20.4
+          git clone --depth 1 --branch "${BLUEPRINT_VERSION}" https://github.com/GNOME/blueprint-compiler.git /tmp/blueprint-compiler
+          meson setup /tmp/blueprint-compiler/_build /tmp/blueprint-compiler --prefix /tmp/blueprint-prefix
+          meson install -C /tmp/blueprint-compiler/_build
+          echo "/tmp/blueprint-prefix/bin" >> "$GITHUB_PATH"
 
       - name: Install appimagetool
         run: |

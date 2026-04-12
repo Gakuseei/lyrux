@@ -45,12 +45,12 @@ jobs:
               zypper refresh
               zypper install -y --no-confirm \
                 binutils \
-                blueprint-compiler \
                 cairo-devel \
                 curl \
                 dpkg \
                 gcc \
                 gcc-c++ \
+                gettext-tools \
                 gdk-pixbuf-devel \
                 glib2-devel \
                 gobject-introspection-devel \
@@ -61,14 +61,17 @@ jobs:
                 libxml2-tools \
                 libsoup-devel \
                 make \
+                meson \
                 ncurses-devel \
                 ncurses-utils \
+                ninja \
                 pango-devel \
                 pkgconf-pkg-config \
+                python3-gobject \
                 rpm-build \
                 ruby \
                 tar \
-                'pkgconfig(webkitgtk-6.0)' \
+                "pkgconfig(webkitgtk-6.0)" \
                 xz
 
               ZIG_VERSION=0.15.2
@@ -78,6 +81,12 @@ jobs:
 
               curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
               . "$HOME/.cargo/env"
+
+              BLUEPRINT_VERSION=v0.20.4
+              git clone --depth 1 --branch "$BLUEPRINT_VERSION" https://github.com/GNOME/blueprint-compiler.git /tmp/blueprint-compiler
+              meson setup /tmp/blueprint-compiler/_build /tmp/blueprint-compiler --prefix /tmp/blueprint-prefix
+              meson install -C /tmp/blueprint-compiler/_build
+              export PATH="/tmp/blueprint-prefix/bin:$PATH"
 
               ./scripts/package.sh "$LIMUX_VERSION"
             '
