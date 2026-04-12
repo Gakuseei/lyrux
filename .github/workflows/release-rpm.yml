@@ -68,7 +68,7 @@ jobs:
                 rpm-build \
                 ruby \
                 tar \
-                pkgconfig(webkitgtk-6.0) \
+                'pkgconfig(webkitgtk-6.0)' \
                 xz
 
               ZIG_VERSION=0.15.2
