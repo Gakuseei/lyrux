@@ -23,6 +23,7 @@ APP_ICONS_DIR="${ROOT_DIR}/rust/limux-host-linux/icons/app"
 DESKTOP_FILE="${ROOT_DIR}/rust/limux-host-linux/dev.limux.linux.desktop"
 METADATA_FILE="${ROOT_DIR}/rust/limux-host-linux/dev.limux.linux.metainfo.xml"
 OUT_DIR="${ROOT_DIR}/dist"
+GHOSTTY_ZIG_ARGS=(-Doptimize=ReleaseFast -Dcpu=baseline)
 
 remove_tree() {
     local path="$1"
@@ -131,6 +132,13 @@ copy_ghostty_terminfo_entries() {
     fi
 }
 
+configure_ghostty_build_args() {
+    if ! command -v pkg-config >/dev/null 2>&1 || ! pkg-config --exists gtk4-layer-shell-0; then
+        echo "gtk4-layer-shell not available via pkg-config; building Ghostty with bundled gtk4-layer-shell."
+        GHOSTTY_ZIG_ARGS+=(-fno-sys=gtk4-layer-shell)
+    fi
+}
+
 build_ghostty_resources() {
     echo "Staging Ghostty resources..."
     remove_tree "$GHOSTTY_INSTALL_ROOT"
@@ -141,8 +149,7 @@ build_ghostty_resources() {
         DESTDIR="$GHOSTTY_INSTALL_ROOT" \
             zig build \
             --prefix /usr \
-            -Doptimize=ReleaseFast \
-            -Dcpu=baseline \
+            "${GHOSTTY_ZIG_ARGS[@]}" \
             -Demit-docs=false
     )
 }
@@ -167,8 +174,9 @@ fi
 # Always build libghostty with ReleaseFast to guarantee optimized output.
 # Pinning cpu=baseline keeps the shipped library portable across x86_64 CPUs
 # that do not expose the builder's ISA extensions, such as AVX-512.
+configure_ghostty_build_args
 echo "Building libghostty (ReleaseFast, cpu=baseline)..."
-(cd "${ROOT_DIR}/ghostty" && zig build -Dapp-runtime=none -Doptimize=ReleaseFast -Dcpu=baseline)
+(cd "${ROOT_DIR}/ghostty" && zig build -Dapp-runtime=none "${GHOSTTY_ZIG_ARGS[@]}")
 build_ghostty_resources
 
 if [ ! -f "$GHOSTTY_SO" ]; then
