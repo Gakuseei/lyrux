@@ -52,6 +52,7 @@ jobs:
                 gcc-c++ \
                 gettext-tools \
                 gdk-pixbuf-devel \
+                git \
                 glib2-devel \
                 gobject-introspection-devel \
                 gzip \
