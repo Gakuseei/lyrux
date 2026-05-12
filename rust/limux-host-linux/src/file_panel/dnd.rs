@@ -90,3 +90,20 @@ pub fn install_drop_target(
     });
     widget.add_controller(target);
 }
+
+#[allow(dead_code)]
+pub fn install_edge_autoscroll(scrolled: &gtk::ScrolledWindow) {
+    let motion = gtk::EventControllerMotion::new();
+    let scrolled_ref = scrolled.clone();
+    motion.connect_motion(move |_, _, y| {
+        let h = scrolled_ref.allocated_height() as f64;
+        let edge = 32.0;
+        let adj = scrolled_ref.vadjustment();
+        if y < edge {
+            adj.set_value(adj.value() - 12.0);
+        } else if y > h - edge {
+            adj.set_value(adj.value() + 12.0);
+        }
+    });
+    scrolled.add_controller(motion);
+}
