@@ -171,6 +171,31 @@ pub fn paste(
     Ok(produced)
 }
 
+#[allow(dead_code)]
+pub fn reveal_in_fm(path: &Path) -> Result<(), OpError> {
+    let target = if path.is_dir() {
+        path.to_path_buf()
+    } else {
+        path.parent().unwrap_or(path).to_path_buf()
+    };
+    std::process::Command::new("xdg-open")
+        .arg(&target)
+        .spawn()?;
+    Ok(())
+}
+
+#[allow(dead_code)]
+pub fn cd_command_for(path: &Path) -> String {
+    let dir = if path.is_dir() {
+        path
+    } else {
+        path.parent().unwrap_or(path)
+    };
+    let quoted = shell_quote::Bash::quote_vec(dir);
+    let s = String::from_utf8_lossy(&quoted).into_owned();
+    format!("cd {s}\n")
+}
+
 fn unique_target(dst_dir: &Path, src: &Path) -> PathBuf {
     let initial = dst_dir.join(src.file_name().unwrap_or_default());
     if !initial.exists() {
@@ -352,6 +377,19 @@ mod tests {
         .unwrap();
         assert!(!src.exists());
         assert!(root.join("dst").join("a.txt").exists());
+    }
+
+    #[test]
+    fn cd_command_for_dir_uses_dir() {
+        let s = cd_command_for(Path::new("/tmp"));
+        assert!(s.starts_with("cd "));
+        assert!(s.ends_with('\n'));
+    }
+
+    #[test]
+    fn cd_command_for_file_uses_parent() {
+        let s = cd_command_for(Path::new("/tmp/inside/file.txt"));
+        assert!(s.contains("/tmp/inside"));
     }
 
     #[test]
