@@ -107,6 +107,42 @@ impl TreeModel {
         }
     }
 
+    pub fn find_row(&self, path: &Path) -> Option<usize> {
+        self.rows.iter().position(|r| r.path == path)
+    }
+
+    pub fn refresh_subtree(&mut self, parent_path: &Path) {
+        if parent_path == self.root {
+            let was_expanded: HashSet<PathBuf> = self.expanded_paths.clone();
+            let saved = std::mem::take(&mut self.expanded_paths);
+            self.rebuild_visible();
+            self.expanded_paths = saved;
+            for path in was_expanded {
+                if let Some(idx) = self.find_row(&path) {
+                    if !self.rows[idx].expanded {
+                        self.toggle_expand(idx);
+                    }
+                }
+            }
+            return;
+        }
+        let parent_idx = match self.find_row(parent_path) {
+            Some(idx) => idx,
+            None => return,
+        };
+        if !self.rows[parent_idx].expanded {
+            return;
+        }
+        let depth = self.rows[parent_idx].depth;
+        self.rows[parent_idx].expanded = false;
+        let mut end = parent_idx + 1;
+        while end < self.rows.len() && self.rows[end].depth > depth {
+            end += 1;
+        }
+        self.rows.drain(parent_idx + 1..end);
+        self.expand_at(parent_idx);
+    }
+
     fn expand_at(&mut self, idx: usize) {
         let path = self.rows[idx].path.clone();
         let depth = self.rows[idx].depth + 1;
@@ -186,6 +222,25 @@ impl TreeModel {
             })
             .collect()
     }
+}
+
+#[allow(dead_code)]
+pub fn is_within_root(path: &Path, root: &Path) -> bool {
+    let canon = match path.canonicalize() {
+        Ok(p) => p,
+        Err(_) => {
+            let parent = match path.parent() {
+                Some(p) => p,
+                None => return false,
+            };
+            let canon_parent = match parent.canonicalize() {
+                Ok(p) => p,
+                Err(_) => return false,
+            };
+            canon_parent.join(path.file_name().unwrap_or_default())
+        }
+    };
+    canon.starts_with(root)
 }
 
 #[allow(dead_code)]
@@ -404,5 +459,57 @@ mod tests {
         m.rebuild_visible();
         let src_row = m.rows.iter().find(|r| r.path == src).unwrap();
         assert_eq!(src_row.git_status, GitStatus::Modified);
+    }
+
+    #[test]
+    fn find_row_returns_index_for_existing_path() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        touch(root, "main.rs");
+        let mut m = TreeModel::new(root.to_path_buf());
+        m.rebuild_visible();
+        let idx = m.find_row(&root.join("main.rs"));
+        assert_eq!(idx, Some(0));
+    }
+
+    #[test]
+    fn find_row_returns_none_for_missing_path() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        let mut m = TreeModel::new(root.to_path_buf());
+        m.rebuild_visible();
+        assert_eq!(m.find_row(&root.join("nope.rs")), None);
+    }
+
+    #[test]
+    fn refresh_subtree_picks_up_new_file_in_expanded_dir() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        mkdir(root, "src");
+        let src = root.join("src");
+        let mut m = TreeModel::new(root.to_path_buf());
+        m.rebuild_visible();
+        let src_idx = m.find_row(&src).unwrap();
+        m.toggle_expand(src_idx);
+        assert_eq!(m.rows.len(), 1);
+        touch(&src, "new.rs");
+        m.refresh_subtree(&src);
+        assert_eq!(m.rows.len(), 2);
+    }
+
+    #[test]
+    fn boundary_check_blocks_escape_via_parent_dir() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let bad = root.join("..").join("escape.txt");
+        assert!(!is_within_root(&bad, &root));
+    }
+
+    #[test]
+    fn boundary_check_allows_paths_inside_root() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let good = root.join("inside.txt");
+        assert!(is_within_root(&good, &root));
     }
 }
