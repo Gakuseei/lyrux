@@ -1,5 +1,8 @@
 use std::path::PathBuf;
 
+// Phase-2 helpers for persisting expanded-paths to config. Wired up when
+// session restore lands.
+
 #[allow(dead_code)]
 pub fn paths_to_strings(paths: &[PathBuf]) -> Vec<String> {
     paths

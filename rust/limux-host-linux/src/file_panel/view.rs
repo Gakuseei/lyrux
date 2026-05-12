@@ -7,7 +7,6 @@ use gtk4::prelude::*;
 use crate::file_panel::model::{GitStatus, Kind, TreeModel};
 use crate::file_panel::row_object::RowObject;
 
-#[allow(dead_code)]
 pub struct HeaderHandle {
     pub root: gtk::Box,
     pub title: gtk::Label,
@@ -17,7 +16,6 @@ pub struct HeaderHandle {
     pub toggle_hidden: gtk::Button,
 }
 
-#[allow(dead_code)]
 pub fn build_header() -> HeaderHandle {
     let root = gtk::Box::new(gtk::Orientation::Horizontal, 6);
     root.set_margin_start(10);
@@ -52,7 +50,6 @@ pub fn build_header() -> HeaderHandle {
     }
 }
 
-#[allow(dead_code)]
 fn make_icon_button(icon: &str, tooltip: &str) -> gtk::Button {
     let btn = gtk::Button::from_icon_name(icon);
     btn.set_tooltip_text(Some(tooltip));
@@ -61,7 +58,6 @@ fn make_icon_button(icon: &str, tooltip: &str) -> gtk::Button {
     btn
 }
 
-#[allow(dead_code)]
 pub struct ViewState {
     pub store: gtk4::gio::ListStore,
     pub selection: gtk::MultiSelection,
@@ -73,7 +69,6 @@ pub fn placeholder_state() -> Rc<RefCell<Option<ViewState>>> {
     Rc::new(RefCell::new(None))
 }
 
-#[allow(dead_code)]
 pub fn build_list_view() -> ViewState {
     let store = gtk4::gio::ListStore::new::<RowObject>();
     let selection = gtk::MultiSelection::new(Some(store.clone()));
@@ -124,7 +119,6 @@ pub fn build_list_view() -> ViewState {
     }
 }
 
-#[allow(dead_code)]
 fn bind_row(row_box: &gtk::Box, row_obj: &RowObject) {
     let mut children: Vec<gtk::Widget> = Vec::new();
     let mut child = row_box.first_child();
@@ -182,7 +176,6 @@ fn bind_row(row_box: &gtk::Box, row_obj: &RowObject) {
     }
 }
 
-#[allow(dead_code)]
 fn git_marker_for(s: GitStatus) -> (&'static str, Option<&'static str>) {
     match s {
         GitStatus::Modified => ("M", Some("limux-fp-git-m")),
@@ -194,7 +187,6 @@ fn git_marker_for(s: GitStatus) -> (&'static str, Option<&'static str>) {
     }
 }
 
-#[allow(dead_code)]
 pub fn apply_model_to_store(model: &TreeModel, store: &gtk4::gio::ListStore) {
     store.remove_all();
     for row in &model.rows {
@@ -203,7 +195,6 @@ pub fn apply_model_to_store(model: &TreeModel, store: &gtk4::gio::ListStore) {
     }
 }
 
-#[allow(dead_code)]
 pub fn file_panel_css() -> &'static str {
     r#"
 .limux-fp-header { background: transparent; color: #5a5a5a; }
@@ -225,7 +216,6 @@ pub fn file_panel_css() -> &'static str {
 "#
 }
 
-#[allow(dead_code)]
 pub fn build_sticky_overlay(
     list_view: &gtk::ListView,
     scrolled: &gtk::ScrolledWindow,
@@ -256,7 +246,6 @@ pub fn build_sticky_overlay(
     overlay
 }
 
-#[allow(dead_code)]
 fn update_sticky(
     _list_view: &gtk::ListView,
     store: &gtk4::gio::ListStore,
@@ -288,7 +277,6 @@ fn update_sticky(
     }
 }
 
-#[allow(dead_code)]
 fn approximate_top_visible_index(scroll_y: f64) -> u32 {
     let row_h = 22.0;
     (scroll_y / row_h).floor() as u32

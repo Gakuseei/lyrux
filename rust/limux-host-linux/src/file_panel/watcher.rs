@@ -5,12 +5,10 @@ use std::time::Duration;
 use notify::{RecursiveMode, Watcher};
 use notify_debouncer_mini::{new_debouncer, DebouncedEvent};
 
-#[allow(dead_code)]
 pub struct WatcherHandle {
     _inner: Box<dyn std::any::Any + Send>,
 }
 
-#[allow(dead_code)]
 pub fn spawn(root: PathBuf, sink: mpsc::Sender<Vec<PathBuf>>) -> Option<WatcherHandle> {
     if needs_polling(&root) {
         spawn_poll(root, sink)
@@ -75,7 +73,6 @@ fn spawn_poll(root: PathBuf, sink: mpsc::Sender<Vec<PathBuf>>) -> Option<Watcher
     })
 }
 
-#[allow(dead_code)]
 pub fn needs_polling(root: &Path) -> bool {
     use nix::sys::statfs::statfs;
     match statfs(root) {

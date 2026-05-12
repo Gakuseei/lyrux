@@ -43,7 +43,6 @@ glib::wrapper! {
 }
 
 impl RowObject {
-    #[allow(dead_code)]
     pub fn from_row(row: &Row) -> Self {
         let obj: Self = glib::Object::new();
         obj.set_path_str(row.path.to_string_lossy().to_string());
@@ -60,12 +59,10 @@ impl RowObject {
         obj
     }
 
-    #[allow(dead_code)]
     pub fn path(&self) -> PathBuf {
         PathBuf::from(self.path_str())
     }
 
-    #[allow(dead_code)]
     pub fn kind(&self) -> Kind {
         match self.kind_id() {
             0 => Kind::Dir,
@@ -74,13 +71,11 @@ impl RowObject {
         }
     }
 
-    #[allow(dead_code)]
     pub fn git_status(&self) -> GitStatus {
         id_to_git(self.git_id())
     }
 }
 
-#[allow(dead_code)]
 fn kind_to_id(k: Kind) -> i32 {
     match k {
         Kind::Dir => 0,
@@ -89,7 +84,6 @@ fn kind_to_id(k: Kind) -> i32 {
     }
 }
 
-#[allow(dead_code)]
 fn git_to_id(g: GitStatus) -> i32 {
     match g {
         GitStatus::Clean => 0,
@@ -102,7 +96,6 @@ fn git_to_id(g: GitStatus) -> i32 {
     }
 }
 
-#[allow(dead_code)]
 fn id_to_git(id: i32) -> GitStatus {
     match id {
         1 => GitStatus::Modified,

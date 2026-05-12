@@ -8,7 +8,6 @@ pub enum Kind {
     Symlink,
 }
 
-#[allow(dead_code)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum GitStatus {
     #[default]
@@ -35,7 +34,6 @@ impl GitStatus {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Row {
     pub path: PathBuf,
@@ -46,7 +44,6 @@ pub struct Row {
     pub parent_idx: Option<usize>,
 }
 
-#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub struct TreeModel {
     pub root: PathBuf,
@@ -56,7 +53,6 @@ pub struct TreeModel {
     pub git_status_map: HashMap<PathBuf, GitStatus>,
 }
 
-#[allow(dead_code)]
 impl TreeModel {
     pub fn new(root: PathBuf) -> Self {
         Self {
@@ -242,7 +238,6 @@ pub fn is_within_root(path: &Path, root: &Path) -> bool {
     canon.starts_with(root)
 }
 
-#[allow(dead_code)]
 fn classify(path: &Path) -> Kind {
     let md = match std::fs::symlink_metadata(path) {
         Ok(m) => m,

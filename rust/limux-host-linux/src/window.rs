@@ -935,6 +935,7 @@ pub fn build_window(app: &adw::Application) {
 
     let file_panel_handle = crate::file_panel::FilePanelHandle::new();
     file_panel_handle.set_visible(file_panel_visible_initial);
+    file_panel_handle.wire_interactions(window.upcast_ref::<gtk::ApplicationWindow>());
     let file_panel_widget = file_panel_handle.widget();
 
     let inner_paned = gtk::Paned::builder()

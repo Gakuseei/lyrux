@@ -2,18 +2,17 @@ use gtk4 as gtk;
 use gtk4::gio;
 use gtk4::prelude::*;
 
-#[allow(dead_code)]
 pub struct ActionSet {
+    // Exposed for test/diagnostic consumers; not read by the wiring path itself.
+    #[allow(dead_code)]
     pub names: Vec<&'static str>,
 }
 
-#[allow(dead_code)]
 pub fn register_all<F>(window: &gtk::ApplicationWindow, dispatch: F) -> ActionSet
 where
     F: Fn(&str) + 'static + Clone,
 {
     let names = vec![
-        "toggle-file-panel",
         "fp-new-file",
         "fp-new-folder",
         "fp-rename",
@@ -42,7 +41,6 @@ where
     ActionSet { names }
 }
 
-#[allow(dead_code)]
 pub fn build_context_menu() -> gio::Menu {
     let menu = gio::Menu::new();
     menu.append(Some("New File"), Some("win.fp-new-file"));

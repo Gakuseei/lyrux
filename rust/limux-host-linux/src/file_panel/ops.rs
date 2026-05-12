@@ -3,6 +3,8 @@ use std::path::{Path, PathBuf};
 use crate::file_panel::clipboard::ClipMode;
 use crate::file_panel::model::is_within_root;
 
+// Error payloads are surfaced via `Debug`; the wrapped values aren't read
+// structurally yet. Allow until UI-level error reporting consumes them.
 #[allow(dead_code)]
 #[derive(Debug)]
 pub enum OpError {
@@ -24,7 +26,6 @@ impl From<trash::Error> for OpError {
     }
 }
 
-#[allow(dead_code)]
 pub fn new_file(root: &Path, parent: &Path, name: &str) -> Result<PathBuf, OpError> {
     let target = parent.join(name);
     if !is_within_root(&target, root) {
@@ -37,7 +38,6 @@ pub fn new_file(root: &Path, parent: &Path, name: &str) -> Result<PathBuf, OpErr
     Ok(target)
 }
 
-#[allow(dead_code)]
 pub fn new_folder(root: &Path, parent: &Path, name: &str) -> Result<PathBuf, OpError> {
     let target = parent.join(name);
     if !is_within_root(&target, root) {
@@ -50,7 +50,6 @@ pub fn new_folder(root: &Path, parent: &Path, name: &str) -> Result<PathBuf, OpE
     Ok(target)
 }
 
-#[allow(dead_code)]
 pub fn rename(root: &Path, old: &Path, new_name: &str) -> Result<PathBuf, OpError> {
     let parent = old.parent().ok_or(OpError::OutOfRoot)?;
     let target = parent.join(new_name);
@@ -64,7 +63,6 @@ pub fn rename(root: &Path, old: &Path, new_name: &str) -> Result<PathBuf, OpErro
     Ok(target)
 }
 
-#[allow(dead_code)]
 pub fn delete(root: &Path, paths: &[PathBuf]) -> Result<(), OpError> {
     for p in paths {
         if !is_within_root(p, root) {
@@ -77,7 +75,6 @@ pub fn delete(root: &Path, paths: &[PathBuf]) -> Result<(), OpError> {
     Ok(())
 }
 
-#[allow(dead_code)]
 pub fn delete_permanent(root: &Path, paths: &[PathBuf]) -> Result<(), OpError> {
     for p in paths {
         if !is_within_root(p, root) {
@@ -94,7 +91,6 @@ pub fn delete_permanent(root: &Path, paths: &[PathBuf]) -> Result<(), OpError> {
     Ok(())
 }
 
-#[allow(dead_code)]
 pub fn duplicate(root: &Path, src: &Path) -> Result<PathBuf, OpError> {
     if !is_within_root(src, root) {
         return Err(OpError::OutOfRoot);
@@ -142,7 +138,6 @@ fn copy_recursive(src: &Path, dst: &Path) -> Result<(), OpError> {
     Ok(())
 }
 
-#[allow(dead_code)]
 pub fn paste(
     root: &Path,
     sources: &[PathBuf],
@@ -171,7 +166,6 @@ pub fn paste(
     Ok(produced)
 }
 
-#[allow(dead_code)]
 pub fn reveal_in_fm(path: &Path) -> Result<(), OpError> {
     let target = if path.is_dir() {
         path.to_path_buf()
@@ -184,6 +178,8 @@ pub fn reveal_in_fm(path: &Path) -> Result<(), OpError> {
     Ok(())
 }
 
+// Used by "Open in Terminal" once the action wires through to the active
+// ghostty pane (Phase 2). Already covered by tests.
 #[allow(dead_code)]
 pub fn cd_command_for(path: &Path) -> String {
     let dir = if path.is_dir() {

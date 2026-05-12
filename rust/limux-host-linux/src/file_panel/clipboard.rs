@@ -1,34 +1,34 @@
 use std::path::PathBuf;
 
-#[allow(dead_code)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ClipMode {
     Copy,
     Cut,
 }
 
-#[allow(dead_code)]
 #[derive(Default, Debug)]
 pub struct Clipboard {
     paths: Vec<PathBuf>,
     mode: Option<ClipMode>,
 }
 
-#[allow(dead_code)]
 impl Clipboard {
     pub fn set(&mut self, paths: Vec<PathBuf>, mode: ClipMode) {
         self.paths = paths;
         self.mode = Some(mode);
     }
 
+    #[allow(dead_code)]
     pub fn paths(&self) -> &[PathBuf] {
         &self.paths
     }
 
+    #[allow(dead_code)]
     pub fn mode(&self) -> Option<ClipMode> {
         self.mode
     }
 
+    #[allow(dead_code)]
     pub fn is_empty(&self) -> bool {
         self.paths.is_empty()
     }
@@ -43,6 +43,7 @@ impl Clipboard {
         (paths, mode)
     }
 
+    #[allow(dead_code)]
     pub fn clear(&mut self) {
         self.paths.clear();
         self.mode = None;

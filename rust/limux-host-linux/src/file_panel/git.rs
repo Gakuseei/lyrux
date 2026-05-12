@@ -4,8 +4,10 @@ use std::process::Command;
 
 use crate::file_panel::model::GitStatus;
 
-#[derive(Debug)]
+// Error fields/variants are kept for diagnostics; consumers currently only
+// `match` for the `Ok` arm. Allow until detailed error handling lands.
 #[allow(dead_code)]
+#[derive(Debug)]
 pub enum GitError {
     Timeout,
     Spawn(std::io::Error),
@@ -21,7 +23,6 @@ pub fn is_git_repo(root: &Path) -> bool {
     matches!(out, Ok(o) if o.status.success() && o.stdout.starts_with(b"true"))
 }
 
-#[allow(dead_code)]
 pub fn run_status(root: &Path) -> Result<HashMap<PathBuf, GitStatus>, GitError> {
     let out = Command::new("git")
         .args(["status", "--porcelain=v2", "-z", "--untracked-files=all"])
@@ -34,7 +35,6 @@ pub fn run_status(root: &Path) -> Result<HashMap<PathBuf, GitStatus>, GitError> 
     Ok(parse_porcelain_v2(root, &out.stdout))
 }
 
-#[allow(dead_code)]
 pub fn parse_porcelain_v2(root: &Path, output: &[u8]) -> HashMap<PathBuf, GitStatus> {
     let mut out = HashMap::new();
     for entry in output.split(|b| *b == 0) {
@@ -69,7 +69,6 @@ pub fn parse_porcelain_v2(root: &Path, output: &[u8]) -> HashMap<PathBuf, GitSta
     out
 }
 
-#[allow(dead_code)]
 fn status_from_xy(xy: &[u8]) -> GitStatus {
     if xy.len() != 2 {
         return GitStatus::Modified;
