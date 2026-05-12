@@ -55,6 +55,14 @@ pub struct Inner {
     // Bug 5: snapshot of expanded_paths captured on collapse-all so the next
     // press can restore the previously-open folders.
     pub last_expanded_snapshot: HashMap<WorkspaceId, HashSet<PathBuf>>,
+    // Layout-change subscriber (window.rs). Invoked with the new desired
+    // width whenever the visible tree changes (workspace switch, expand /
+    // collapse toggle, hidden-files toggle, git/watcher refresh). The
+    // callback receives only an `i32` so it is safe to invoke while any
+    // borrow on `Inner` is held, provided the callback never re-borrows
+    // `Inner` itself — the window-level callback only touches the
+    // GTK paned and window handles.
+    pub on_layout_changed: Option<Box<dyn Fn(i32)>>,
 }
 
 #[derive(Clone)]
@@ -89,6 +97,7 @@ impl FilePanelHandle {
                 active: None,
                 visible: false,
                 last_expanded_snapshot: HashMap::new(),
+                on_layout_changed: None,
             })),
             untitled_counter: Rc::new(AtomicU32::new(0)),
         }
@@ -181,6 +190,7 @@ impl FilePanelHandle {
         self.inner.borrow_mut().active = Some(workspace_id.clone());
 
         self.refresh_git_for(workspace_id);
+        self.notify_layout_changed();
     }
 
     pub fn toggle_visible(&self) {
@@ -203,6 +213,37 @@ impl FilePanelHandle {
     #[allow(dead_code)]
     pub fn is_visible(&self) -> bool {
         self.inner.borrow().visible
+    }
+
+    /// Width (px) needed so the longest visible filename in the active
+    /// workspace fits without truncation. Falls back to 200 when no
+    /// workspace is active or the cache entry is missing.
+    pub fn desired_width(&self) -> i32 {
+        let inner = self.inner.borrow();
+        let active = match inner.active.as_ref() {
+            Some(a) => a,
+            None => return 200,
+        };
+        let per = match inner.cache.get(active) {
+            Some(p) => p,
+            None => return 200,
+        };
+        compute_desired_width(&per.model)
+    }
+
+    /// Register a callback fired whenever the visible tree changes and
+    /// the desired panel width may have shifted. The callback is invoked
+    /// on the main thread with the new width (already clamped).
+    pub fn set_on_layout_changed<F: Fn(i32) + 'static>(&self, cb: F) {
+        self.inner.borrow_mut().on_layout_changed = Some(Box::new(cb));
+    }
+
+    fn notify_layout_changed(&self) {
+        let width = self.desired_width();
+        let inner = self.inner.borrow();
+        if let Some(cb) = inner.on_layout_changed.as_ref() {
+            cb(width);
+        }
     }
 
     fn on_watcher_event(&self, workspace_id: &str, paths: Vec<PathBuf>) {
@@ -259,25 +300,28 @@ impl FilePanelHandle {
             Ok(m) => m,
             Err(_) => return,
         };
-        let mut inner = self.inner.borrow_mut();
-        let active = inner.active.as_deref() == Some(workspace_id.as_str());
-        let store = inner.view.store.clone();
-        if let Some(per) = inner.cache.get_mut(&workspace_id) {
-            per.model.set_git_status_map(map);
-            per.model.rebuild_visible();
-            if active {
-                let rows: Vec<crate::file_panel::row_object::RowObject> = per
-                    .model
-                    .rows
-                    .iter()
-                    .map(crate::file_panel::row_object::RowObject::from_row)
-                    .collect();
-                store.remove_all();
-                for r in &rows {
-                    store.append(r);
+        {
+            let mut inner = self.inner.borrow_mut();
+            let active = inner.active.as_deref() == Some(workspace_id.as_str());
+            let store = inner.view.store.clone();
+            if let Some(per) = inner.cache.get_mut(&workspace_id) {
+                per.model.set_git_status_map(map);
+                per.model.rebuild_visible();
+                if active {
+                    let rows: Vec<crate::file_panel::row_object::RowObject> = per
+                        .model
+                        .rows
+                        .iter()
+                        .map(crate::file_panel::row_object::RowObject::from_row)
+                        .collect();
+                    store.remove_all();
+                    for r in &rows {
+                        store.append(r);
+                    }
                 }
             }
         }
+        self.notify_layout_changed();
     }
 }
 
@@ -306,18 +350,21 @@ impl FilePanelHandle {
     }
 
     fn toggle_expand_path(&self, path: &Path) {
-        let mut inner = self.inner.borrow_mut();
-        let active = match inner.active.clone() {
-            Some(a) => a,
-            None => return,
-        };
-        let store = inner.view.store.clone();
-        if let Some(per) = inner.cache.get_mut(&active) {
-            if let Some(idx) = per.model.find_row(path) {
-                per.model.toggle_expand(idx);
-                apply_model_to_store(&per.model, &store);
+        {
+            let mut inner = self.inner.borrow_mut();
+            let active = match inner.active.clone() {
+                Some(a) => a,
+                None => return,
+            };
+            let store = inner.view.store.clone();
+            if let Some(per) = inner.cache.get_mut(&active) {
+                if let Some(idx) = per.model.find_row(path) {
+                    per.model.toggle_expand(idx);
+                    apply_model_to_store(&per.model, &store);
+                }
             }
         }
+        self.notify_layout_changed();
     }
 
     fn wire_context_menu(&self) {
@@ -588,21 +635,25 @@ impl FilePanelHandle {
         eprintln!(
             "limux: fp-collapse-all active={active} restore={is_restore} expanded_before={count_before} after={count_after}"
         );
+        self.notify_layout_changed();
     }
 
     fn do_toggle_hidden(&self) {
-        let mut inner = self.inner.borrow_mut();
-        let active = match inner.active.clone() {
-            Some(a) => a,
-            None => return,
-        };
-        let store = inner.view.store.clone();
-        if let Some(per) = inner.cache.get_mut(&active) {
-            let new = !per.model.hidden_visible;
-            per.model.set_hidden_visible(new);
-            per.model.rebuild_visible();
-            apply_model_to_store(&per.model, &store);
+        {
+            let mut inner = self.inner.borrow_mut();
+            let active = match inner.active.clone() {
+                Some(a) => a,
+                None => return,
+            };
+            let store = inner.view.store.clone();
+            if let Some(per) = inner.cache.get_mut(&active) {
+                let new = !per.model.hidden_visible;
+                per.model.set_hidden_visible(new);
+                per.model.rebuild_visible();
+                apply_model_to_store(&per.model, &store);
+            }
         }
+        self.notify_layout_changed();
     }
 
     fn do_refresh(&self) {
@@ -617,4 +668,30 @@ impl Default for FilePanelHandle {
     fn default() -> Self {
         Self::new()
     }
+}
+
+fn compute_desired_width(model: &crate::file_panel::model::TreeModel) -> i32 {
+    const INDENT_PX: i32 = 16;
+    const CHEVRON_PX: i32 = 18;
+    const ICON_PX: i32 = 22;
+    const GIT_MARKER_PX: i32 = 22;
+    const PADDING_PX: i32 = 28;
+    const CHAR_PX: i32 = 8;
+    const MIN_WIDTH: i32 = 200;
+    const MAX_WIDTH: i32 = 600;
+    let mut max_text = 0;
+    for row in &model.rows {
+        let name_chars = row
+            .path
+            .file_name()
+            .map(|s| s.to_string_lossy().chars().count() as i32)
+            .unwrap_or(0);
+        let depth = row.depth as i32;
+        let row_text_w = depth * INDENT_PX + name_chars * CHAR_PX;
+        if row_text_w > max_text {
+            max_text = row_text_w;
+        }
+    }
+    let total = max_text + CHEVRON_PX + ICON_PX + GIT_MARKER_PX + PADDING_PX;
+    total.clamp(MIN_WIDTH, MAX_WIDTH)
 }

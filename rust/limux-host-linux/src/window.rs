@@ -986,19 +986,47 @@ pub fn build_window(app: &adw::Application) {
 
     {
         let inner_paned_for_map = inner_paned.clone();
-        let target_width_map = file_panel_width_initial;
+        let handle_for_map = file_panel_handle.clone();
+        let fallback_map = file_panel_width_initial;
         window.connect_map(move |w| {
             let total = w.width();
-            if total > target_width_map {
-                inner_paned_for_map.set_position(total - target_width_map);
+            let mut target = handle_for_map.desired_width();
+            if target <= 0 {
+                target = fallback_map;
+            }
+            if total > target {
+                inner_paned_for_map.set_position(total - target);
             }
         });
         let inner_paned_for_notify = inner_paned.clone();
-        let target_width_notify = file_panel_width_initial;
+        let handle_for_notify = file_panel_handle.clone();
+        let fallback_notify = file_panel_width_initial;
         window.connect_default_width_notify(move |w| {
             let total = w.width();
-            if total > target_width_notify {
-                inner_paned_for_notify.set_position(total - target_width_notify);
+            let mut target = handle_for_notify.desired_width();
+            if target <= 0 {
+                target = fallback_notify;
+            }
+            if total > target {
+                inner_paned_for_notify.set_position(total - target);
+            }
+        });
+    }
+
+    // React to file-panel layout changes (workspace switch, expand /
+    // collapse, hidden toggle, watcher / git refresh) by re-positioning
+    // the inner paned so the dynamic width is applied without waiting
+    // for the next resize or toggle.
+    {
+        let inner_paned_for_layout = inner_paned.clone();
+        let window_for_layout = window.clone();
+        file_panel_handle.set_on_layout_changed(move |target_width| {
+            if !window_for_layout.is_mapped() {
+                return;
+            }
+            let total = window_for_layout.width();
+            if total > target_width {
+                inner_paned_for_layout.set_position(total - target_width);
             }
         });
     }
@@ -1013,9 +1041,9 @@ pub fn build_window(app: &adw::Application) {
     sidebar_peek_btn.add_css_class("limux-sidebar-peek");
     sidebar_peek_btn.set_tooltip_text(Some("Show sidebar"));
     sidebar_peek_btn.set_halign(gtk::Align::Start);
-    sidebar_peek_btn.set_valign(gtk::Align::Start);
-    sidebar_peek_btn.set_margin_top(6);
-    sidebar_peek_btn.set_margin_start(6);
+    sidebar_peek_btn.set_valign(gtk::Align::End);
+    sidebar_peek_btn.set_margin_bottom(8);
+    sidebar_peek_btn.set_margin_start(8);
     sidebar_peek_btn.set_action_name(Some("win.toggle-sidebar"));
     sidebar_peek_btn.set_visible(false);
     main_overlay.add_overlay(&sidebar_peek_btn);
@@ -1477,9 +1505,9 @@ fn dispatch_shortcut_command(state: &State, command: ShortcutCommand) -> bool {
             s.file_panel.toggle_visible();
             if s.file_panel.is_visible() {
                 let total = s.window.width();
-                let target_width = s.config.borrow().file_panel_width as i32;
-                if total > target_width {
-                    s.inner_paned.set_position(total - target_width);
+                let target = s.file_panel.desired_width();
+                if total > target {
+                    s.inner_paned.set_position(total - target);
                 }
             }
             true
