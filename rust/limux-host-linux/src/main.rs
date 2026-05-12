@@ -9,7 +9,6 @@ mod settings_editor;
 mod shortcut_config;
 mod split_tree;
 mod terminal;
-mod update_checker;
 mod window;
 
 use adw::prelude::*;
@@ -123,31 +122,7 @@ fn set_ghostty_runtime_env() {
     set_ghostty_runtime_env_for_exe(&exe_path);
 }
 
-fn apply_update_manifest_arg() -> Option<PathBuf> {
-    let mut args = std::env::args_os();
-    let _ = args.next();
-
-    while let Some(arg) = args.next() {
-        if arg == "--apply-update" {
-            return args.next().map(PathBuf::from);
-        }
-    }
-
-    None
-}
-
 fn main() {
-    if let Some(manifest_path) = apply_update_manifest_arg() {
-        if let Err(err) = update_checker::apply_prepared_update_from_manifest(&manifest_path) {
-            eprintln!(
-                "limux: failed to apply update from {:?}: {err}",
-                manifest_path
-            );
-            std::process::exit(1);
-        }
-        return;
-    }
-
     // Handle --version flag
     if std::env::args().any(|a| a == "--version" || a == "-v") {
         println!("Limux {VERSION}");

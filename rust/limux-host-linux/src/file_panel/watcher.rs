@@ -18,19 +18,19 @@ pub fn spawn(root: PathBuf, sink: mpsc::Sender<Vec<PathBuf>>) -> Option<WatcherH
 }
 
 fn spawn_inotify(root: PathBuf, sink: mpsc::Sender<Vec<PathBuf>>) -> Option<WatcherHandle> {
-    let (tx, rx) = mpsc::channel::<Result<Vec<DebouncedEvent>, notify::Error>>();
-    let mut debouncer = match new_debouncer(Duration::from_millis(100), tx) {
-        Ok(d) => d,
-        Err(e) => {
-            eprintln!("limux: file_panel watcher init failed: {e}");
-            return None;
-        }
-    };
-    if let Err(e) = debouncer.watcher().watch(&root, RecursiveMode::Recursive) {
-        eprintln!("limux: file_panel watcher.watch failed: {e}");
-        return None;
-    }
     std::thread::spawn(move || {
+        let (tx, rx) = mpsc::channel::<Result<Vec<DebouncedEvent>, notify::Error>>();
+        let mut debouncer = match new_debouncer(Duration::from_millis(100), tx) {
+            Ok(d) => d,
+            Err(e) => {
+                eprintln!("limux: file_panel watcher init failed: {e}");
+                return;
+            }
+        };
+        if let Err(e) = debouncer.watcher().watch(&root, RecursiveMode::Recursive) {
+            eprintln!("limux: file_panel watcher.watch failed: {e}");
+            return;
+        }
         while let Ok(batch) = rx.recv() {
             if let Ok(events) = batch {
                 let paths: Vec<PathBuf> = events.into_iter().map(|e| e.path).collect();
@@ -41,25 +41,25 @@ fn spawn_inotify(root: PathBuf, sink: mpsc::Sender<Vec<PathBuf>>) -> Option<Watc
         }
     });
     Some(WatcherHandle {
-        _inner: Box::new(debouncer),
+        _inner: Box::new(()),
     })
 }
 
 fn spawn_poll(root: PathBuf, sink: mpsc::Sender<Vec<PathBuf>>) -> Option<WatcherHandle> {
-    let (tx, rx) = mpsc::channel::<notify::Result<notify::Event>>();
-    let config = notify::Config::default().with_poll_interval(Duration::from_secs(5));
-    let mut watcher = match notify::PollWatcher::new(tx, config) {
-        Ok(w) => w,
-        Err(e) => {
-            eprintln!("limux: file_panel poll watcher init failed: {e}");
-            return None;
-        }
-    };
-    if let Err(e) = Watcher::watch(&mut watcher, &root, RecursiveMode::Recursive) {
-        eprintln!("limux: file_panel poll watch failed: {e}");
-        return None;
-    }
     std::thread::spawn(move || {
+        let (tx, rx) = mpsc::channel::<notify::Result<notify::Event>>();
+        let config = notify::Config::default().with_poll_interval(Duration::from_secs(5));
+        let mut watcher = match notify::PollWatcher::new(tx, config) {
+            Ok(w) => w,
+            Err(e) => {
+                eprintln!("limux: file_panel poll watcher init failed: {e}");
+                return;
+            }
+        };
+        if let Err(e) = Watcher::watch(&mut watcher, &root, RecursiveMode::Recursive) {
+            eprintln!("limux: file_panel poll watch failed: {e}");
+            return;
+        }
         while let Ok(ev) = rx.recv() {
             if let Ok(ev) = ev {
                 if sink.send(ev.paths).is_err() {
@@ -69,7 +69,7 @@ fn spawn_poll(root: PathBuf, sink: mpsc::Sender<Vec<PathBuf>>) -> Option<Watcher
         }
     });
     Some(WatcherHandle {
-        _inner: Box::new(watcher),
+        _inner: Box::new(()),
     })
 }
 

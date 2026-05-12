@@ -20,7 +20,6 @@ use crate::shortcut_config::{
     self, EditableCapturePolicy, ResolvedShortcutConfig, ShortcutCommand, ShortcutId,
 };
 use crate::split_tree::{self, SplitTreeContainer};
-use crate::update_checker;
 
 // ---------------------------------------------------------------------------
 // State
@@ -3331,10 +3330,6 @@ pub(crate) fn create_pane_for_workspace(
                 }
             },
         ),
-        on_apply_update: {
-            let state = state.clone();
-            Rc::new(move |manifest_path| apply_update_and_restart(&state, manifest_path))
-        },
     });
 
     pane::create_pane(
@@ -3866,13 +3861,6 @@ fn show_runtime_error(state: &State, title: &str, detail: &str) {
 fn quit_app(state: &State) {
     save_session_now(state);
     state.borrow().app.quit();
-}
-
-fn apply_update_and_restart(state: &State, manifest_path: &std::path::Path) -> Result<(), String> {
-    update_checker::spawn_update_helper(manifest_path)?;
-    save_session_now(state);
-    state.borrow().app.quit();
-    Ok(())
 }
 
 fn spawn_new_instance(state: &State) -> bool {
