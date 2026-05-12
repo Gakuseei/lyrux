@@ -224,7 +224,6 @@ impl TreeModel {
     }
 }
 
-#[allow(dead_code)]
 pub fn is_within_root(path: &Path, root: &Path) -> bool {
     let canon = match path.canonicalize() {
         Ok(p) => p,
