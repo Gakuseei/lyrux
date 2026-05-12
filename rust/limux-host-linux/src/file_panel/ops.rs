@@ -63,6 +63,36 @@ pub fn rename(root: &Path, old: &Path, new_name: &str) -> Result<PathBuf, OpErro
     Ok(target)
 }
 
+#[allow(dead_code)]
+pub fn delete(root: &Path, paths: &[PathBuf]) -> Result<(), OpError> {
+    for p in paths {
+        if !is_within_root(p, root) {
+            return Err(OpError::OutOfRoot);
+        }
+    }
+    for p in paths {
+        trash::delete(p)?;
+    }
+    Ok(())
+}
+
+#[allow(dead_code)]
+pub fn delete_permanent(root: &Path, paths: &[PathBuf]) -> Result<(), OpError> {
+    for p in paths {
+        if !is_within_root(p, root) {
+            return Err(OpError::OutOfRoot);
+        }
+    }
+    for p in paths {
+        if p.is_dir() {
+            std::fs::remove_dir_all(p)?;
+        } else {
+            std::fs::remove_file(p)?;
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -121,5 +151,37 @@ mod tests {
         std::fs::File::create(root.join("b")).unwrap();
         let err = rename(&root, &root.join("a"), "b").unwrap_err();
         assert!(matches!(err, OpError::AlreadyExists));
+    }
+
+    #[test]
+    fn delete_permanent_removes_file() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let p = root.join("a");
+        std::fs::File::create(&p).unwrap();
+        delete_permanent(&root, std::slice::from_ref(&p)).unwrap();
+        assert!(!p.exists());
+    }
+
+    #[test]
+    fn delete_permanent_blocks_out_of_root() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let outside = root.join("..").join("escape.txt");
+        let err = delete_permanent(&root, &[outside]).unwrap_err();
+        assert!(matches!(err, OpError::OutOfRoot));
+    }
+
+    #[test]
+    fn delete_to_trash_removes_from_root() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let p = root.join("a");
+        std::fs::File::create(&p).unwrap();
+        let _ = delete(&root, std::slice::from_ref(&p));
+        assert!(
+            !p.exists() || std::fs::metadata(&p).is_err(),
+            "file moved to trash or removed"
+        );
     }
 }
