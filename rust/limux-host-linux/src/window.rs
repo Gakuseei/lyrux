@@ -68,6 +68,8 @@ pub(crate) struct AppState {
     stack: gtk::Stack,
     sidebar_list: gtk::ListBox,
     paned: gtk::Paned,
+    #[allow(dead_code)]
+    pub file_panel: crate::file_panel::FilePanelHandle,
     new_ws_btn: gtk::Button,
     sidebar_animation: Option<adw::TimedAnimation>,
     sidebar_animation_epoch: u64,
@@ -747,13 +749,14 @@ pub fn build_window(app: &adw::Application) {
 
     // Load CSS
     let provider = gtk::CssProvider::new();
-    let all_css = format!(
-        "{}\n{}\n{}\n{}",
+    let mut all_css = format!(
+        "{}\n{}\n{}\n{}\n",
         build_window_css(background_opacity),
         pane::PANE_CSS,
         keybind_editor::KEYBIND_EDITOR_CSS,
         crate::settings_editor::SETTINGS_CSS,
     );
+    crate::file_panel::FilePanelHandle::install_css(&mut all_css);
     provider.load_from_data(&all_css);
     gtk::style_context_add_provider_for_display(
         &display,
@@ -911,6 +914,26 @@ pub fn build_window(app: &adw::Application) {
     sidebar.append(&sidebar_scroll);
     sidebar.append(&new_ws_btn);
 
+    let (file_panel_visible_initial, file_panel_width_initial) = {
+        let cfg = config.borrow();
+        (cfg.file_panel_visible, cfg.file_panel_width as i32)
+    };
+
+    let file_panel_handle = crate::file_panel::FilePanelHandle::new();
+    file_panel_handle.set_visible(file_panel_visible_initial);
+    let file_panel_widget = file_panel_handle.widget();
+
+    let inner_paned = gtk::Paned::builder()
+        .orientation(gtk::Orientation::Horizontal)
+        .position(0)
+        .resize_start_child(true)
+        .resize_end_child(false)
+        .shrink_start_child(false)
+        .shrink_end_child(false)
+        .start_child(&stack)
+        .end_child(&file_panel_widget)
+        .build();
+
     let main_paned = gtk::Paned::builder()
         .orientation(gtk::Orientation::Horizontal)
         .position(220)
@@ -919,8 +942,16 @@ pub fn build_window(app: &adw::Application) {
         .shrink_start_child(false)
         .shrink_end_child(false)
         .start_child(&sidebar)
-        .end_child(&stack)
+        .end_child(&inner_paned)
         .build();
+
+    {
+        let inner_paned_clone = inner_paned.clone();
+        window.connect_realize(move |w| {
+            let total = w.default_width();
+            inner_paned_clone.set_position((total - file_panel_width_initial).max(0));
+        });
+    }
 
     let vbox = gtk::Box::new(gtk::Orientation::Vertical, 0);
     if let Some(ref header) = header {
@@ -942,6 +973,7 @@ pub fn build_window(app: &adw::Application) {
         stack: stack.clone(),
         sidebar_list: sidebar_list.clone(),
         paned: main_paned.clone(),
+        file_panel: file_panel_handle.clone(),
         new_ws_btn: new_ws_btn.clone(),
         sidebar_animation: None,
         sidebar_animation_epoch: 0,

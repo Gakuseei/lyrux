@@ -49,7 +49,6 @@ pub struct Inner {
 }
 
 #[derive(Clone)]
-#[allow(dead_code)]
 pub struct FilePanelHandle {
     inner: Rc<RefCell<Inner>>,
 }
@@ -83,12 +82,10 @@ impl FilePanelHandle {
         }
     }
 
-    #[allow(dead_code)]
     pub fn widget(&self) -> gtk::Widget {
         self.inner.borrow().root_box.clone().upcast()
     }
 
-    #[allow(dead_code)]
     pub fn install_css(provider_data: &mut String) {
         provider_data.push_str(file_panel_css());
     }
@@ -176,7 +173,6 @@ impl FilePanelHandle {
         self.inner.borrow().root_box.set_visible(visible);
     }
 
-    #[allow(dead_code)]
     pub fn set_visible(&self, v: bool) {
         {
             let mut inner = self.inner.borrow_mut();
