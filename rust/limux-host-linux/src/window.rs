@@ -69,6 +69,10 @@ pub(crate) struct AppState {
     sidebar_list: gtk::ListBox,
     paned: gtk::Paned,
     #[allow(dead_code)]
+    pub inner_paned: gtk::Paned,
+    #[allow(dead_code)]
+    pub sidebar_peek_btn: gtk::Button,
+    #[allow(dead_code)]
     pub file_panel: crate::file_panel::FilePanelHandle,
     new_ws_btn: gtk::Button,
     sidebar_animation: Option<adw::TimedAnimation>,
@@ -730,6 +734,14 @@ row:selected .limux-ws-path {
 .limux-content {
     background-color: @window_bg_color;
 }
+.limux-sidebar-peek {
+    padding: 4px;
+    background: alpha(@view_bg_color, 0.85);
+    border-radius: 6px;
+}
+.limux-sidebar-peek:hover {
+    background: alpha(@view_bg_color, 0.95);
+}
 "#;
 
 const CONTENT_BACKGROUND_RGB: (u8, u8, u8) = (23, 23, 23);
@@ -831,14 +843,6 @@ pub fn build_window(app: &adw::Application) {
     } else {
         let bar = adw::HeaderBar::new();
         bar.set_title_widget(Some(&gtk::Label::builder().label(&title).build()));
-        // Always-visible peek button so users can re-open the sidebar after
-        // collapsing it (Bug 1: collapse_sb_btn sits inside the sidebar and
-        // disappears when the sidebar animates to width 0).
-        let peek_btn = gtk::Button::from_icon_name("view-list-symbolic");
-        peek_btn.add_css_class("flat");
-        peek_btn.set_tooltip_text(Some("Toggle sidebar"));
-        peek_btn.set_action_name(Some("win.toggle-sidebar"));
-        bar.pack_start(&peek_btn);
         Some(bar)
     };
 
@@ -999,11 +1003,28 @@ pub fn build_window(app: &adw::Application) {
         });
     }
 
+    // Always-visible floating peek button so users can re-open the sidebar
+    // after collapsing it, regardless of decoration mode (X11 or Wayland-CSD).
+    let main_overlay = gtk::Overlay::new();
+    main_overlay.set_child(Some(&main_paned));
+
+    let sidebar_peek_btn = gtk::Button::from_icon_name("view-list-symbolic");
+    sidebar_peek_btn.add_css_class("flat");
+    sidebar_peek_btn.add_css_class("limux-sidebar-peek");
+    sidebar_peek_btn.set_tooltip_text(Some("Show sidebar"));
+    sidebar_peek_btn.set_halign(gtk::Align::Start);
+    sidebar_peek_btn.set_valign(gtk::Align::Start);
+    sidebar_peek_btn.set_margin_top(6);
+    sidebar_peek_btn.set_margin_start(6);
+    sidebar_peek_btn.set_action_name(Some("win.toggle-sidebar"));
+    sidebar_peek_btn.set_visible(false);
+    main_overlay.add_overlay(&sidebar_peek_btn);
+
     let vbox = gtk::Box::new(gtk::Orientation::Vertical, 0);
     if let Some(ref header) = header {
         vbox.append(header);
     }
-    vbox.append(&main_paned);
+    vbox.append(&main_overlay);
     window.set_content(Some(&vbox));
 
     let state: State = Rc::new(RefCell::new(AppState {
@@ -1019,6 +1040,8 @@ pub fn build_window(app: &adw::Application) {
         stack: stack.clone(),
         sidebar_list: sidebar_list.clone(),
         paned: main_paned.clone(),
+        inner_paned: inner_paned.clone(),
+        sidebar_peek_btn: sidebar_peek_btn.clone(),
         file_panel: file_panel_handle.clone(),
         new_ws_btn: new_ws_btn.clone(),
         sidebar_animation: None,
@@ -1450,7 +1473,15 @@ fn dispatch_shortcut_command(state: &State, command: ShortcutCommand) -> bool {
             true
         }
         ShortcutCommand::ToggleFilePanel => {
-            state.borrow().file_panel.toggle_visible();
+            let s = state.borrow();
+            s.file_panel.toggle_visible();
+            if s.file_panel.is_visible() {
+                let total = s.window.width();
+                let target_width = s.config.borrow().file_panel_width as i32;
+                if total > target_width {
+                    s.inner_paned.set_position(total - target_width);
+                }
+            }
             true
         }
         ShortcutCommand::ToggleTopBar => {
@@ -3649,6 +3680,7 @@ fn toggle_sidebar(state: &State) {
             };
             if is_current {
                 sidebar.set_visible(false);
+                state_for_done.borrow().sidebar_peek_btn.set_visible(true);
                 request_session_save(&state_for_done);
             }
         });
@@ -3657,6 +3689,7 @@ fn toggle_sidebar(state: &State) {
     } else {
         // Expand: make sidebar visible, then animate position from 0 to remembered width.
         sidebar.set_visible(true);
+        state.borrow().sidebar_peek_btn.set_visible(false);
         paned.set_position(0);
         let target = adw::CallbackAnimationTarget::new({
             let p = paned.clone();
