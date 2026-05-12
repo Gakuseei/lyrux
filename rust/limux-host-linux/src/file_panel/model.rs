@@ -1,7 +1,5 @@
-#![allow(dead_code)]
-
 use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
@@ -10,6 +8,7 @@ pub enum Kind {
     Symlink,
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum GitStatus {
     #[default]
@@ -23,6 +22,7 @@ pub enum GitStatus {
 }
 
 impl GitStatus {
+    #[allow(dead_code)]
     pub fn priority(self) -> u8 {
         match self {
             GitStatus::Conflict => 6,
@@ -36,6 +36,7 @@ impl GitStatus {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Row {
     pub path: PathBuf,
@@ -46,6 +47,7 @@ pub struct Row {
     pub parent_idx: Option<usize>,
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub struct TreeModel {
     pub root: PathBuf,
@@ -55,6 +57,7 @@ pub struct TreeModel {
     pub git_status_map: HashMap<PathBuf, GitStatus>,
 }
 
+#[allow(dead_code)]
 impl TreeModel {
     pub fn new(root: PathBuf) -> Self {
         Self {
@@ -64,6 +67,76 @@ impl TreeModel {
             hidden_visible: false,
             git_status_map: HashMap::new(),
         }
+    }
+
+    pub fn rebuild_visible(&mut self) {
+        self.rows.clear();
+        let children = self.list_children(&self.root.clone(), 0, None);
+        self.rows.extend(children);
+    }
+
+    fn list_children(&self, dir: &Path, depth: u32, parent_idx: Option<usize>) -> Vec<Row> {
+        let mut entries: Vec<(std::path::PathBuf, Kind, String)> = match std::fs::read_dir(dir) {
+            Ok(rd) => rd
+                .filter_map(|e| e.ok())
+                .filter_map(|e| {
+                    let path = e.path();
+                    let name = e.file_name().to_string_lossy().to_string();
+                    if !self.hidden_visible && name.starts_with('.') {
+                        return None;
+                    }
+                    let kind = classify(&path);
+                    Some((path, kind, name))
+                })
+                .collect(),
+            Err(err) => {
+                eprintln!("limux: read_dir {} failed: {err}", dir.display());
+                Vec::new()
+            }
+        };
+        entries.sort_by(|a, b| {
+            let a_dir = matches!(a.1, Kind::Dir);
+            let b_dir = matches!(b.1, Kind::Dir);
+            match (a_dir, b_dir) {
+                (true, false) => std::cmp::Ordering::Less,
+                (false, true) => std::cmp::Ordering::Greater,
+                _ => a.2.to_lowercase().cmp(&b.2.to_lowercase()),
+            }
+        });
+        entries
+            .into_iter()
+            .map(|(path, kind, _)| {
+                let expanded = self.expanded_paths.contains(&path);
+                let git_status = self
+                    .git_status_map
+                    .get(&path)
+                    .copied()
+                    .unwrap_or(GitStatus::Clean);
+                Row {
+                    path,
+                    depth,
+                    kind,
+                    expanded,
+                    git_status,
+                    parent_idx,
+                }
+            })
+            .collect()
+    }
+}
+
+#[allow(dead_code)]
+fn classify(path: &Path) -> Kind {
+    let md = match std::fs::symlink_metadata(path) {
+        Ok(m) => m,
+        Err(_) => return Kind::File,
+    };
+    if md.file_type().is_symlink() {
+        Kind::Symlink
+    } else if md.is_dir() {
+        Kind::Dir
+    } else {
+        Kind::File
     }
 }
 
@@ -91,5 +164,63 @@ mod tests {
     #[test]
     fn kind_default_not_required() {
         assert_eq!(Kind::Dir, Kind::Dir);
+    }
+
+    use std::fs;
+    use tempfile::TempDir;
+
+    fn touch(dir: &Path, name: &str) {
+        fs::File::create(dir.join(name)).unwrap();
+    }
+
+    fn mkdir(dir: &Path, name: &str) {
+        fs::create_dir(dir.join(name)).unwrap();
+    }
+
+    #[test]
+    fn rebuild_visible_lists_root_children_dirs_first() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        mkdir(root, "src");
+        mkdir(root, "docs");
+        touch(root, "Cargo.toml");
+        touch(root, "README.md");
+        let mut m = TreeModel::new(root.to_path_buf());
+        m.rebuild_visible();
+        let names: Vec<&str> = m
+            .rows
+            .iter()
+            .map(|r| r.path.file_name().unwrap().to_str().unwrap())
+            .collect();
+        assert_eq!(names, vec!["docs", "src", "Cargo.toml", "README.md"]);
+    }
+
+    #[test]
+    fn rebuild_visible_uses_case_insensitive_sort() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        touch(root, "Apple.md");
+        touch(root, "banana.md");
+        touch(root, "Cherry.md");
+        let mut m = TreeModel::new(root.to_path_buf());
+        m.rebuild_visible();
+        let names: Vec<&str> = m
+            .rows
+            .iter()
+            .map(|r| r.path.file_name().unwrap().to_str().unwrap())
+            .collect();
+        assert_eq!(names, vec!["Apple.md", "banana.md", "Cherry.md"]);
+    }
+
+    #[test]
+    fn rebuild_visible_marks_dirs_kind() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        mkdir(root, "src");
+        touch(root, "main.rs");
+        let mut m = TreeModel::new(root.to_path_buf());
+        m.rebuild_visible();
+        assert_eq!(m.rows[0].kind, Kind::Dir);
+        assert_eq!(m.rows[1].kind, Kind::File);
     }
 }
