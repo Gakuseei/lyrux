@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use crate::file_panel::clipboard::ClipMode;
 use crate::file_panel::model::is_within_root;
 
 #[allow(dead_code)]
@@ -141,6 +142,55 @@ fn copy_recursive(src: &Path, dst: &Path) -> Result<(), OpError> {
     Ok(())
 }
 
+#[allow(dead_code)]
+pub fn paste(
+    root: &Path,
+    sources: &[PathBuf],
+    mode: ClipMode,
+    dst_dir: &Path,
+) -> Result<Vec<PathBuf>, OpError> {
+    if !is_within_root(dst_dir, root) {
+        return Err(OpError::OutOfRoot);
+    }
+    let mut produced = Vec::new();
+    for src in sources {
+        if !is_within_root(src, root) {
+            return Err(OpError::OutOfRoot);
+        }
+        let target = unique_target(dst_dir, src);
+        copy_recursive(src, &target)?;
+        if matches!(mode, ClipMode::Cut) {
+            if src.is_dir() {
+                std::fs::remove_dir_all(src)?;
+            } else {
+                std::fs::remove_file(src)?;
+            }
+        }
+        produced.push(target);
+    }
+    Ok(produced)
+}
+
+fn unique_target(dst_dir: &Path, src: &Path) -> PathBuf {
+    let initial = dst_dir.join(src.file_name().unwrap_or_default());
+    if !initial.exists() {
+        return initial;
+    }
+    let (stem, ext) = split_name(src);
+    let mut n = 1u32;
+    loop {
+        let name = match &ext {
+            Some(e) => format!("{stem} ({n}).{e}"),
+            None => format!("{stem} ({n})"),
+        };
+        let candidate = dst_dir.join(name);
+        if !candidate.exists() {
+            return candidate;
+        }
+        n += 1;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -265,5 +315,54 @@ mod tests {
         std::fs::write(root.join("a (1).txt"), b"y").unwrap();
         let dup = duplicate(&root, &root.join("a.txt")).unwrap();
         assert_eq!(dup.file_name().unwrap(), "a (2).txt");
+    }
+
+    #[test]
+    fn paste_copy_keeps_source() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let src = root.join("a.txt");
+        std::fs::write(&src, b"hi").unwrap();
+        std::fs::create_dir(root.join("dst")).unwrap();
+        let out = paste(
+            &root,
+            std::slice::from_ref(&src),
+            ClipMode::Copy,
+            &root.join("dst"),
+        )
+        .unwrap();
+        assert_eq!(out.len(), 1);
+        assert!(src.exists());
+        assert!(root.join("dst").join("a.txt").exists());
+    }
+
+    #[test]
+    fn paste_cut_removes_source() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let src = root.join("a.txt");
+        std::fs::write(&src, b"hi").unwrap();
+        std::fs::create_dir(root.join("dst")).unwrap();
+        paste(
+            &root,
+            std::slice::from_ref(&src),
+            ClipMode::Cut,
+            &root.join("dst"),
+        )
+        .unwrap();
+        assert!(!src.exists());
+        assert!(root.join("dst").join("a.txt").exists());
+    }
+
+    #[test]
+    fn paste_skips_collisions_with_suffix() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let src = root.join("a.txt");
+        std::fs::write(&src, b"hi").unwrap();
+        std::fs::create_dir(root.join("dst")).unwrap();
+        std::fs::write(root.join("dst").join("a.txt"), b"existing").unwrap();
+        let out = paste(&root, &[src], ClipMode::Copy, &root.join("dst")).unwrap();
+        assert_eq!(out[0].file_name().unwrap(), "a (1).txt");
     }
 }
