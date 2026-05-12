@@ -190,7 +190,10 @@ impl FilePanelHandle {
         self.inner.borrow_mut().active = Some(workspace_id.clone());
 
         self.refresh_git_for(workspace_id);
-        self.notify_layout_changed();
+        // Intentionally NO notify_layout_changed() here. Workspace switching is
+        // passive: the divider must keep whatever pixel width the user last
+        // dragged. Only first-show (connect_map) and explicit panel toggle
+        // re-fit to desired_width().
     }
 
     pub fn toggle_visible(&self) {

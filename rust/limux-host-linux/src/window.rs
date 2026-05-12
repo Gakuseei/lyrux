@@ -74,6 +74,10 @@ pub(crate) struct AppState {
     pub sidebar_peek_btn: gtk::Button,
     #[allow(dead_code)]
     pub file_panel: crate::file_panel::FilePanelHandle,
+    /// Last user-known panel pixel width (right child of inner_paned).
+    /// Persisted across toggle-off → toggle-on and updated on drag.
+    /// `None` until the user has shown the panel at least once.
+    pub last_panel_width: Rc<Cell<Option<i32>>>,
     new_ws_btn: gtk::Button,
     sidebar_animation: Option<adw::TimedAnimation>,
     sidebar_animation_epoch: u64,
@@ -984,6 +988,24 @@ pub fn build_window(app: &adw::Application) {
         .end_child(&inner_paned)
         .build();
 
+    // Tracks the last visible panel width in pixels. Updated by the user
+    // dragging the inner_paned divider AND by the toggle-off handler before
+    // the panel disappears, so toggle-on can restore the exact width.
+    let last_panel_width: Rc<Cell<Option<i32>>> = Rc::new(Cell::new(None));
+
+    {
+        let last = last_panel_width.clone();
+        let inner_paned_for_notify = inner_paned.clone();
+        let window_for_notify = window.clone();
+        inner_paned.connect_position_notify(move |_| {
+            let total = window_for_notify.width();
+            let pos = inner_paned_for_notify.position();
+            if total > 0 && pos > 0 && pos < total {
+                last.set(Some(total - pos));
+            }
+        });
+    }
+
     {
         // Track the previous window total width and paned position so that
         // when the user resizes the window we preserve the CURRENT panel
@@ -1050,83 +1072,100 @@ pub fn build_window(app: &adw::Application) {
 
     // Always-visible floating peek button so users can re-open the sidebar
     // after collapsing it, regardless of decoration mode (X11 or Wayland-CSD).
+    //
+    // The button lives inside a gtk::Fixed overlay child rather than being
+    // added to the Overlay directly with margin-based positioning. Reasons:
+    //   - gtk::Fixed::move_(child, x, y) is O(1) and skips the Overlay
+    //     full-relayout that margin_start/margin_bottom mutations trigger
+    //     every drag motion frame, eliminating the trailing-behind-cursor lag.
+    //   - The Fixed has set_can_target(false) so empty regions pass clicks
+    //     through to main_paned (terminal, etc.); the button child keeps its
+    //     default targetability so it still receives drag + click input.
     let main_overlay = gtk::Overlay::new();
     main_overlay.set_child(Some(&main_paned));
+
+    let peek_fixed = gtk::Fixed::new();
+    peek_fixed.set_can_target(false);
 
     let sidebar_peek_btn = gtk::Button::from_icon_name("view-list-symbolic");
     sidebar_peek_btn.add_css_class("flat");
     sidebar_peek_btn.add_css_class("limux-sidebar-peek");
     sidebar_peek_btn.set_tooltip_text(Some("Show sidebar"));
-    sidebar_peek_btn.set_halign(gtk::Align::Start);
-    sidebar_peek_btn.set_valign(gtk::Align::End);
-    sidebar_peek_btn.set_margin_bottom(8);
-    sidebar_peek_btn.set_margin_start(8);
     sidebar_peek_btn.set_action_name(Some("win.toggle-sidebar"));
     sidebar_peek_btn.set_visible(false);
-    main_overlay.add_overlay(&sidebar_peek_btn);
+    sidebar_peek_btn.set_size_request(32, 32);
 
-    // Drag-and-drop relocation for the peek button. Small movements pass
-    // through as a click (the button's win.toggle-sidebar action still fires).
-    // Movements past a 5px threshold claim the event sequence and update the
-    // button's overlay margins to relocate it inside the main_overlay.
+    // Initial put — actual position is finalized in connect_map below once the
+    // overlay has a real height (we want bottom-left, but height() == 0 here).
+    peek_fixed.put(&sidebar_peek_btn, 8.0, 0.0);
+    main_overlay.add_overlay(&peek_fixed);
+
+    // Position the peek button at bottom-left once the overlay is mapped and
+    // its size is known. Skip if the user has already dragged the button.
+    let peek_dragged: Rc<Cell<bool>> = Rc::new(Cell::new(false));
     {
-        let drag_start = Rc::new(RefCell::new((0i32, 0i32)));
-        let drag_active = Rc::new(RefCell::new(false));
+        let fixed_for_map = peek_fixed.clone();
+        let btn_for_map = sidebar_peek_btn.clone();
+        let overlay_for_map = main_overlay.clone();
+        let dragged_for_map = peek_dragged.clone();
+        main_overlay.connect_map(move |_| {
+            if dragged_for_map.get() {
+                return;
+            }
+            let h = overlay_for_map.height();
+            let y = ((h - 40).max(0)) as f64;
+            fixed_for_map.move_(&btn_for_map, 8.0, y);
+        });
+    }
+
+    // Drag-to-relocate. Small movements pass through as a click (win.toggle-sidebar
+    // still fires). Movements past a 5px threshold claim the gesture and reposition
+    // the button via Fixed::move_ — no throttle needed; move_ is constant-time and
+    // does not retrigger Overlay layout.
+    {
+        // (start_x, start_y) captured on drag-begin from the Fixed child position.
+        let drag_start: Rc<Cell<(f64, f64)>> = Rc::new(Cell::new((8.0, 0.0)));
+        let drag_active: Rc<Cell<bool>> = Rc::new(Cell::new(false));
         let drag = gtk::GestureDrag::new();
         drag.set_button(1);
         drag.set_propagation_phase(gtk::PropagationPhase::Capture);
 
-        let peek_btn_for_begin = sidebar_peek_btn.clone();
+        let fixed_for_begin = peek_fixed.clone();
+        let btn_for_begin = sidebar_peek_btn.clone();
         let drag_start_for_begin = drag_start.clone();
         let drag_active_for_begin = drag_active.clone();
         drag.connect_drag_begin(move |_, _, _| {
-            *drag_start_for_begin.borrow_mut() = (
-                peek_btn_for_begin.margin_start(),
-                peek_btn_for_begin.margin_bottom(),
-            );
-            *drag_active_for_begin.borrow_mut() = false;
+            let (x, y) = fixed_for_begin.child_position(&btn_for_begin);
+            drag_start_for_begin.set((x, y));
+            drag_active_for_begin.set(false);
         });
 
-        let peek_btn_for_update = sidebar_peek_btn.clone();
+        let fixed_for_update = peek_fixed.clone();
+        let btn_for_update = sidebar_peek_btn.clone();
+        let overlay_for_update = main_overlay.clone();
         let drag_start_for_update = drag_start.clone();
         let drag_active_for_update = drag_active.clone();
-        let overlay_for_update = main_overlay.clone();
-        // Throttle motion updates to ~60fps. Every margin change forces the
-        // Overlay to re-layout; without throttling, deep widget trees turn
-        // the drag laggy. Threshold check runs BEFORE the throttle so
-        // sub-threshold motion still falls through to a normal click.
-        let last_motion_ts = Rc::new(Cell::new(std::time::Instant::now()));
+        let dragged_for_update = peek_dragged.clone();
         drag.connect_drag_update(move |gesture, dx, dy| {
-            let active = *drag_active_for_update.borrow();
+            let active = drag_active_for_update.get();
             let threshold = 5.0_f64;
-            let triggered = active || dx.abs() > threshold || dy.abs() > threshold;
-            if !triggered {
+            if !active && dx.abs() < threshold && dy.abs() < threshold {
                 return;
             }
             if !active {
-                *drag_active_for_update.borrow_mut() = true;
+                drag_active_for_update.set(true);
+                dragged_for_update.set(true);
                 gesture.set_state(gtk::EventSequenceState::Claimed);
-                // Reset throttle on drag-claim so the first motion frame
-                // commits immediately.
-                last_motion_ts.set(std::time::Instant::now());
-            } else {
-                let now = std::time::Instant::now();
-                if now.duration_since(last_motion_ts.get()) < std::time::Duration::from_millis(16) {
-                    return;
-                }
-                last_motion_ts.set(now);
             }
-            let (start_x, start_y) = *drag_start_for_update.borrow();
-            let overlay_w = overlay_for_update.width();
-            let overlay_h = overlay_for_update.height();
-            let btn_w = peek_btn_for_update.width().max(28);
-            let btn_h = peek_btn_for_update.height().max(28);
-            let new_x = ((start_x as f64) + dx).round() as i32;
-            let new_y = ((start_y as f64) - dy).round() as i32;
-            let clamped_x = new_x.clamp(0, (overlay_w - btn_w).max(0));
-            let clamped_y = new_y.clamp(0, (overlay_h - btn_h).max(0));
-            peek_btn_for_update.set_margin_start(clamped_x);
-            peek_btn_for_update.set_margin_bottom(clamped_y);
+            let (start_x, start_y) = drag_start_for_update.get();
+            let overlay_w = overlay_for_update.width() as f64;
+            let overlay_h = overlay_for_update.height() as f64;
+            let btn_w = btn_for_update.width().max(32) as f64;
+            let btn_h = btn_for_update.height().max(32) as f64;
+            // Fixed uses top-anchored y: +dy moves down on screen.
+            let new_x = (start_x + dx).clamp(0.0, (overlay_w - btn_w).max(0.0));
+            let new_y = (start_y + dy).clamp(0.0, (overlay_h - btn_h).max(0.0));
+            fixed_for_update.move_(&btn_for_update, new_x, new_y);
         });
 
         sidebar_peek_btn.add_controller(drag);
@@ -1155,6 +1194,7 @@ pub fn build_window(app: &adw::Application) {
         inner_paned: inner_paned.clone(),
         sidebar_peek_btn: sidebar_peek_btn.clone(),
         file_panel: file_panel_handle.clone(),
+        last_panel_width: last_panel_width.clone(),
         new_ws_btn: new_ws_btn.clone(),
         sidebar_animation: None,
         sidebar_animation_epoch: 0,
@@ -1586,10 +1626,23 @@ fn dispatch_shortcut_command(state: &State, command: ShortcutCommand) -> bool {
         }
         ShortcutCommand::ToggleFilePanel => {
             let s = state.borrow();
+            let was_visible = s.file_panel.is_visible();
+            if was_visible {
+                // About to hide — capture current width so the next toggle-on
+                // restores exactly this size.
+                let total = s.window.width();
+                let pos = s.inner_paned.position();
+                if total > 0 && pos > 0 && pos < total {
+                    s.last_panel_width.set(Some(total - pos));
+                }
+            }
             s.file_panel.toggle_visible();
             if s.file_panel.is_visible() {
                 let total = s.window.width();
-                let target = s.file_panel.desired_width();
+                let target = s
+                    .last_panel_width
+                    .get()
+                    .unwrap_or_else(|| s.file_panel.desired_width());
                 if total > target {
                     s.inner_paned.set_position(total - target);
                 }
