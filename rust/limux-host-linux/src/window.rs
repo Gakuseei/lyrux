@@ -883,7 +883,7 @@ pub fn build_window(app: &adw::Application) {
 
     {
         let window = window.clone();
-        let drag_title = sidebar_title.clone();
+        let drag_title = sidebar_title_label.clone();
         let drag = gtk::GestureClick::new();
         drag.set_button(1);
         drag.connect_pressed(move |gesture, _, x, y| {
@@ -895,7 +895,7 @@ pub fn build_window(app: &adw::Application) {
             begin_window_move_from_widget(&drag_title, &window, &device, button, x, y, timestamp);
             gesture.set_state(gtk::EventSequenceState::Claimed);
         });
-        sidebar_title.add_controller(drag);
+        sidebar_title_label.add_controller(drag);
     }
 
     let new_ws_btn = gtk::Button::builder()
