@@ -20,6 +20,7 @@ use crate::shortcut_config::{
     self, EditableCapturePolicy, ResolvedShortcutConfig, ShortcutCommand, ShortcutId,
 };
 use crate::split_tree::{self, SplitTreeContainer};
+use crate::update_checker;
 
 // ---------------------------------------------------------------------------
 // State
@@ -618,6 +619,18 @@ row:selected .limux-ws-star-btn {
 }
 .limux-ws-star-btn-active {
     color: @accent_bg_color;
+}
+.limux-ws-close-btn {
+    color: alpha(@window_fg_color, 0.35);
+    border: none;
+    min-height: 0;
+    min-width: 0;
+    padding: 0 4px;
+    font-size: 18px;
+    font-weight: 600;
+}
+.limux-ws-close-btn:hover {
+    color: @error_color;
 }
 .limux-ws-rename-entry {
     min-height: 0;
@@ -1952,6 +1965,7 @@ fn build_sidebar_row(
     gtk::ListBoxRow,
     gtk::Label,
     gtk::Button,
+    gtk::Button,
     gtk::Label,
     gtk::Label,
     gtk::Label,
@@ -1975,10 +1989,19 @@ fn build_sidebar_row(
     favorite_button.set_halign(gtk::Align::End);
     favorite_button.set_tooltip_text(Some("Favorite workspace"));
 
+    let close_button = gtk::Button::with_label("\u{00D7}");
+    close_button.add_css_class("flat");
+    close_button.add_css_class("limux-ws-close-btn");
+    close_button.set_focus_on_click(false);
+    close_button.set_valign(gtk::Align::Center);
+    close_button.set_halign(gtk::Align::End);
+    close_button.set_tooltip_text(Some("Close workspace"));
+
     let top_row = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     top_row.append(&notify_dot);
     top_row.append(&name_label);
     top_row.append(&favorite_button);
+    top_row.append(&close_button);
 
     let path_label = gtk::Label::builder()
         .xalign(0.0)
@@ -2018,6 +2041,7 @@ fn build_sidebar_row(
         row,
         name_label,
         favorite_button,
+        close_button,
         notify_dot,
         notify_label,
         path_label,
@@ -2544,14 +2568,20 @@ fn create_workspace_for_tab(state: &State, payload: &str) -> bool {
     let split_container = SplitTreeContainer::new(state, pane.clone().upcast());
     let root = split_container.widget().clone();
 
-    let (row, name_label, favorite_button, notify_dot, notify_label, path_label) =
+    let (row, name_label, favorite_button, close_button, notify_dot, notify_label, path_label) =
         build_sidebar_row(&seed.name, seed.folder_path.as_deref());
     let row_clone = row.clone();
     {
         let mut app_state = state.borrow_mut();
         app_state.stack.add_named(&root, Some(&stack_name));
         app_state.sidebar_list.append(&row);
-        install_workspace_row_interactions(state, &new_workspace_id, &row, &favorite_button);
+        install_workspace_row_interactions(
+            state,
+            &new_workspace_id,
+            &row,
+            &favorite_button,
+            &close_button,
+        );
 
         app_state.workspaces.push(Workspace {
             id: new_workspace_id.clone(),
@@ -2596,7 +2626,17 @@ fn install_workspace_row_interactions(
     workspace_id: &str,
     row: &gtk::ListBoxRow,
     favorite_button: &gtk::Button,
+    close_button: &gtk::Button,
 ) {
+    {
+        let state = state.clone();
+        let workspace_id = workspace_id.to_string();
+        close_button.connect_clicked(move |_| {
+            close_workspace_by_id(&state, &workspace_id);
+            request_session_save(&state);
+        });
+    }
+
     let right_click = gtk::GestureClick::new();
     right_click.set_button(3);
     {
@@ -3116,10 +3156,10 @@ fn add_workspace_from_state(state: &State, workspace: &WorkspaceState) {
         build_workspace_root(state, &shortcuts, &id, working_dir, &workspace.layout);
     stack.add_named(&root, Some(&stack_name));
 
-    let (row, name_label, favorite_button, notify_dot, notify_label, path_label) =
+    let (row, name_label, favorite_button, close_button, notify_dot, notify_label, path_label) =
         build_sidebar_row(&workspace.name, workspace.folder_path.as_deref());
     sidebar_list.append(&row);
-    install_workspace_row_interactions(state, &id, &row, &favorite_button);
+    install_workspace_row_interactions(state, &id, &row, &favorite_button, &close_button);
 
     let cwd: Rc<RefCell<Option<String>>> = Rc::new(RefCell::new(workspace.cwd.clone()));
     let ws = Workspace {
@@ -3291,6 +3331,10 @@ pub(crate) fn create_pane_for_workspace(
                 }
             },
         ),
+        on_apply_update: {
+            let state = state.clone();
+            Rc::new(move |manifest_path| apply_update_and_restart(&state, manifest_path))
+        },
     });
 
     pane::create_pane(
@@ -3710,9 +3754,13 @@ fn remove_pane_internal(state: &State, ws_id: &str, pane_widget: &gtk::Widget, p
 
     let Some(container) = container else { return };
 
-    // If this is the only pane, close the entire workspace
+    // Keep workspace alive when last pane gets emptied — spawn a fresh
+    // default terminal so the workspace stays usable.
     if container.is_single_pane() {
-        close_workspace_by_id(state, ws_id);
+        pane::add_terminal_tab_to_pane(pane_widget);
+        if persist {
+            request_session_save(state);
+        }
         return;
     }
 
@@ -3818,6 +3866,13 @@ fn show_runtime_error(state: &State, title: &str, detail: &str) {
 fn quit_app(state: &State) {
     save_session_now(state);
     state.borrow().app.quit();
+}
+
+fn apply_update_and_restart(state: &State, manifest_path: &std::path::Path) -> Result<(), String> {
+    update_checker::spawn_update_helper(manifest_path)?;
+    save_session_now(state);
+    state.borrow().app.quit();
+    Ok(())
 }
 
 fn spawn_new_instance(state: &State) -> bool {

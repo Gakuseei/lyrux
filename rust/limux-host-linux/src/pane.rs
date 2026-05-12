@@ -168,6 +168,7 @@ type PaneShortcutCaptureCallback =
 type PaneSplitWithTabCallback = dyn Fn(&gtk::Widget, &gtk::Widget, gtk::Orientation, String, bool);
 type PaneConfigCallback = dyn Fn() -> Rc<RefCell<AppConfig>>;
 type PaneConfigChangedCallback = dyn Fn(&AppConfig, &AppConfig);
+type PaneApplyUpdateCallback = dyn Fn(&std::path::Path) -> Result<(), String>;
 
 pub struct PaneCallbacks {
     pub on_split: Box<PaneSplitCallback>,
@@ -184,6 +185,7 @@ pub struct PaneCallbacks {
     pub on_split_with_tab: Box<PaneSplitWithTabCallback>,
     pub current_config: Box<PaneConfigCallback>,
     pub on_config_changed: Rc<PaneConfigChangedCallback>,
+    pub on_apply_update: Rc<PaneApplyUpdateCallback>,
 }
 
 #[derive(Clone)]
@@ -556,6 +558,7 @@ pub fn create_pane(
                     shortcuts: (internals.callbacks.current_shortcuts)(),
                     on_capture: internals.callbacks.on_capture_shortcut.clone(),
                     on_config_changed: internals.callbacks.on_config_changed.clone(),
+                    on_apply_update: internals.callbacks.on_apply_update.clone(),
                 },
             );
         });

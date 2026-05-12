@@ -40,7 +40,22 @@ pub const KEYBIND_EDITOR_CSS: &str = r#"
 }
 .limux-keybind-row {
     padding: 10px 12px;
-    margin-bottom: 8px;
+    margin-bottom: 0;
+    background-color: transparent;
+    background: none;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+}
+.limux-keybind-editor .card {
+    background-color: transparent;
+    background: none;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+}
+.limux-keybind-row + .limux-keybind-row {
+    border-top: 1px solid alpha(@window_fg_color, 0.06);
 }
 .limux-keybind-action {
     font-weight: 600;
@@ -54,8 +69,8 @@ pub const KEYBIND_EDITOR_CSS: &str = r#"
     padding: 8px 12px;
 }
 .limux-keybind-capture-listening {
-    border-color: @accent_bg_color;
-    box-shadow: inset 0 0 0 1px @accent_bg_color;
+    border-color: @blue_3;
+    box-shadow: inset 0 0 0 1px @blue_3;
 }
 .limux-keybind-error {
     color: @error_color;
