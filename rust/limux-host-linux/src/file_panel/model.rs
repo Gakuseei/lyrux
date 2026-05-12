@@ -22,7 +22,6 @@ pub enum GitStatus {
 }
 
 impl GitStatus {
-    #[allow(dead_code)]
     pub fn priority(self) -> u8 {
         match self {
             GitStatus::Conflict => 6,
@@ -71,6 +70,21 @@ impl TreeModel {
 
     pub fn set_hidden_visible(&mut self, v: bool) {
         self.hidden_visible = v;
+    }
+
+    pub fn set_git_status_map(&mut self, map: HashMap<PathBuf, GitStatus>) {
+        self.git_status_map = map;
+    }
+
+    fn rollup_dir_status(&self, dir: &Path) -> GitStatus {
+        let prefix = dir;
+        let mut best = GitStatus::Clean;
+        for (p, s) in &self.git_status_map {
+            if p.starts_with(prefix) && s.priority() > best.priority() {
+                best = *s;
+            }
+        }
+        best
     }
 
     pub fn rebuild_visible(&mut self) {
@@ -153,11 +167,14 @@ impl TreeModel {
             .into_iter()
             .map(|(path, kind, _)| {
                 let expanded = self.expanded_paths.contains(&path);
-                let git_status = self
-                    .git_status_map
-                    .get(&path)
-                    .copied()
-                    .unwrap_or(GitStatus::Clean);
+                let git_status = if matches!(kind, Kind::Dir) {
+                    self.rollup_dir_status(&path)
+                } else {
+                    self.git_status_map
+                        .get(&path)
+                        .copied()
+                        .unwrap_or(GitStatus::Clean)
+                };
                 Row {
                     path,
                     depth,
@@ -356,5 +373,36 @@ mod tests {
         m.set_hidden_visible(true);
         m.rebuild_visible();
         assert_eq!(m.rows.len(), 1);
+    }
+
+    #[test]
+    fn git_status_applied_to_files_on_rebuild() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        touch(root, "main.rs");
+        let mut m = TreeModel::new(root.to_path_buf());
+        let mut map = HashMap::new();
+        map.insert(root.join("main.rs"), GitStatus::Modified);
+        m.set_git_status_map(map);
+        m.rebuild_visible();
+        assert_eq!(m.rows[0].git_status, GitStatus::Modified);
+    }
+
+    #[test]
+    fn git_status_rolls_up_to_parent_dir_with_highest_priority() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        mkdir(root, "src");
+        let src = root.join("src");
+        touch(&src, "a.rs");
+        touch(&src, "b.rs");
+        let mut m = TreeModel::new(root.to_path_buf());
+        let mut map = HashMap::new();
+        map.insert(src.join("a.rs"), GitStatus::Untracked);
+        map.insert(src.join("b.rs"), GitStatus::Modified);
+        m.set_git_status_map(map);
+        m.rebuild_visible();
+        let src_row = m.rows.iter().find(|r| r.path == src).unwrap();
+        assert_eq!(src_row.git_status, GitStatus::Modified);
     }
 }
