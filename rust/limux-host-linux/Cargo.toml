@@ -5,6 +5,10 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 
+[lib]
+name = "limux_host_linux"
+path = "src/lib.rs"
+
 [[bin]]
 name = "limux"
 path = "src/main.rs"
