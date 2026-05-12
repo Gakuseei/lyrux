@@ -75,6 +75,48 @@ impl TreeModel {
         self.rows.extend(children);
     }
 
+    pub fn toggle_expand(&mut self, idx: usize) {
+        if idx >= self.rows.len() {
+            return;
+        }
+        if self.rows[idx].kind != Kind::Dir {
+            return;
+        }
+        if self.rows[idx].expanded {
+            self.collapse_at(idx);
+        } else {
+            self.expand_at(idx);
+        }
+    }
+
+    fn expand_at(&mut self, idx: usize) {
+        let path = self.rows[idx].path.clone();
+        let depth = self.rows[idx].depth + 1;
+        self.rows[idx].expanded = true;
+        self.expanded_paths.insert(path.clone());
+        let children = self.list_children(&path, depth, Some(idx));
+        let insert_at = idx + 1;
+        for (offset, child) in children.into_iter().enumerate() {
+            self.rows.insert(insert_at + offset, child);
+        }
+        self.reindex_parents_after(insert_at);
+    }
+
+    fn collapse_at(&mut self, idx: usize) {
+        let depth = self.rows[idx].depth;
+        self.rows[idx].expanded = false;
+        self.expanded_paths.remove(&self.rows[idx].path);
+        let mut end = idx + 1;
+        while end < self.rows.len() && self.rows[end].depth > depth {
+            self.expanded_paths.remove(&self.rows[end].path);
+            end += 1;
+        }
+        self.rows.drain(idx + 1..end);
+        self.reindex_parents_after(idx + 1);
+    }
+
+    fn reindex_parents_after(&mut self, _from: usize) {}
+
     fn list_children(&self, dir: &Path, depth: u32, parent_idx: Option<usize>) -> Vec<Row> {
         let mut entries: Vec<(std::path::PathBuf, Kind, String)> = match std::fs::read_dir(dir) {
             Ok(rd) => rd
@@ -222,5 +264,56 @@ mod tests {
         m.rebuild_visible();
         assert_eq!(m.rows[0].kind, Kind::Dir);
         assert_eq!(m.rows[1].kind, Kind::File);
+    }
+
+    #[test]
+    fn toggle_expand_inserts_children_after_parent() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        mkdir(root, "src");
+        let src = root.join("src");
+        touch(&src, "main.rs");
+        touch(&src, "lib.rs");
+        let mut m = TreeModel::new(root.to_path_buf());
+        m.rebuild_visible();
+        let src_idx = m.rows.iter().position(|r| r.path == src).unwrap();
+        m.toggle_expand(src_idx);
+        assert!(m.rows[src_idx].expanded);
+        assert_eq!(m.rows.len(), 3);
+        assert_eq!(m.rows[src_idx + 1].depth, 1);
+        assert_eq!(m.rows[src_idx + 1].parent_idx, Some(src_idx));
+    }
+
+    #[test]
+    fn toggle_expand_twice_collapses_subtree() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        mkdir(root, "a");
+        let a = root.join("a");
+        mkdir(&a, "b");
+        let b = a.join("b");
+        touch(&b, "c.txt");
+        let mut m = TreeModel::new(root.to_path_buf());
+        m.rebuild_visible();
+        let a_idx = m.rows.iter().position(|r| r.path == a).unwrap();
+        m.toggle_expand(a_idx);
+        let b_idx = m.rows.iter().position(|r| r.path == b).unwrap();
+        m.toggle_expand(b_idx);
+        assert_eq!(m.rows.len(), 3);
+        m.toggle_expand(a_idx);
+        assert_eq!(m.rows.len(), 1);
+        assert!(!m.rows[0].expanded);
+    }
+
+    #[test]
+    fn toggle_expand_on_file_is_noop() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        touch(root, "x.txt");
+        let mut m = TreeModel::new(root.to_path_buf());
+        m.rebuild_visible();
+        m.toggle_expand(0);
+        assert_eq!(m.rows.len(), 1);
+        assert!(!m.rows[0].expanded);
     }
 }
