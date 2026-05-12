@@ -739,7 +739,7 @@ row:selected .limux-ws-path {
     background-color: @window_bg_color;
 }
 .limux-sidebar-peek-strip {
-    background: alpha(@accent_bg_color, 0.0);
+    background: alpha(@window_fg_color, 0.0);
     border: none;
     box-shadow: none;
     border-radius: 0;
@@ -748,7 +748,7 @@ row:selected .limux-ws-path {
     transition: min-width 150ms, background 150ms;
 }
 .limux-sidebar-peek-strip:hover {
-    background: alpha(@accent_bg_color, 0.6);
+    background: alpha(@window_fg_color, 0.18);
     min-width: 24px;
 }
 .limux-sidebar-peek-strip image {
