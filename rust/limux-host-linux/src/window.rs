@@ -831,6 +831,14 @@ pub fn build_window(app: &adw::Application) {
     } else {
         let bar = adw::HeaderBar::new();
         bar.set_title_widget(Some(&gtk::Label::builder().label(&title).build()));
+        // Always-visible peek button so users can re-open the sidebar after
+        // collapsing it (Bug 1: collapse_sb_btn sits inside the sidebar and
+        // disappears when the sidebar animates to width 0).
+        let peek_btn = gtk::Button::from_icon_name("view-list-symbolic");
+        peek_btn.add_css_class("flat");
+        peek_btn.set_tooltip_text(Some("Toggle sidebar"));
+        peek_btn.set_action_name(Some("win.toggle-sidebar"));
+        bar.pack_start(&peek_btn);
         Some(bar)
     };
 
@@ -973,10 +981,21 @@ pub fn build_window(app: &adw::Application) {
         .build();
 
     {
-        let inner_paned_clone = inner_paned.clone();
-        window.connect_realize(move |w| {
-            let total = w.default_width();
-            inner_paned_clone.set_position((total - file_panel_width_initial).max(0));
+        let inner_paned_for_map = inner_paned.clone();
+        let target_width_map = file_panel_width_initial;
+        window.connect_map(move |w| {
+            let total = w.width();
+            if total > target_width_map {
+                inner_paned_for_map.set_position(total - target_width_map);
+            }
+        });
+        let inner_paned_for_notify = inner_paned.clone();
+        let target_width_notify = file_panel_width_initial;
+        window.connect_default_width_notify(move |w| {
+            let total = w.width();
+            if total > target_width_notify {
+                inner_paned_for_notify.set_position(total - target_width_notify);
+            }
         });
     }
 

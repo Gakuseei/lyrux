@@ -53,7 +53,7 @@ pub struct AppConfig {
 }
 
 fn default_file_panel_width() -> u32 {
-    240
+    200
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]

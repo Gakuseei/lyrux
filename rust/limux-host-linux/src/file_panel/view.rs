@@ -112,6 +112,7 @@ pub fn build_list_view() -> ViewState {
     let list_view = gtk::ListView::new(Some(selection.clone()), Some(factory));
     list_view.add_css_class("limux-fp-listview");
     list_view.set_show_separators(false);
+    list_view.set_single_click_activate(true);
     ViewState {
         store,
         selection,
@@ -197,11 +198,13 @@ pub fn apply_model_to_store(model: &TreeModel, store: &gtk4::gio::ListStore) {
 
 pub fn file_panel_css() -> &'static str {
     r#"
-.limux-fp-header { background: transparent; color: #5a5a5a; }
+.limux-fp-root { background: @view_bg_color; color: @window_fg_color; }
+.limux-fp-header { background: @view_bg_color; color: @window_fg_color; }
 .limux-fp-title { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: #c0a060; }
-.limux-fp-icon { padding: 2px; min-height: 0; min-width: 0; }
-.limux-fp-listview row { padding: 0; }
-.limux-fp-row { padding: 2px 8px 2px 6px; color: #8a8a8a; }
+.limux-fp-icon { padding: 2px; min-height: 0; min-width: 0; color: @window_fg_color; }
+.limux-fp-listview { background: @view_bg_color; }
+.limux-fp-listview row { padding: 0; background: transparent; }
+.limux-fp-row { padding: 2px 8px 2px 6px; color: #8a8a8a; background: transparent; }
 .limux-fp-row:selected { background: rgba(192, 160, 96, 0.12); color: #d0d0c8; }
 .limux-fp-indent { background-image: linear-gradient(to right, transparent 7px, rgba(255,255,255,0.06) 7px, rgba(255,255,255,0.06) 8px, transparent 8px); }
 .limux-fp-chevron { color: #555; }

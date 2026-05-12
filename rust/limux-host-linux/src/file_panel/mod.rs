@@ -10,7 +10,7 @@ pub mod view;
 pub mod watcher;
 
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -52,6 +52,9 @@ pub struct Inner {
     pub cache: HashMap<WorkspaceId, PerWorkspace>,
     pub active: Option<WorkspaceId>,
     pub visible: bool,
+    // Bug 5: snapshot of expanded_paths captured on collapse-all so the next
+    // press can restore the previously-open folders.
+    pub last_expanded_snapshot: HashMap<WorkspaceId, HashSet<PathBuf>>,
 }
 
 #[derive(Clone)]
@@ -85,6 +88,7 @@ impl FilePanelHandle {
                 cache: HashMap::new(),
                 active: None,
                 visible: false,
+                last_expanded_snapshot: HashMap::new(),
             })),
             untitled_counter: Rc::new(AtomicU32::new(0)),
         }
@@ -163,8 +167,17 @@ impl FilePanelHandle {
             let inner = self.inner.borrow();
             let per = inner.cache.get(&workspace_id).unwrap();
             apply_model_to_store(&per.model, &inner.view.store);
-            inner.header.title.set_text(&workspace_id);
+            let title = root
+                .file_name()
+                .map(|s| s.to_string_lossy().to_string())
+                .unwrap_or_else(|| root.display().to_string());
+            inner.header.title.set_text(&title);
         }
+        eprintln!(
+            "limux: fp-show-workspace id={} root={}",
+            workspace_id,
+            root.display()
+        );
         self.inner.borrow_mut().active = Some(workspace_id.clone());
 
         self.refresh_git_for(workspace_id);
@@ -366,7 +379,7 @@ impl FilePanelHandle {
             "fp-open-in-terminal" => {}
             "fp-copy-path" => {}
             "fp-copy-relative-path" => {}
-            "fp-collapse-all" => self.do_collapse_all(),
+            "fp-collapse-all" => self.do_collapse_all_or_restore(),
             "fp-expand-all" => {}
             "fp-toggle-hidden" => self.do_toggle_hidden(),
             "fp-refresh" => self.do_refresh(),
@@ -515,18 +528,66 @@ impl FilePanelHandle {
         }
     }
 
-    fn do_collapse_all(&self) {
-        let mut inner = self.inner.borrow_mut();
-        let active = match inner.active.clone() {
-            Some(a) => a,
-            None => return,
+    fn do_collapse_all_or_restore(&self) {
+        // Inspect current state under a shared borrow, then take a mutable
+        // borrow for the write. Avoids overlapping borrows on `inner`.
+        let plan = {
+            let inner = self.inner.borrow();
+            let active = match inner.active.clone() {
+                Some(a) => a,
+                None => return,
+            };
+            let per = match inner.cache.get(&active) {
+                Some(p) => p,
+                None => return,
+            };
+            let is_collapsed = per.model.expanded_paths.is_empty();
+            if is_collapsed {
+                let snapshot = inner.last_expanded_snapshot.get(&active).cloned();
+                (active, true, snapshot)
+            } else {
+                let current = per.model.expanded_paths.clone();
+                (active, false, Some(current))
+            }
         };
-        let store = inner.view.store.clone();
-        if let Some(per) = inner.cache.get_mut(&active) {
-            per.model.expanded_paths.clear();
-            per.model.rebuild_visible();
-            apply_model_to_store(&per.model, &store);
+        let (active, is_restore, payload) = plan;
+        let count_before;
+        let count_after;
+        {
+            let mut inner = self.inner.borrow_mut();
+            let store = inner.view.store.clone();
+            if is_restore {
+                let Some(snapshot) = payload else {
+                    eprintln!("limux: fp-collapse-all restore skipped (no snapshot)");
+                    return;
+                };
+                let Some(per) = inner.cache.get_mut(&active) else {
+                    return;
+                };
+                count_before = per.model.expanded_paths.len();
+                per.model.expanded_paths = snapshot;
+                per.model.rebuild_visible();
+                count_after = per.model.expanded_paths.len();
+                apply_model_to_store(&per.model, &store);
+            } else {
+                if let Some(snapshot) = payload.clone() {
+                    inner
+                        .last_expanded_snapshot
+                        .insert(active.clone(), snapshot);
+                }
+                let Some(per) = inner.cache.get_mut(&active) else {
+                    return;
+                };
+                count_before = per.model.expanded_paths.len();
+                per.model.expanded_paths.clear();
+                per.model.rebuild_visible();
+                count_after = per.model.expanded_paths.len();
+                apply_model_to_store(&per.model, &store);
+            }
         }
+        eprintln!(
+            "limux: fp-collapse-all active={active} restore={is_restore} expanded_before={count_before} after={count_after}"
+        );
     }
 
     fn do_toggle_hidden(&self) {
