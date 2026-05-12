@@ -90,7 +90,6 @@ impl FilePanelHandle {
         provider_data.push_str(file_panel_css());
     }
 
-    #[allow(dead_code)]
     pub fn show_workspace(&self, workspace_id: WorkspaceId, root: PathBuf, expanded: Vec<PathBuf>) {
         {
             let inner = self.inner.borrow();

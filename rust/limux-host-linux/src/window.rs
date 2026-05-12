@@ -3368,7 +3368,7 @@ fn close_workspace_by_id_internal(
 }
 
 fn switch_workspace(state: &State, idx: usize) {
-    let (stack, stack_name, unread_handles, focus_root) = {
+    let (stack, stack_name, unread_handles, focus_root, file_panel_hook) = {
         let mut s = state.borrow_mut();
         if idx >= s.workspaces.len() || idx == s.active_idx {
             return;
@@ -3390,13 +3390,37 @@ fn switch_workspace(state: &State, idx: usize) {
             None
         };
 
-        (stack, stack_name, unread_handles, focus_root)
+        let file_panel_hook = {
+            let ws = &s.workspaces[idx];
+            ws.folder_path.as_ref().map(|root| {
+                let id = if !ws.id.is_empty() {
+                    ws.id.clone()
+                } else {
+                    format!("ws-{idx}")
+                };
+                let root_pb = std::path::PathBuf::from(root);
+                let expanded: Vec<std::path::PathBuf> = Vec::new();
+                (s.file_panel.clone(), id, root_pb, expanded)
+            })
+        };
+
+        (
+            stack,
+            stack_name,
+            unread_handles,
+            focus_root,
+            file_panel_hook,
+        )
     };
 
     stack.set_visible_child_name(&stack_name);
     glib::idle_add_local_once(move || {
         focus_workspace_entrypoint(&focus_root);
     });
+
+    if let Some((fp, id, root_pb, expanded)) = file_panel_hook {
+        fp.show_workspace(id, root_pb, expanded);
+    }
 
     if let Some((notify_dot, notify_label, sidebar_row)) = unread_handles {
         notify_dot.remove_css_class("limux-notify-dot");
