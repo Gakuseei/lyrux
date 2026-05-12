@@ -672,12 +672,13 @@ impl Default for FilePanelHandle {
 
 fn compute_desired_width(model: &crate::file_panel::model::TreeModel) -> i32 {
     const INDENT_PX: i32 = 16;
-    const CHEVRON_PX: i32 = 18;
-    const ICON_PX: i32 = 22;
-    const GIT_MARKER_PX: i32 = 22;
-    const PADDING_PX: i32 = 28;
-    const CHAR_PX: i32 = 8;
-    const MIN_WIDTH: i32 = 200;
+    const CHEVRON_PX: i32 = 20;
+    const ICON_PX: i32 = 24;
+    const GIT_MARKER_PX: i32 = 24;
+    const PADDING_PX: i32 = 40;
+    const CHAR_PX: i32 = 9;
+    const BREATHING_PX: i32 = 24;
+    const MIN_WIDTH: i32 = 260;
     const MAX_WIDTH: i32 = 600;
     let mut max_text = 0;
     for row in &model.rows {
@@ -692,6 +693,6 @@ fn compute_desired_width(model: &crate::file_panel::model::TreeModel) -> i32 {
             max_text = row_text_w;
         }
     }
-    let total = max_text + CHEVRON_PX + ICON_PX + GIT_MARKER_PX + PADDING_PX;
+    let total = max_text + CHEVRON_PX + ICON_PX + GIT_MARKER_PX + PADDING_PX + BREATHING_PX;
     total.clamp(MIN_WIDTH, MAX_WIDTH)
 }

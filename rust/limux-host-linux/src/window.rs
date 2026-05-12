@@ -1048,6 +1048,59 @@ pub fn build_window(app: &adw::Application) {
     sidebar_peek_btn.set_visible(false);
     main_overlay.add_overlay(&sidebar_peek_btn);
 
+    // Drag-and-drop relocation for the peek button. Small movements pass
+    // through as a click (the button's win.toggle-sidebar action still fires).
+    // Movements past a 5px threshold claim the event sequence and update the
+    // button's overlay margins to relocate it inside the main_overlay.
+    {
+        let drag_start = Rc::new(RefCell::new((0i32, 0i32)));
+        let drag_active = Rc::new(RefCell::new(false));
+        let drag = gtk::GestureDrag::new();
+        drag.set_button(1);
+        drag.set_propagation_phase(gtk::PropagationPhase::Capture);
+
+        let peek_btn_for_begin = sidebar_peek_btn.clone();
+        let drag_start_for_begin = drag_start.clone();
+        let drag_active_for_begin = drag_active.clone();
+        drag.connect_drag_begin(move |_, _, _| {
+            *drag_start_for_begin.borrow_mut() = (
+                peek_btn_for_begin.margin_start(),
+                peek_btn_for_begin.margin_bottom(),
+            );
+            *drag_active_for_begin.borrow_mut() = false;
+        });
+
+        let peek_btn_for_update = sidebar_peek_btn.clone();
+        let drag_start_for_update = drag_start.clone();
+        let drag_active_for_update = drag_active.clone();
+        let overlay_for_update = main_overlay.clone();
+        drag.connect_drag_update(move |gesture, dx, dy| {
+            let active = *drag_active_for_update.borrow();
+            let threshold = 5.0_f64;
+            let triggered = active || dx.abs() > threshold || dy.abs() > threshold;
+            if !triggered {
+                return;
+            }
+            if !active {
+                *drag_active_for_update.borrow_mut() = true;
+                gesture.set_state(gtk::EventSequenceState::Claimed);
+            }
+            let (start_x, start_y) = *drag_start_for_update.borrow();
+            let overlay_w = overlay_for_update.width();
+            let overlay_h = overlay_for_update.height();
+            let btn_w = peek_btn_for_update.width().max(28);
+            let btn_h = peek_btn_for_update.height().max(28);
+            let new_x = ((start_x as f64) + dx).round() as i32;
+            let new_y = ((start_y as f64) - dy).round() as i32;
+            let clamped_x = new_x.clamp(0, (overlay_w - btn_w).max(0));
+            let clamped_y = new_y.clamp(0, (overlay_h - btn_h).max(0));
+            peek_btn_for_update.set_margin_start(clamped_x);
+            peek_btn_for_update.set_margin_bottom(clamped_y);
+        });
+
+        sidebar_peek_btn.add_controller(drag);
+    }
+
     let vbox = gtk::Box::new(gtk::Orientation::Vertical, 0);
     if let Some(ref header) = header {
         vbox.append(header);
