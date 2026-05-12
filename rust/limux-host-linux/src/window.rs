@@ -985,9 +985,18 @@ pub fn build_window(app: &adw::Application) {
         .build();
 
     {
+        // Track the previous window total width and paned position so that
+        // when the user resizes the window we preserve the CURRENT panel
+        // width (in pixels) instead of re-fitting to desired_width(). This
+        // keeps user-dragged divider positions stable across window resizes.
+        let prev_total = Rc::new(Cell::new(0i32));
+        let prev_position = Rc::new(Cell::new(0i32));
+
         let inner_paned_for_map = inner_paned.clone();
         let handle_for_map = file_panel_handle.clone();
         let fallback_map = file_panel_width_initial;
+        let prev_total_for_map = prev_total.clone();
+        let prev_position_for_map = prev_position.clone();
         window.connect_map(move |w| {
             let total = w.width();
             let mut target = handle_for_map.desired_width();
@@ -997,19 +1006,27 @@ pub fn build_window(app: &adw::Application) {
             if total > target {
                 inner_paned_for_map.set_position(total - target);
             }
+            prev_total_for_map.set(total);
+            prev_position_for_map.set(inner_paned_for_map.position());
         });
+
         let inner_paned_for_notify = inner_paned.clone();
-        let handle_for_notify = file_panel_handle.clone();
-        let fallback_notify = file_panel_width_initial;
+        let prev_total_for_notify = prev_total.clone();
+        let prev_position_for_notify = prev_position.clone();
         window.connect_default_width_notify(move |w| {
-            let total = w.width();
-            let mut target = handle_for_notify.desired_width();
-            if target <= 0 {
-                target = fallback_notify;
+            let new_total = w.width();
+            let pt = prev_total_for_notify.get();
+            let pp = prev_position_for_notify.get();
+            // Preserve the current panel width (= prev_total - prev_position)
+            // by repositioning the divider so panel width stays constant
+            // relative to the right edge.
+            if pt > 0 && pp > 0 && new_total > 0 {
+                let panel_width = pt - pp;
+                let new_position = (new_total - panel_width).max(0);
+                inner_paned_for_notify.set_position(new_position);
             }
-            if total > target {
-                inner_paned_for_notify.set_position(total - target);
-            }
+            prev_total_for_notify.set(new_total);
+            prev_position_for_notify.set(inner_paned_for_notify.position());
         });
     }
 
@@ -1074,6 +1091,11 @@ pub fn build_window(app: &adw::Application) {
         let drag_start_for_update = drag_start.clone();
         let drag_active_for_update = drag_active.clone();
         let overlay_for_update = main_overlay.clone();
+        // Throttle motion updates to ~60fps. Every margin change forces the
+        // Overlay to re-layout; without throttling, deep widget trees turn
+        // the drag laggy. Threshold check runs BEFORE the throttle so
+        // sub-threshold motion still falls through to a normal click.
+        let last_motion_ts = Rc::new(Cell::new(std::time::Instant::now()));
         drag.connect_drag_update(move |gesture, dx, dy| {
             let active = *drag_active_for_update.borrow();
             let threshold = 5.0_f64;
@@ -1084,6 +1106,15 @@ pub fn build_window(app: &adw::Application) {
             if !active {
                 *drag_active_for_update.borrow_mut() = true;
                 gesture.set_state(gtk::EventSequenceState::Claimed);
+                // Reset throttle on drag-claim so the first motion frame
+                // commits immediately.
+                last_motion_ts.set(std::time::Instant::now());
+            } else {
+                let now = std::time::Instant::now();
+                if now.duration_since(last_motion_ts.get()) < std::time::Duration::from_millis(16) {
+                    return;
+                }
+                last_motion_ts.set(now);
             }
             let (start_x, start_y) = *drag_start_for_update.borrow();
             let overlay_w = overlay_for_update.width();

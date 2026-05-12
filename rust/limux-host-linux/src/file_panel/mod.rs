@@ -321,7 +321,12 @@ impl FilePanelHandle {
                 }
             }
         }
-        self.notify_layout_changed();
+        // NOTE: intentionally no notify_layout_changed() here — refresh_git_for
+        // runs from the filesystem watcher every poll cycle (~5s on /home/eriks
+        // due to inotify-fail on Steam compatdata symlinks). Notifying would
+        // snap the inner_paned divider back to desired_width() and overwrite
+        // any width the user just dragged. Callers that want an explicit
+        // auto-fit (e.g. do_refresh) must call notify_layout_changed() themselves.
     }
 }
 
@@ -660,6 +665,8 @@ impl FilePanelHandle {
         let active = self.inner.borrow().active.clone();
         if let Some(active) = active {
             self.refresh_git_for(active);
+            // Manual user-triggered refresh — fit panel to content.
+            self.notify_layout_changed();
         }
     }
 }
