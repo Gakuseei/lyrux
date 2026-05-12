@@ -1371,6 +1371,10 @@ fn dispatch_shortcut_command(state: &State, command: ShortcutCommand) -> bool {
             toggle_sidebar(state);
             true
         }
+        ShortcutCommand::ToggleFilePanel => {
+            // wiring deferred to T34
+            false
+        }
         ShortcutCommand::ToggleTopBar => {
             toggle_top_bar(state);
             true

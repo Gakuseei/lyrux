@@ -60,6 +60,7 @@ pub enum ShortcutId {
     TerminalIncreaseFontSize,
     TerminalDecreaseFontSize,
     TerminalResetFontSize,
+    ToggleFilePanel,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -110,6 +111,7 @@ pub enum ShortcutCommand {
     TerminalIncreaseFontSize,
     TerminalDecreaseFontSize,
     TerminalResetFontSize,
+    ToggleFilePanel,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -308,7 +310,7 @@ struct ShortcutConfigFile {
     shortcuts: HashMap<String, serde_json::Value>,
 }
 
-const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 47] = [
+const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 48] = [
     ShortcutDefinition {
         id: ShortcutId::NewWorkspace,
         config_key: "new_workspace",
@@ -361,6 +363,17 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 47] = [
         label: "Toggle Sidebar",
         registers_gtk_accel: true,
         command: ShortcutCommand::ToggleSidebar,
+        scope: ShortcutScope::Window,
+        editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+    },
+    ShortcutDefinition {
+        id: ShortcutId::ToggleFilePanel,
+        config_key: "toggle_file_panel",
+        action_name: "win.toggle-file-panel",
+        default_accel: "<Ctrl>b",
+        label: "Toggle File Panel",
+        registers_gtk_accel: true,
+        command: ShortcutCommand::ToggleFilePanel,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
     },
@@ -1594,7 +1607,7 @@ mod tests {
 
     #[test]
     fn definitions_cover_current_host_shortcuts() {
-        assert_eq!(definitions().len(), 47);
+        assert_eq!(definitions().len(), 48);
     }
 
     #[test]
@@ -1629,6 +1642,7 @@ mod tests {
                 "app.quit",
                 "app.new-instance",
                 "win.toggle-sidebar",
+                "win.toggle-file-panel",
                 "win.toggle-top-bar",
                 "win.toggle-fullscreen",
                 "win.next-workspace",
@@ -1797,7 +1811,7 @@ mod tests {
         .unwrap();
 
         let gtk_accels = resolved.gtk_accel_entries();
-        assert_eq!(gtk_accels.len(), 9);
+        assert_eq!(gtk_accels.len(), 10);
         assert_eq!(
             gtk_accels
                 .iter()
