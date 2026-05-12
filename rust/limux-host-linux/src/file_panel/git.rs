@@ -1,7 +1,38 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 use crate::file_panel::model::GitStatus;
+
+#[derive(Debug)]
+#[allow(dead_code)]
+pub enum GitError {
+    Timeout,
+    Spawn(std::io::Error),
+    NonZero(i32),
+}
+
+#[allow(dead_code)]
+pub fn is_git_repo(root: &Path) -> bool {
+    let out = Command::new("git")
+        .args(["rev-parse", "--is-inside-work-tree"])
+        .current_dir(root)
+        .output();
+    matches!(out, Ok(o) if o.status.success() && o.stdout.starts_with(b"true"))
+}
+
+#[allow(dead_code)]
+pub fn run_status(root: &Path) -> Result<HashMap<PathBuf, GitStatus>, GitError> {
+    let out = Command::new("git")
+        .args(["status", "--porcelain=v2", "-z", "--untracked-files=all"])
+        .current_dir(root)
+        .output()
+        .map_err(GitError::Spawn)?;
+    if !out.status.success() {
+        return Err(GitError::NonZero(out.status.code().unwrap_or(-1)));
+    }
+    Ok(parse_porcelain_v2(root, &out.stdout))
+}
 
 #[allow(dead_code)]
 pub fn parse_porcelain_v2(root: &Path, output: &[u8]) -> HashMap<PathBuf, GitStatus> {
@@ -107,5 +138,38 @@ mod tests {
         let root = PathBuf::from("/proj");
         let m = parse_porcelain_v2(&root, b"");
         assert!(m.is_empty());
+    }
+
+    use tempfile::TempDir;
+
+    #[test]
+    fn is_git_repo_detects_repo() {
+        let tmp = TempDir::new().unwrap();
+        Command::new("git")
+            .arg("init")
+            .current_dir(tmp.path())
+            .output()
+            .unwrap();
+        assert!(is_git_repo(tmp.path()));
+    }
+
+    #[test]
+    fn is_git_repo_returns_false_for_plain_dir() {
+        let tmp = TempDir::new().unwrap();
+        assert!(!is_git_repo(tmp.path()));
+    }
+
+    #[test]
+    fn run_status_in_repo_returns_map() {
+        let tmp = TempDir::new().unwrap();
+        Command::new("git")
+            .arg("init")
+            .current_dir(tmp.path())
+            .output()
+            .unwrap();
+        std::fs::write(tmp.path().join("a.txt"), "hello").unwrap();
+        let m = run_status(tmp.path()).unwrap();
+        let a = tmp.path().join("a.txt");
+        assert_eq!(m.get(&a), Some(&GitStatus::Untracked));
     }
 }
