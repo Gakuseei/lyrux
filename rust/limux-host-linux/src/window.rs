@@ -738,13 +738,25 @@ row:selected .limux-ws-path {
 .limux-content {
     background-color: @window_bg_color;
 }
-.limux-sidebar-peek {
-    padding: 4px;
-    background: alpha(@view_bg_color, 0.85);
-    border-radius: 6px;
+.limux-sidebar-peek-strip {
+    background: alpha(@accent_bg_color, 0.0);
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 0;
+    min-width: 4px;
+    transition: min-width 150ms, background 150ms;
 }
-.limux-sidebar-peek:hover {
-    background: alpha(@view_bg_color, 0.95);
+.limux-sidebar-peek-strip:hover {
+    background: alpha(@accent_bg_color, 0.6);
+    min-width: 24px;
+}
+.limux-sidebar-peek-strip image {
+    opacity: 0;
+    transition: opacity 150ms;
+}
+.limux-sidebar-peek-strip:hover image {
+    opacity: 1;
 }
 "#;
 
@@ -1070,106 +1082,28 @@ pub fn build_window(app: &adw::Application) {
         });
     }
 
-    // Always-visible floating peek button so users can re-open the sidebar
+    // Auto-hide hover strip on the left edge so users can re-open the sidebar
     // after collapsing it, regardless of decoration mode (X11 or Wayland-CSD).
     //
-    // The button lives inside a gtk::Fixed overlay child rather than being
-    // added to the Overlay directly with margin-based positioning. Reasons:
-    //   - gtk::Fixed::move_(child, x, y) is O(1) and skips the Overlay
-    //     full-relayout that margin_start/margin_bottom mutations trigger
-    //     every drag motion frame, eliminating the trailing-behind-cursor lag.
-    //   - The Fixed has set_can_target(false) so empty regions pass clicks
-    //     through to main_paned (terminal, etc.); the button child keeps its
-    //     default targetability so it still receives drag + click input.
+    // The strip is a 4px-wide button overlay anchored to the left edge of
+    // main_overlay. When the cursor approaches, CSS widens it to ~24px and
+    // fades in a `pan-end-symbolic` icon. Clicking fires `win.toggle-sidebar`.
+    // Visibility is toggled in `toggle_sidebar` (visible only when collapsed).
     let main_overlay = gtk::Overlay::new();
     main_overlay.set_child(Some(&main_paned));
 
-    let peek_fixed = gtk::Fixed::new();
-    peek_fixed.set_can_target(false);
-
-    let sidebar_peek_btn = gtk::Button::from_icon_name("view-list-symbolic");
+    let sidebar_peek_btn = gtk::Button::from_icon_name("pan-end-symbolic");
     sidebar_peek_btn.add_css_class("flat");
-    sidebar_peek_btn.add_css_class("limux-sidebar-peek");
+    sidebar_peek_btn.add_css_class("limux-sidebar-peek-strip");
     sidebar_peek_btn.set_tooltip_text(Some("Show sidebar"));
-    sidebar_peek_btn.set_action_name(Some("win.toggle-sidebar"));
+    sidebar_peek_btn.set_halign(gtk::Align::Start);
+    sidebar_peek_btn.set_valign(gtk::Align::Fill);
+    sidebar_peek_btn.set_width_request(4);
+    sidebar_peek_btn.set_hexpand(false);
+    sidebar_peek_btn.set_vexpand(true);
     sidebar_peek_btn.set_visible(false);
-    sidebar_peek_btn.set_size_request(32, 32);
-
-    // Initial put — actual position is finalized in connect_map below once the
-    // overlay has a real height (we want bottom-left, but height() == 0 here).
-    peek_fixed.put(&sidebar_peek_btn, 8.0, 0.0);
-    main_overlay.add_overlay(&peek_fixed);
-
-    // Position the peek button at bottom-left once the overlay is mapped and
-    // its size is known. Skip if the user has already dragged the button.
-    let peek_dragged: Rc<Cell<bool>> = Rc::new(Cell::new(false));
-    {
-        let fixed_for_map = peek_fixed.clone();
-        let btn_for_map = sidebar_peek_btn.clone();
-        let overlay_for_map = main_overlay.clone();
-        let dragged_for_map = peek_dragged.clone();
-        main_overlay.connect_map(move |_| {
-            if dragged_for_map.get() {
-                return;
-            }
-            let h = overlay_for_map.height();
-            let y = ((h - 40).max(0)) as f64;
-            fixed_for_map.move_(&btn_for_map, 8.0, y);
-        });
-    }
-
-    // Drag-to-relocate. Small movements pass through as a click (win.toggle-sidebar
-    // still fires). Movements past a 5px threshold claim the gesture and reposition
-    // the button via Fixed::move_ — no throttle needed; move_ is constant-time and
-    // does not retrigger Overlay layout.
-    {
-        // (start_x, start_y) captured on drag-begin from the Fixed child position.
-        let drag_start: Rc<Cell<(f64, f64)>> = Rc::new(Cell::new((8.0, 0.0)));
-        let drag_active: Rc<Cell<bool>> = Rc::new(Cell::new(false));
-        let drag = gtk::GestureDrag::new();
-        drag.set_button(1);
-        drag.set_propagation_phase(gtk::PropagationPhase::Capture);
-
-        let fixed_for_begin = peek_fixed.clone();
-        let btn_for_begin = sidebar_peek_btn.clone();
-        let drag_start_for_begin = drag_start.clone();
-        let drag_active_for_begin = drag_active.clone();
-        drag.connect_drag_begin(move |_, _, _| {
-            let (x, y) = fixed_for_begin.child_position(&btn_for_begin);
-            drag_start_for_begin.set((x, y));
-            drag_active_for_begin.set(false);
-        });
-
-        let fixed_for_update = peek_fixed.clone();
-        let btn_for_update = sidebar_peek_btn.clone();
-        let overlay_for_update = main_overlay.clone();
-        let drag_start_for_update = drag_start.clone();
-        let drag_active_for_update = drag_active.clone();
-        let dragged_for_update = peek_dragged.clone();
-        drag.connect_drag_update(move |gesture, dx, dy| {
-            let active = drag_active_for_update.get();
-            let threshold = 5.0_f64;
-            if !active && dx.abs() < threshold && dy.abs() < threshold {
-                return;
-            }
-            if !active {
-                drag_active_for_update.set(true);
-                dragged_for_update.set(true);
-                gesture.set_state(gtk::EventSequenceState::Claimed);
-            }
-            let (start_x, start_y) = drag_start_for_update.get();
-            let overlay_w = overlay_for_update.width() as f64;
-            let overlay_h = overlay_for_update.height() as f64;
-            let btn_w = btn_for_update.width().max(32) as f64;
-            let btn_h = btn_for_update.height().max(32) as f64;
-            // Fixed uses top-anchored y: +dy moves down on screen.
-            let new_x = (start_x + dx).clamp(0.0, (overlay_w - btn_w).max(0.0));
-            let new_y = (start_y + dy).clamp(0.0, (overlay_h - btn_h).max(0.0));
-            fixed_for_update.move_(&btn_for_update, new_x, new_y);
-        });
-
-        sidebar_peek_btn.add_controller(drag);
-    }
+    sidebar_peek_btn.set_action_name(Some("win.toggle-sidebar"));
+    main_overlay.add_overlay(&sidebar_peek_btn);
 
     let vbox = gtk::Box::new(gtk::Orientation::Vertical, 0);
     if let Some(ref header) = header {
