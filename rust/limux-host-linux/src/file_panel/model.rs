@@ -69,6 +69,10 @@ impl TreeModel {
         }
     }
 
+    pub fn set_hidden_visible(&mut self, v: bool) {
+        self.hidden_visible = v;
+    }
+
     pub fn rebuild_visible(&mut self) {
         self.rows.clear();
         let children = self.list_children(&self.root.clone(), 0, None);
@@ -315,5 +319,42 @@ mod tests {
         m.toggle_expand(0);
         assert_eq!(m.rows.len(), 1);
         assert!(!m.rows[0].expanded);
+    }
+
+    #[test]
+    fn hidden_files_filtered_by_default() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        touch(root, ".env");
+        touch(root, "visible.txt");
+        let mut m = TreeModel::new(root.to_path_buf());
+        m.rebuild_visible();
+        assert_eq!(m.rows.len(), 1);
+        assert_eq!(m.rows[0].path.file_name().unwrap(), "visible.txt");
+    }
+
+    #[test]
+    fn hidden_files_shown_when_toggled() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        touch(root, ".env");
+        touch(root, "visible.txt");
+        let mut m = TreeModel::new(root.to_path_buf());
+        m.set_hidden_visible(true);
+        m.rebuild_visible();
+        assert_eq!(m.rows.len(), 2);
+    }
+
+    #[test]
+    fn toggling_hidden_after_rebuild_requires_rebuild() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        touch(root, ".env");
+        let mut m = TreeModel::new(root.to_path_buf());
+        m.rebuild_visible();
+        assert_eq!(m.rows.len(), 0);
+        m.set_hidden_visible(true);
+        m.rebuild_visible();
+        assert_eq!(m.rows.len(), 1);
     }
 }
