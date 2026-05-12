@@ -55,14 +55,6 @@ pub struct Inner {
     // Bug 5: snapshot of expanded_paths captured on collapse-all so the next
     // press can restore the previously-open folders.
     pub last_expanded_snapshot: HashMap<WorkspaceId, HashSet<PathBuf>>,
-    // Layout-change subscriber (window.rs). Invoked with the new desired
-    // width whenever the visible tree changes (workspace switch, expand /
-    // collapse toggle, hidden-files toggle, git/watcher refresh). The
-    // callback receives only an `i32` so it is safe to invoke while any
-    // borrow on `Inner` is held, provided the callback never re-borrows
-    // `Inner` itself — the window-level callback only touches the
-    // GTK paned and window handles.
-    pub on_layout_changed: Option<Box<dyn Fn(i32)>>,
 }
 
 #[derive(Clone)]
@@ -97,7 +89,6 @@ impl FilePanelHandle {
                 active: None,
                 visible: false,
                 last_expanded_snapshot: HashMap::new(),
-                on_layout_changed: None,
             })),
             untitled_counter: Rc::new(AtomicU32::new(0)),
         }
@@ -190,10 +181,6 @@ impl FilePanelHandle {
         self.inner.borrow_mut().active = Some(workspace_id.clone());
 
         self.refresh_git_for(workspace_id);
-        // Intentionally NO notify_layout_changed() here. Workspace switching is
-        // passive: the divider must keep whatever pixel width the user last
-        // dragged. Only first-show (connect_map) and explicit panel toggle
-        // re-fit to desired_width().
     }
 
     pub fn toggle_visible(&self) {
@@ -232,21 +219,6 @@ impl FilePanelHandle {
             None => return 200,
         };
         compute_desired_width(&per.model)
-    }
-
-    /// Register a callback fired whenever the visible tree changes and
-    /// the desired panel width may have shifted. The callback is invoked
-    /// on the main thread with the new width (already clamped).
-    pub fn set_on_layout_changed<F: Fn(i32) + 'static>(&self, cb: F) {
-        self.inner.borrow_mut().on_layout_changed = Some(Box::new(cb));
-    }
-
-    fn notify_layout_changed(&self) {
-        let width = self.desired_width();
-        let inner = self.inner.borrow();
-        if let Some(cb) = inner.on_layout_changed.as_ref() {
-            cb(width);
-        }
     }
 
     fn on_watcher_event(&self, workspace_id: &str, paths: Vec<PathBuf>) {
@@ -324,12 +296,6 @@ impl FilePanelHandle {
                 }
             }
         }
-        // NOTE: intentionally no notify_layout_changed() here — refresh_git_for
-        // runs from the filesystem watcher every poll cycle (~5s on /home/eriks
-        // due to inotify-fail on Steam compatdata symlinks). Notifying would
-        // snap the inner_paned divider back to desired_width() and overwrite
-        // any width the user just dragged. Callers that want an explicit
-        // auto-fit (e.g. do_refresh) must call notify_layout_changed() themselves.
     }
 }
 
@@ -372,7 +338,6 @@ impl FilePanelHandle {
                 }
             }
         }
-        self.notify_layout_changed();
     }
 
     fn wire_context_menu(&self) {
@@ -643,7 +608,6 @@ impl FilePanelHandle {
         eprintln!(
             "limux: fp-collapse-all active={active} restore={is_restore} expanded_before={count_before} after={count_after}"
         );
-        self.notify_layout_changed();
     }
 
     fn do_toggle_hidden(&self) {
@@ -661,15 +625,12 @@ impl FilePanelHandle {
                 apply_model_to_store(&per.model, &store);
             }
         }
-        self.notify_layout_changed();
     }
 
     fn do_refresh(&self) {
         let active = self.inner.borrow().active.clone();
         if let Some(active) = active {
             self.refresh_git_for(active);
-            // Manual user-triggered refresh — fit panel to content.
-            self.notify_layout_changed();
         }
     }
 }

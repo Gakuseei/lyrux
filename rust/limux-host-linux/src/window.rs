@@ -1064,24 +1064,6 @@ pub fn build_window(app: &adw::Application) {
         });
     }
 
-    // React to file-panel layout changes (workspace switch, expand /
-    // collapse, hidden toggle, watcher / git refresh) by re-positioning
-    // the inner paned so the dynamic width is applied without waiting
-    // for the next resize or toggle.
-    {
-        let inner_paned_for_layout = inner_paned.clone();
-        let window_for_layout = window.clone();
-        file_panel_handle.set_on_layout_changed(move |target_width| {
-            if !window_for_layout.is_mapped() {
-                return;
-            }
-            let total = window_for_layout.width();
-            if total > target_width {
-                inner_paned_for_layout.set_position(total - target_width);
-            }
-        });
-    }
-
     // Auto-hide hover strip on the left edge so users can re-open the sidebar
     // after collapsing it, regardless of decoration mode (X11 or Wayland-CSD).
     //
