@@ -224,3 +224,72 @@ pub fn file_panel_css() -> &'static str {
 .limux-fp-git-c { color: #c06060; }
 "#
 }
+
+#[allow(dead_code)]
+pub fn build_sticky_overlay(
+    list_view: &gtk::ListView,
+    scrolled: &gtk::ScrolledWindow,
+    store: &gtk4::gio::ListStore,
+) -> gtk::Box {
+    let overlay = gtk::Box::new(gtk::Orientation::Horizontal, 4);
+    overlay.add_css_class("limux-fp-sticky");
+    overlay.set_visible(false);
+
+    let label = gtk::Label::new(None);
+    label.set_xalign(0.0);
+    overlay.append(&label);
+
+    let list_view = list_view.clone();
+    let store = store.clone();
+    let label_clone = label.clone();
+    let overlay_clone = overlay.clone();
+    scrolled.vadjustment().connect_value_changed(move |adj| {
+        update_sticky(
+            &list_view,
+            &store,
+            adj.value(),
+            &overlay_clone,
+            &label_clone,
+        );
+    });
+
+    overlay
+}
+
+#[allow(dead_code)]
+fn update_sticky(
+    _list_view: &gtk::ListView,
+    store: &gtk4::gio::ListStore,
+    scroll_y: f64,
+    overlay: &gtk::Box,
+    label: &gtk::Label,
+) {
+    if scroll_y <= 1.0 {
+        overlay.set_visible(false);
+        return;
+    }
+    let topmost = approximate_top_visible_index(scroll_y);
+    let mut best: Option<RowObject> = None;
+    let n = store.n_items();
+    for i in (0..=topmost.min(n.saturating_sub(1))).rev() {
+        if let Some(obj) = store.item(i).and_then(|o| o.downcast::<RowObject>().ok()) {
+            if matches!(obj.kind(), Kind::Dir) {
+                best = Some(obj);
+                break;
+            }
+        }
+    }
+    match best {
+        Some(obj) => {
+            label.set_text(&obj.name());
+            overlay.set_visible(true);
+        }
+        None => overlay.set_visible(false),
+    }
+}
+
+#[allow(dead_code)]
+fn approximate_top_visible_index(scroll_y: f64) -> u32 {
+    let row_h = 22.0;
+    (scroll_y / row_h).floor() as u32
+}
