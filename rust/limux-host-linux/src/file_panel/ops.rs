@@ -93,6 +93,54 @@ pub fn delete_permanent(root: &Path, paths: &[PathBuf]) -> Result<(), OpError> {
     Ok(())
 }
 
+#[allow(dead_code)]
+pub fn duplicate(root: &Path, src: &Path) -> Result<PathBuf, OpError> {
+    if !is_within_root(src, root) {
+        return Err(OpError::OutOfRoot);
+    }
+    let parent = src.parent().ok_or(OpError::OutOfRoot)?;
+    let (stem, ext) = split_name(src);
+    let mut n = 1u32;
+    loop {
+        let candidate_name = match &ext {
+            Some(e) => format!("{stem} ({n}).{e}"),
+            None => format!("{stem} ({n})"),
+        };
+        let candidate = parent.join(&candidate_name);
+        if !candidate.exists() {
+            copy_recursive(src, &candidate)?;
+            return Ok(candidate);
+        }
+        n += 1;
+    }
+}
+
+fn split_name(p: &Path) -> (String, Option<String>) {
+    let name = p.file_name().and_then(|s| s.to_str()).unwrap_or("");
+    if p.is_dir() {
+        return (name.to_string(), None);
+    }
+    match name.rfind('.') {
+        Some(i) if i > 0 => (name[..i].to_string(), Some(name[i + 1..].to_string())),
+        _ => (name.to_string(), None),
+    }
+}
+
+fn copy_recursive(src: &Path, dst: &Path) -> Result<(), OpError> {
+    if src.is_dir() {
+        std::fs::create_dir(dst)?;
+        for entry in std::fs::read_dir(src)? {
+            let entry = entry?;
+            let child_src = entry.path();
+            let child_dst = dst.join(entry.file_name());
+            copy_recursive(&child_src, &child_dst)?;
+        }
+    } else {
+        std::fs::copy(src, dst)?;
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -183,5 +231,39 @@ mod tests {
             !p.exists() || std::fs::metadata(&p).is_err(),
             "file moved to trash or removed"
         );
+    }
+
+    #[test]
+    fn duplicate_file_uses_suffix_one() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let src = root.join("foo.rs");
+        std::fs::write(&src, b"x").unwrap();
+        let dup = duplicate(&root, &src).unwrap();
+        assert_eq!(dup.file_name().unwrap(), "foo (1).rs");
+        assert!(dup.exists());
+    }
+
+    #[test]
+    fn duplicate_directory_uses_suffix_one() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let src = root.join("dir");
+        std::fs::create_dir(&src).unwrap();
+        std::fs::write(src.join("inside.txt"), b"x").unwrap();
+        let dup = duplicate(&root, &src).unwrap();
+        assert_eq!(dup.file_name().unwrap(), "dir (1)");
+        assert!(dup.is_dir());
+        assert!(dup.join("inside.txt").exists());
+    }
+
+    #[test]
+    fn duplicate_increments_suffix_when_taken() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        std::fs::write(root.join("a.txt"), b"x").unwrap();
+        std::fs::write(root.join("a (1).txt"), b"y").unwrap();
+        let dup = duplicate(&root, &root.join("a.txt")).unwrap();
+        assert_eq!(dup.file_name().unwrap(), "a (2).txt");
     }
 }
