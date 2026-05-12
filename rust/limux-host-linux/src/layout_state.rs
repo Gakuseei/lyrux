@@ -56,6 +56,12 @@ pub struct WorkspaceState {
     #[serde(default)]
     pub folder_path: Option<String>,
     pub layout: LayoutNodeState,
+    #[serde(default)]
+    pub file_panel_expanded: Vec<String>,
+    #[serde(default)]
+    pub file_panel_selected: Option<String>,
+    #[serde(default)]
+    pub file_panel_scroll_y: f64,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq)]
@@ -356,6 +362,9 @@ impl AppSessionState {
                         active_tab_id: Some(tab.id.clone()),
                         tabs: vec![tab],
                     }),
+                    file_panel_expanded: Vec::new(),
+                    file_panel_selected: None,
+                    file_panel_scroll_y: 0.0,
                 }
             })
             .collect();
@@ -470,6 +479,9 @@ mod tests {
                 cwd: Some("/canonical".to_string()),
                 folder_path: Some("/canonical".to_string()),
                 layout: LayoutNodeState::Pane(PaneState::fallback(Some("/canonical"))),
+                file_panel_expanded: Vec::new(),
+                file_panel_selected: None,
+                file_panel_scroll_y: 0.0,
             }],
             ..AppSessionState::default()
         };
@@ -570,6 +582,9 @@ mod tests {
                 cwd: Some("/tmp".to_string()),
                 folder_path: Some("/tmp".to_string()),
                 layout: LayoutNodeState::Pane(PaneState::fallback(Some("/tmp"))),
+                file_panel_expanded: Vec::new(),
+                file_panel_selected: None,
+                file_panel_scroll_y: 0.0,
             }],
             ..AppSessionState::default()
         };
@@ -658,6 +673,9 @@ mod tests {
                         content: TabContentState::Keybinds {},
                     }],
                 }),
+                file_panel_expanded: Vec::new(),
+                file_panel_selected: None,
+                file_panel_scroll_y: 0.0,
             }],
             ..AppSessionState::default()
         };

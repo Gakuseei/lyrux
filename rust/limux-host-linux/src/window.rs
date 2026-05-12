@@ -378,6 +378,9 @@ fn snapshot_session_state(state: &State) -> AppSessionState {
                     .split_container
                     .tree()
                     .snapshot(working_directory.as_deref()),
+                file_panel_expanded: Vec::new(),
+                file_panel_selected: None,
+                file_panel_scroll_y: 0.0,
             }
         })
         .collect();
@@ -2773,6 +2776,9 @@ fn create_workspace_with_folder(state: &State, name: &str, folder_path: &str) {
         cwd: Some(folder_path.to_string()),
         folder_path: Some(folder_path.to_string()),
         layout: LayoutNodeState::Pane(PaneState::fallback(Some(folder_path))),
+        file_panel_expanded: Vec::new(),
+        file_panel_selected: None,
+        file_panel_scroll_y: 0.0,
     };
     add_workspace_from_state(state, &workspace);
     request_session_save(state);

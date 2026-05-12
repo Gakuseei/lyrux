@@ -44,6 +44,16 @@ pub struct AppConfig {
     pub appearance: AppearanceConfig,
     #[serde(skip)]
     pub font_size: Option<f32>,
+    #[serde(default)]
+    pub file_panel_visible: bool,
+    #[serde(default = "default_file_panel_width")]
+    pub file_panel_width: u32,
+    #[serde(default)]
+    pub file_panel_hidden_visible: bool,
+}
+
+fn default_file_panel_width() -> u32 {
+    240
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -155,6 +165,22 @@ fn parse_app_config_value(root: &Value) -> AppConfig {
         .map(|v| v as f32)
         .filter(|v| (1.0..=255.0).contains(v));
 
+    let file_panel_visible = root
+        .get("file_panel_visible")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+
+    let file_panel_width = root
+        .get("file_panel_width")
+        .and_then(Value::as_u64)
+        .map(|v| v as u32)
+        .unwrap_or_else(default_file_panel_width);
+
+    let file_panel_hidden_visible = root
+        .get("file_panel_hidden_visible")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+
     AppConfig {
         focus: FocusConfig {
             hover_terminal_focus,
@@ -164,6 +190,9 @@ fn parse_app_config_value(root: &Value) -> AppConfig {
             ghostty_color_scheme,
         },
         font_size,
+        file_panel_visible,
+        file_panel_width,
+        file_panel_hidden_visible,
     }
 }
 
