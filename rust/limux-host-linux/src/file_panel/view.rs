@@ -202,3 +202,25 @@ pub fn apply_model_to_store(model: &TreeModel, store: &gtk4::gio::ListStore) {
         store.append(&obj);
     }
 }
+
+#[allow(dead_code)]
+pub fn file_panel_css() -> &'static str {
+    r#"
+.limux-fp-header { background: transparent; color: #5a5a5a; }
+.limux-fp-title { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: #c0a060; }
+.limux-fp-icon { padding: 2px; min-height: 0; min-width: 0; }
+.limux-fp-listview row { padding: 0; }
+.limux-fp-row { padding: 2px 8px 2px 6px; color: #8a8a8a; }
+.limux-fp-row:selected { background: rgba(192, 160, 96, 0.12); color: #d0d0c8; }
+.limux-fp-indent { background-image: linear-gradient(to right, transparent 7px, rgba(255,255,255,0.06) 7px, rgba(255,255,255,0.06) 8px, transparent 8px); }
+.limux-fp-chevron { color: #555; }
+.limux-fp-rowicon { color: #888; }
+.limux-fp-name { color: #b8b8b0; }
+.limux-fp-git { font-size: 9px; padding-left: 8px; }
+.limux-fp-git-m { color: #c0a060; }
+.limux-fp-git-a { color: #7aa67a; }
+.limux-fp-git-d { color: #c08080; }
+.limux-fp-git-u { color: #7a7a7a; }
+.limux-fp-git-c { color: #c06060; }
+"#
+}
