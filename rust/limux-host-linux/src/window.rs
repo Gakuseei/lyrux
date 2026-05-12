@@ -849,11 +849,25 @@ pub fn build_window(app: &adw::Application) {
 
     let sidebar_title = gtk::Box::builder()
         .orientation(gtk::Orientation::Horizontal)
+        .spacing(4)
         .margin_top(8)
         .margin_bottom(4)
         .margin_end(6)
         .build();
+    sidebar_title.add_css_class("limux-workspaces-header");
     sidebar_title.append(&sidebar_title_label);
+
+    let toggle_fp_btn = gtk::Button::from_icon_name("folder-symbolic");
+    toggle_fp_btn.add_css_class("flat");
+    toggle_fp_btn.set_tooltip_text(Some("Toggle file panel"));
+    toggle_fp_btn.set_action_name(Some("win.toggle-file-panel"));
+    sidebar_title.append(&toggle_fp_btn);
+
+    let collapse_sb_btn = gtk::Button::from_icon_name("pan-start-symbolic");
+    collapse_sb_btn.add_css_class("flat");
+    collapse_sb_btn.set_tooltip_text(Some("Collapse sidebar"));
+    collapse_sb_btn.set_action_name(Some("win.toggle-sidebar"));
+    sidebar_title.append(&collapse_sb_btn);
 
     {
         let window = window.clone();
@@ -1404,8 +1418,8 @@ fn dispatch_shortcut_command(state: &State, command: ShortcutCommand) -> bool {
             true
         }
         ShortcutCommand::ToggleFilePanel => {
-            // wiring deferred to T34
-            false
+            state.borrow().file_panel.toggle_visible();
+            true
         }
         ShortcutCommand::ToggleTopBar => {
             toggle_top_bar(state);

@@ -163,7 +163,6 @@ impl FilePanelHandle {
         self.refresh_git_for(workspace_id);
     }
 
-    #[allow(dead_code)]
     pub fn toggle_visible(&self) {
         let visible = {
             let mut inner = self.inner.borrow_mut();
