@@ -49,6 +49,20 @@ pub fn new_folder(root: &Path, parent: &Path, name: &str) -> Result<PathBuf, OpE
     Ok(target)
 }
 
+#[allow(dead_code)]
+pub fn rename(root: &Path, old: &Path, new_name: &str) -> Result<PathBuf, OpError> {
+    let parent = old.parent().ok_or(OpError::OutOfRoot)?;
+    let target = parent.join(new_name);
+    if !is_within_root(&target, root) {
+        return Err(OpError::OutOfRoot);
+    }
+    if target.exists() {
+        return Err(OpError::AlreadyExists);
+    }
+    std::fs::rename(old, &target)?;
+    Ok(target)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -86,5 +100,26 @@ mod tests {
         let root = tmp.path().canonicalize().unwrap();
         let p = new_folder(&root, &root, "subdir").unwrap();
         assert!(p.is_dir());
+    }
+
+    #[test]
+    fn rename_within_root_ok() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        std::fs::File::create(root.join("a")).unwrap();
+        let new = rename(&root, &root.join("a"), "b").unwrap();
+        assert_eq!(new, root.join("b"));
+        assert!(new.exists());
+        assert!(!root.join("a").exists());
+    }
+
+    #[test]
+    fn rename_collision_errors() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        std::fs::File::create(root.join("a")).unwrap();
+        std::fs::File::create(root.join("b")).unwrap();
+        let err = rename(&root, &root.join("a"), "b").unwrap_err();
+        assert!(matches!(err, OpError::AlreadyExists));
     }
 }
