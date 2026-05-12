@@ -1,4 +1,6 @@
 target/
+.superpowers/
+docs/superpowers/
 zig/.zig-cache/
 zig/zig-out/
 dist/
