@@ -26,6 +26,8 @@ mod imp {
         pub git_id: std::cell::Cell<i32>,
         #[property(get, set)]
         pub name: RefCell<String>,
+        #[property(get, set)]
+        pub ignored: std::cell::Cell<bool>,
     }
 
     #[glib::object_subclass]
@@ -56,6 +58,7 @@ impl RowObject {
                 .map(|s| s.to_string_lossy().to_string())
                 .unwrap_or_default(),
         );
+        obj.set_ignored(row.ignored);
         obj
     }
 
@@ -73,6 +76,15 @@ impl RowObject {
 
     pub fn git_status(&self) -> GitStatus {
         id_to_git(self.git_id())
+    }
+
+    pub fn matches_row(&self, row: &Row) -> bool {
+        self.path_str() == row.path.to_string_lossy()
+            && self.depth() == row.depth
+            && self.kind_id() == kind_to_id(row.kind)
+            && self.expanded() == row.expanded
+            && self.git_id() == git_to_id(row.git_status)
+            && self.ignored() == row.ignored
     }
 }
 
