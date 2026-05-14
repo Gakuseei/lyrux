@@ -174,10 +174,15 @@ fi
 # Always build libghostty with ReleaseFast to guarantee optimized output.
 # Pinning cpu=baseline keeps the shipped library portable across x86_64 CPUs
 # that do not expose the builder's ISA extensions, such as AVX-512.
-configure_ghostty_build_args
-echo "Building libghostty (ReleaseFast, cpu=baseline)..."
-(cd "${ROOT_DIR}/ghostty" && zig build -Dapp-runtime=none "${GHOSTTY_ZIG_ARGS[@]}")
-build_ghostty_resources
+if [ -n "${LIMUX_SKIP_GHOSTTY:-}" ] && [ -f "$GHOSTTY_SO" ]; then
+    echo "LIMUX_SKIP_GHOSTTY set, reusing existing libghostty.so at ${GHOSTTY_SO}"
+    echo "Skipping build_ghostty_resources, will fall back to system /usr/share/ghostty"
+else
+    configure_ghostty_build_args
+    echo "Building libghostty (ReleaseFast, cpu=baseline)..."
+    (cd "${ROOT_DIR}/ghostty" && zig build -Dapp-runtime=none "${GHOSTTY_ZIG_ARGS[@]}")
+    build_ghostty_resources
+fi
 
 if [ ! -f "$GHOSTTY_SO" ]; then
     echo "ERROR: libghostty.so not found at ${GHOSTTY_SO} after build"
