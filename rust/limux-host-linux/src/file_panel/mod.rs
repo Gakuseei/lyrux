@@ -1,3 +1,9 @@
+// In release builds the `perf_log!` macro expands to nothing, leaving the
+// timer locals (`t0`, `t_refresh`, ...) and splice/descendant counters
+// without readers. They are intentional debug-only instrumentation; suppress
+// the resulting warnings only for non-debug builds.
+#![cfg_attr(not(debug_assertions), allow(unused_variables, unused_assignments))]
+
 pub mod actions;
 pub mod clipboard;
 pub mod config;
@@ -8,6 +14,19 @@ pub mod ops;
 pub mod row_object;
 pub mod view;
 pub mod watcher;
+
+// Perf instrumentation. Stripped in release builds (`cfg(debug_assertions)`
+// gates the expansion to a no-op when optimizations are on). Use in place of
+// raw `eprintln!("limux-perf: ...")` so production AppImage stays clean.
+macro_rules! perf_log {
+    ($($arg:tt)*) => {
+        #[cfg(debug_assertions)]
+        {
+            eprintln!($($arg)*);
+        }
+    };
+}
+pub(crate) use perf_log;
 
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -25,7 +44,8 @@ use crate::file_panel::clipboard::{ClipMode, Clipboard};
 use crate::file_panel::model::TreeModel;
 use crate::file_panel::row_object::RowObject;
 use crate::file_panel::view::{
-    apply_model_to_store, build_header, build_list_view, file_panel_css, HeaderHandle, ViewState,
+    apply_changes_to_store, apply_model_to_store, build_header, build_list_view, file_panel_css,
+    HeaderHandle, ViewState,
 };
 use crate::file_panel::watcher::WatcherHandle;
 
@@ -36,6 +56,25 @@ pub struct PerWorkspace {
     // Held to keep the filesystem watcher thread alive for this workspace's lifetime.
     #[allow(dead_code)]
     pub watcher: Option<WatcherHandle>,
+    // Removing this source drops the timeout closure which owns the watcher's
+    // `rx`. The next watcher send then fails, the watcher thread exits, and the
+    // debouncer is dropped on unwind. This is the only handle that stops the
+    // watcher; `WatcherHandle` carries no state.
+    pub timeout_source: Option<glib::SourceId>,
+    // Workspace-root `.gitignore` matcher. Applied at the consumer side (in
+    // `on_watcher_event`) to drop noisy paths Aria/Limux/etc. write to but
+    // don't track (e.g. `.superpowers/`, `.playwright/`, `.todos/`). The
+    // watcher thread stays per-workspace-state-free; per-workspace state
+    // lives where `PerWorkspace` lives.
+    pub gitignore: ignore::gitignore::Gitignore,
+    // Coalescing flags for the async `git status` job. `git_in_flight` is
+    // set when a worker thread is currently running `git status` for this
+    // workspace; further refresh requests during that window flip
+    // `git_rerun_pending` instead of spawning duplicate jobs. When the in-
+    // flight job completes, the apply path checks `git_rerun_pending` and
+    // kicks one fresh run.
+    pub git_in_flight: bool,
+    pub git_rerun_pending: bool,
 }
 
 pub struct Inner {
@@ -110,8 +149,26 @@ impl FilePanelHandle {
             }
         }
         if !self.inner.borrow().cache.contains_key(&workspace_id) {
+            // Build a gitignore matcher rooted at the workspace. Only the
+            // root-level `.gitignore` is loaded; nested ignores are not
+            // walked. `add()` returns `Some(err)` if the file is missing or
+            // unreadable — that's fine, we discard it and fall through to a
+            // (possibly empty) matcher.
+            let gitignore = {
+                let mut builder = ignore::gitignore::GitignoreBuilder::new(&root);
+                let _ = builder.add(root.join(".gitignore"));
+                builder
+                    .build()
+                    .unwrap_or_else(|_| ignore::gitignore::Gitignore::empty())
+            };
+
             let mut model = TreeModel::new(root.clone());
+            model.set_gitignore(gitignore.clone());
             for p in &expanded {
+                crate::file_panel::perf_log!(
+                    "limux-perf: expanded_paths::insert(show_workspace seed) {:?}",
+                    p
+                );
                 model.expanded_paths.insert(p.clone());
             }
             model.rebuild_visible();
@@ -134,22 +191,22 @@ impl FilePanelHandle {
             // receiver here without crossing thread boundaries.
             let self_clone = self.clone();
             let id_clone = workspace_id.clone();
-            glib::timeout_add_local(Duration::from_millis(100), move || {
-                let mut batches: Vec<Vec<PathBuf>> = Vec::new();
+            let timeout_source = glib::timeout_add_local(Duration::from_millis(1000), move || {
+                let mut merged: Vec<PathBuf> = Vec::new();
                 loop {
                     match rx.try_recv() {
-                        Ok(paths) => batches.push(paths),
+                        Ok(paths) => merged.extend(paths),
                         Err(mpsc::TryRecvError::Empty) => break,
                         Err(mpsc::TryRecvError::Disconnected) => {
-                            for paths in batches {
-                                self_clone.on_watcher_event(&id_clone, paths);
+                            if !merged.is_empty() {
+                                self_clone.on_watcher_event(&id_clone, merged);
                             }
                             return glib::ControlFlow::Break;
                         }
                     }
                 }
-                for paths in batches {
-                    self_clone.on_watcher_event(&id_clone, paths);
+                if !merged.is_empty() {
+                    self_clone.on_watcher_event(&id_clone, merged);
                 }
                 glib::ControlFlow::Continue
             });
@@ -160,6 +217,10 @@ impl FilePanelHandle {
                 PerWorkspace {
                     model,
                     watcher: watcher_handle,
+                    timeout_source: Some(timeout_source),
+                    gitignore,
+                    git_in_flight: false,
+                    git_rerun_pending: false,
                 },
             );
         }
@@ -173,11 +234,6 @@ impl FilePanelHandle {
                 .unwrap_or_else(|| root.display().to_string());
             inner.header.title.set_text(&title);
         }
-        eprintln!(
-            "limux: fp-show-workspace id={} root={}",
-            workspace_id,
-            root.display()
-        );
         self.inner.borrow_mut().active = Some(workspace_id.clone());
 
         self.refresh_git_for(workspace_id);
@@ -222,79 +278,229 @@ impl FilePanelHandle {
     }
 
     fn on_watcher_event(&self, workspace_id: &str, paths: Vec<PathBuf>) {
+        let active_now = self.inner.borrow().active.as_deref() == Some(workspace_id);
+        if !active_now {
+            return;
+        }
+        // Drop paths matched by the workspace's `.gitignore`. Aria-class
+        // workspaces write to many ignored dirs (`.superpowers/`,
+        // `.playwright/`, `.todos/`, ...) and would otherwise drive a
+        // refresh storm. Cheap component-level excludes still run earlier
+        // in `watcher.rs`; this filter handles per-workspace ignores.
+        let paths: Vec<PathBuf> = {
+            let inner = self.inner.borrow();
+            match inner.cache.get(workspace_id) {
+                Some(per) => paths
+                    .into_iter()
+                    .filter(|p| {
+                        let is_dir = p.is_dir();
+                        !per.gitignore.matched(p, is_dir).is_ignore()
+                    })
+                    .collect(),
+                None => paths,
+            }
+        };
+        if paths.is_empty() {
+            return;
+        }
         let mut touched_git = false;
-        let mut should_apply = false;
-        {
-            let mut inner = self.inner.borrow_mut();
-            let active_now = inner.active.as_deref() == Some(workspace_id);
-            if let Some(per) = inner.cache.get_mut(workspace_id) {
-                for p in &paths {
-                    if let Some(parent) = p.parent() {
-                        per.model.refresh_subtree(parent);
-                    }
-                    if p.components().any(|c| c.as_os_str() == ".git") {
-                        touched_git = true;
-                    }
-                }
-                if active_now {
-                    should_apply = true;
-                }
+        let mut parents: HashSet<PathBuf> = HashSet::new();
+        for p in &paths {
+            if let Some(parent) = p.parent() {
+                parents.insert(parent.to_path_buf());
+            }
+            if p.components().any(|c| c.as_os_str() == ".git") {
+                touched_git = true;
             }
         }
-        if should_apply {
+        // Visibility filter: only refresh parents that are currently visible
+        // in the tree — i.e. the workspace root, or a path the user has
+        // expanded. Watcher events for collapsed/never-opened subtrees have
+        // nothing to update in the UI; refreshing them just burns main-thread
+        // cycles and fights user clicks. Mirrors VSCode's behavior.
+        let (visible_parents, root) = {
+            let inner = self.inner.borrow();
+            match inner.cache.get(workspace_id) {
+                Some(per) => {
+                    let root = per.model.root.clone();
+                    let visible: Vec<PathBuf> = parents
+                        .into_iter()
+                        .filter(|p| p == &root || per.model.expanded_paths.contains(p))
+                        .collect();
+                    (visible, root)
+                }
+                None => return,
+            }
+        };
+        if visible_parents.is_empty() {
+            if touched_git {
+                self.refresh_git_for(workspace_id.to_string());
+            }
+            return;
+        }
+        // Collapse threshold: many visible parents → one root refresh is
+        // cheaper than N parent refreshes, and refresh_subtree(root) already
+        // re-expands the saved set depth-first.
+        let any_changed = {
+            let mut inner = self.inner.borrow_mut();
+            if let Some(per) = inner.cache.get_mut(workspace_id) {
+                if visible_parents.len() > 5 {
+                    per.model.refresh_subtree(&root)
+                } else {
+                    let mut changed = false;
+                    for parent in &visible_parents {
+                        changed |= per.model.refresh_subtree(parent);
+                    }
+                    changed
+                }
+            } else {
+                false
+            }
+        };
+        if any_changed {
             let inner = self.inner.borrow();
             if let Some(per) = inner.cache.get(workspace_id) {
                 apply_model_to_store(&per.model, &inner.view.store);
             }
+        } else {
+            crate::file_panel::perf_log!("limux-perf: on_watcher_event SKIP apply_model_to_store (no-op refresh)");
         }
         if touched_git {
             self.refresh_git_for(workspace_id.to_string());
         }
     }
 
-    // NOTE: T32 deviation — `git status` runs synchronously on the main
-    // thread. The plan called for a tokio offload, but limux does not
-    // depend on tokio. A `std::thread::spawn` bridge would also need a
-    // thread→main hop, but every cross-thread glib API requires `Send`
-    // closures, while `FilePanelHandle` wraps `Rc<RefCell<_>>` and is not
-    // `Send`. `git status` is typically <100 ms; async offload is
-    // deferred to T35 (production wiring), where a thread-local registry
-    // or `async_channel`-based bridge can be introduced cleanly.
+    /// Stop the watcher and drop the cached state for `workspace_id`. Removes
+    /// the 100ms timeout source first (its closure owns the watcher channel
+    /// receiver), then drops the cache entry, which releases the watcher
+    /// thread and debouncer.
+    pub fn forget_workspace(&self, workspace_id: &WorkspaceId) {
+        let entry = self.inner.borrow_mut().cache.remove(workspace_id);
+        if let Some(mut per) = entry {
+            if let Some(src) = per.timeout_source.take() {
+                src.remove();
+            }
+        }
+        let mut inner = self.inner.borrow_mut();
+        if inner.active.as_ref() == Some(workspace_id) {
+            inner.active = None;
+        }
+        inner.last_expanded_snapshot.remove(workspace_id);
+    }
+
+    // `git status` runs on a worker thread spawned via `std::thread::spawn`.
+    // The worker sends the resulting `HashMap<PathBuf, GitStatus>` back to
+    // the main thread over an `mpsc::channel`. A short-lived
+    // `glib::timeout_add_local` polls the receiver and dispatches into
+    // `apply_git_result` once the map arrives. Coalescing (`git_in_flight`
+    // + `git_rerun_pending`) prevents duplicate jobs from piling up during
+    // a watcher burst.
     fn refresh_git_for(&self, workspace_id: WorkspaceId) {
-        let root = match self
-            .inner
-            .borrow()
-            .cache
-            .get(&workspace_id)
-            .map(|p| p.model.root.clone())
-        {
-            Some(r) => r,
-            None => return,
+        let t0 = std::time::Instant::now();
+        let root = {
+            let mut inner = self.inner.borrow_mut();
+            let per = match inner.cache.get_mut(&workspace_id) {
+                Some(p) => p,
+                None => return,
+            };
+            if per.git_in_flight {
+                per.git_rerun_pending = true;
+                return;
+            }
+            per.git_in_flight = true;
+            per.model.root.clone()
         };
-        let map = match crate::file_panel::git::run_status(&root) {
-            Ok(m) => m,
-            Err(_) => return,
-        };
+
+        let (tx, rx) = mpsc::channel::<HashMap<PathBuf, crate::file_panel::model::GitStatus>>();
+        let root_for_thread = root.clone();
+        std::thread::spawn(move || {
+            let t1 = std::time::Instant::now();
+            if let Ok(map) = crate::file_panel::git::run_status(&root_for_thread) {
+                crate::file_panel::perf_log!(
+                    "limux-perf: run_status (worker thread) took {:?}",
+                    t1.elapsed()
+                );
+                let _ = tx.send(map);
+            } else {
+                crate::file_panel::perf_log!(
+                    "limux-perf: run_status (worker thread, err) took {:?}",
+                    t1.elapsed()
+                );
+            }
+        });
+
+        let self_clone = self.clone();
+        let id = workspace_id.clone();
+        glib::timeout_add_local(Duration::from_millis(50), move || match rx.try_recv() {
+            Ok(map) => {
+                crate::file_panel::perf_log!(
+                    "limux-perf: refresh_git_for (spawn to result delivered) took {:?}",
+                    t0.elapsed()
+                );
+                self_clone.apply_git_result(&id, map);
+                glib::ControlFlow::Break
+            }
+            Err(mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
+            Err(mpsc::TryRecvError::Disconnected) => {
+                // Worker exited without sending (git status failed).
+                // Clear in-flight so future refreshes can run.
+                let mut inner = self_clone.inner.borrow_mut();
+                if let Some(per) = inner.cache.get_mut(&id) {
+                    per.git_in_flight = false;
+                    per.git_rerun_pending = false;
+                }
+                glib::ControlFlow::Break
+            }
+        });
+    }
+
+    /// Apply a freshly-computed git status map to the workspace's model and,
+    /// if it is active, the visible store. Runs on the GTK main thread.
+    /// Uses `refresh_subtree(&root)` (not `rebuild_visible`) so previously-
+    /// expanded folders survive the refresh — `rebuild_visible` alone only
+    /// re-populates depth-0 rows and would collapse the tree.
+    fn apply_git_result(
+        &self,
+        workspace_id: &str,
+        map: HashMap<PathBuf, crate::file_panel::model::GitStatus>,
+    ) {
+        let t0 = std::time::Instant::now();
+        let rerun;
         {
             let mut inner = self.inner.borrow_mut();
-            let active = inner.active.as_deref() == Some(workspace_id.as_str());
+            let active = inner.active.as_deref() == Some(workspace_id);
             let store = inner.view.store.clone();
-            if let Some(per) = inner.cache.get_mut(&workspace_id) {
+            if let Some(per) = inner.cache.get_mut(workspace_id) {
                 per.model.set_git_status_map(map);
-                per.model.rebuild_visible();
-                if active {
-                    let rows: Vec<crate::file_panel::row_object::RowObject> = per
-                        .model
-                        .rows
-                        .iter()
-                        .map(crate::file_panel::row_object::RowObject::from_row)
-                        .collect();
-                    store.remove_all();
-                    for r in &rows {
-                        store.append(r);
-                    }
+                let root = per.model.root.clone();
+                let t_refresh = std::time::Instant::now();
+                crate::file_panel::perf_log!(
+                    "limux-perf: apply_git_result calling refresh_subtree ws={} root={:?}",
+                    workspace_id, root
+                );
+                let changed = per.model.refresh_subtree(&root);
+                crate::file_panel::perf_log!(
+                    "limux-perf: apply_git_result refresh_subtree took {:?} changed={}",
+                    t_refresh.elapsed(),
+                    changed
+                );
+                if active && changed {
+                    let t_apply = std::time::Instant::now();
+                    apply_model_to_store(&per.model, &store);
+                    crate::file_panel::perf_log!(
+                        "limux-perf: apply_git_result apply_model_to_store took {:?}",
+                        t_apply.elapsed()
+                    );
                 }
+                per.git_in_flight = false;
+                rerun = std::mem::take(&mut per.git_rerun_pending);
+            } else {
+                return;
             }
+        }
+        crate::file_panel::perf_log!("limux-perf: apply_git_result total took {:?}", t0.elapsed());
+        if rerun {
+            self.refresh_git_for(workspace_id.to_string());
         }
     }
 }
@@ -312,6 +518,7 @@ impl FilePanelHandle {
         let list_view = self.inner.borrow().view.list_view.clone();
         let handle = self.clone();
         list_view.connect_activate(move |_, position| {
+            let t0 = std::time::Instant::now();
             let row_obj = match store
                 .item(position)
                 .and_then(|o| o.downcast::<RowObject>().ok())
@@ -320,10 +527,12 @@ impl FilePanelHandle {
                 None => return,
             };
             handle.toggle_expand_path(&row_obj.path());
+            crate::file_panel::perf_log!("limux-perf: list_view connect_activate (full click) took {:?}", t0.elapsed());
         });
     }
 
     fn toggle_expand_path(&self, path: &Path) {
+        let t0 = std::time::Instant::now();
         {
             let mut inner = self.inner.borrow_mut();
             let active = match inner.active.clone() {
@@ -333,11 +542,18 @@ impl FilePanelHandle {
             let store = inner.view.store.clone();
             if let Some(per) = inner.cache.get_mut(&active) {
                 if let Some(idx) = per.model.find_row(path) {
-                    per.model.toggle_expand(idx);
-                    apply_model_to_store(&per.model, &store);
+                    let t_toggle = std::time::Instant::now();
+                    let change = per.model.toggle_expand(idx);
+                    crate::file_panel::perf_log!("limux-perf: model.toggle_expand took {:?}", t_toggle.elapsed());
+                    let t_apply = std::time::Instant::now();
+                    if let Some(change) = change {
+                        apply_changes_to_store(&[change], &store);
+                    }
+                    crate::file_panel::perf_log!("limux-perf: apply_changes_to_store (after toggle) took {:?}", t_apply.elapsed());
                 }
             }
         }
+        crate::file_panel::perf_log!("limux-perf: toggle_expand_path total took {:?}", t0.elapsed());
     }
 
     fn wire_context_menu(&self) {
@@ -571,23 +787,22 @@ impl FilePanelHandle {
             }
         };
         let (active, is_restore, payload) = plan;
-        let count_before;
-        let count_after;
         {
             let mut inner = self.inner.borrow_mut();
             let store = inner.view.store.clone();
             if is_restore {
                 let Some(snapshot) = payload else {
-                    eprintln!("limux: fp-collapse-all restore skipped (no snapshot)");
                     return;
                 };
                 let Some(per) = inner.cache.get_mut(&active) else {
                     return;
                 };
-                count_before = per.model.expanded_paths.len();
+                crate::file_panel::perf_log!(
+                    "limux-perf: expanded_paths::assign(collapse_all restore) {:?}",
+                    snapshot
+                );
                 per.model.expanded_paths = snapshot;
                 per.model.rebuild_visible();
-                count_after = per.model.expanded_paths.len();
                 apply_model_to_store(&per.model, &store);
             } else {
                 if let Some(snapshot) = payload.clone() {
@@ -598,16 +813,12 @@ impl FilePanelHandle {
                 let Some(per) = inner.cache.get_mut(&active) else {
                     return;
                 };
-                count_before = per.model.expanded_paths.len();
+                crate::file_panel::perf_log!("limux-perf: expanded_paths::clear(collapse_all)");
                 per.model.expanded_paths.clear();
                 per.model.rebuild_visible();
-                count_after = per.model.expanded_paths.len();
                 apply_model_to_store(&per.model, &store);
             }
         }
-        eprintln!(
-            "limux: fp-collapse-all active={active} restore={is_restore} expanded_before={count_before} after={count_after}"
-        );
     }
 
     fn do_toggle_hidden(&self) {
@@ -666,4 +877,32 @@ fn compute_desired_width(model: &crate::file_panel::model::TreeModel) -> i32 {
     }
     let total = max_text + CHEVRON_PX + ICON_PX + GIT_MARKER_PX + PADDING_PX + BREATHING_PX;
     total.clamp(MIN_WIDTH, MAX_WIDTH)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::file_panel::model::TreeModel;
+
+    #[test]
+    fn compute_desired_width_empty_model_returns_min() {
+        let m = TreeModel::new(PathBuf::from("/tmp"));
+        assert_eq!(compute_desired_width(&m), 260);
+    }
+
+    #[test]
+    fn compute_desired_width_clamps_at_max() {
+        let mut m = TreeModel::new(PathBuf::from("/tmp"));
+        let long = "a".repeat(200);
+        m.rows.push(crate::file_panel::model::Row {
+            path: PathBuf::from(format!("/tmp/{long}")),
+            depth: 0,
+            kind: crate::file_panel::model::Kind::File,
+            expanded: false,
+            git_status: crate::file_panel::model::GitStatus::Clean,
+            parent_idx: None,
+            ignored: false,
+        });
+        assert_eq!(compute_desired_width(&m), 600);
+    }
 }

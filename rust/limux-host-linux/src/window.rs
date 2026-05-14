@@ -3501,6 +3501,7 @@ fn close_workspace_by_id_internal(
         .or_else(|| s.active_workspace().map(|workspace| workspace.id.clone()));
 
     let ws = s.workspaces.remove(idx);
+    s.file_panel.forget_workspace(&ws.id);
     s.stack.remove(&ws.root);
     s.sidebar_list.remove(&ws.sidebar_row);
 
