@@ -1,11 +1,16 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-
 use gtk4 as gtk;
+use gtk4::glib;
 use gtk4::prelude::*;
 
-use crate::file_panel::model::{GitStatus, Kind, TreeModel};
+use crate::file_panel::model::{GitStatus, Kind, ListChange, TreeModel};
 use crate::file_panel::row_object::RowObject;
+
+// Visual constants shared by the row factory and layout helpers.
+// `ROW_INDENT_PX` must match `compute_desired_width`'s `INDENT_PX` in `mod.rs`
+// — both feed the same render assumption (one level = 16 px gutter).
+const ROW_INDENT_PX: i32 = 16;
+const ROW_HEIGHT_PX: f64 = 22.0;
+const ROW_DEPTH_CLASSES_MAX: u32 = 8;
 
 pub struct HeaderHandle {
     pub root: gtk::Box,
@@ -62,11 +67,6 @@ pub struct ViewState {
     pub store: gtk4::gio::ListStore,
     pub selection: gtk::MultiSelection,
     pub list_view: gtk::ListView,
-}
-
-#[allow(dead_code)]
-pub fn placeholder_state() -> Rc<RefCell<Option<ViewState>>> {
-    Rc::new(RefCell::new(None))
 }
 
 pub fn build_list_view() -> ViewState {
@@ -137,12 +137,12 @@ fn bind_row(row_box: &gtk::Box, row_obj: &RowObject) {
     let marker = children[4].clone().downcast::<gtk::Label>().unwrap();
 
     let depth = row_obj.depth();
-    indent.set_width_request((depth as i32) * 16);
-    for c in 0..=8 {
+    indent.set_width_request((depth as i32) * ROW_INDENT_PX);
+    for c in 0..=ROW_DEPTH_CLASSES_MAX {
         let class = format!("limux-fp-depth-{c}");
         row_box.remove_css_class(&class);
     }
-    let class = format!("limux-fp-depth-{}", depth.min(8));
+    let class = format!("limux-fp-depth-{}", depth.min(ROW_DEPTH_CLASSES_MAX));
     row_box.add_css_class(&class);
 
     let is_dir = matches!(row_obj.kind(), Kind::Dir);
@@ -153,7 +153,11 @@ fn bind_row(row_box: &gtk::Box, row_obj: &RowObject) {
         } else {
             "pan-end-symbolic"
         }));
-        icon.set_icon_name(Some("folder-symbolic"));
+        icon.set_icon_name(Some(if row_obj.expanded() {
+            "folder-open-symbolic"
+        } else {
+            "folder-symbolic"
+        }));
     } else {
         chevron.set_visible(false);
         icon.set_icon_name(Some("text-x-generic-symbolic"));
@@ -175,6 +179,36 @@ fn bind_row(row_box: &gtk::Box, row_obj: &RowObject) {
     if let Some(c) = css {
         marker.add_css_class(c);
     }
+
+    for c in [
+        "limux-fp-name-modified",
+        "limux-fp-name-added",
+        "limux-fp-name-deleted",
+        "limux-fp-name-untracked",
+        "limux-fp-name-conflict",
+    ] {
+        label.remove_css_class(c);
+    }
+    if let Some(c) = git_name_class_for(row_obj.git_status()) {
+        label.add_css_class(c);
+    }
+
+    if row_obj.ignored() {
+        row_box.add_css_class("limux-fp-row-ignored");
+    } else {
+        row_box.remove_css_class("limux-fp-row-ignored");
+    }
+}
+
+fn git_name_class_for(s: GitStatus) -> Option<&'static str> {
+    match s {
+        GitStatus::Modified => Some("limux-fp-name-modified"),
+        GitStatus::Added => Some("limux-fp-name-added"),
+        GitStatus::Deleted => Some("limux-fp-name-deleted"),
+        GitStatus::Untracked => Some("limux-fp-name-untracked"),
+        GitStatus::Conflict => Some("limux-fp-name-conflict"),
+        GitStatus::Ignored | GitStatus::Clean => None,
+    }
 }
 
 fn git_marker_for(s: GitStatus) -> (&'static str, Option<&'static str>) {
@@ -189,33 +223,90 @@ fn git_marker_for(s: GitStatus) -> (&'static str, Option<&'static str>) {
 }
 
 pub fn apply_model_to_store(model: &TreeModel, store: &gtk4::gio::ListStore) {
-    store.remove_all();
-    for row in &model.rows {
-        let obj = RowObject::from_row(row);
-        store.append(&obj);
+    let rows = &model.rows;
+    let new_len = rows.len();
+    let old_len = store.n_items() as usize;
+    let mut splices: u32 = 0;
+    let common = old_len.min(new_len);
+    for i in 0..common {
+        let cur = store
+            .item(i as u32)
+            .and_then(|o| o.downcast::<RowObject>().ok());
+        let matches = match &cur {
+            Some(obj) => obj.matches_row(&rows[i]),
+            None => false,
+        };
+        if !matches {
+            let replacement = RowObject::from_row(&rows[i]);
+            let additions: [glib::Object; 1] = [replacement.upcast()];
+            store.splice(i as u32, 1, &additions);
+            splices += 1;
+        }
+    }
+    if old_len > new_len {
+        let empty: [glib::Object; 0] = [];
+        store.splice(new_len as u32, (old_len - new_len) as u32, &empty);
+        splices += 1;
+    } else if new_len > old_len {
+        let additions: Vec<glib::Object> = rows[old_len..new_len]
+            .iter()
+            .map(|r| RowObject::from_row(r).upcast())
+            .collect();
+        store.splice(old_len as u32, 0, &additions);
+        splices += 1;
+    }
+    crate::file_panel::perf_log!(
+        "limux-perf: apply_model_to_store old={} new={} splices={}",
+        old_len, new_len, splices
+    );
+}
+
+pub fn apply_changes_to_store(changes: &[ListChange], store: &gtk4::gio::ListStore) {
+    for change in changes {
+        match change {
+            ListChange::Replace { at, removed, rows } => {
+                let additions: Vec<RowObject> =
+                    rows.iter().map(RowObject::from_row).collect();
+                store.splice(*at, *removed, &additions);
+            }
+        }
     }
 }
 
 pub fn file_panel_css() -> &'static str {
+    // Selected/hover state targets GtkListView's child `row` node (the
+    // GtkListItem widget). The inner `.limux-fp-row` Box cannot receive the
+    // `:selected` pseudo by itself, so the visible cue must live on `row`.
     r#"
 .limux-fp-root { background: @view_bg_color; color: @window_fg_color; }
 .limux-fp-header { background: @view_bg_color; color: @window_fg_color; }
 .limux-fp-title { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: #c0a060; }
 .limux-fp-icon { padding: 2px; min-height: 0; min-width: 0; color: @window_fg_color; }
 .limux-fp-listview { background: @view_bg_color; }
-.limux-fp-listview row { padding: 0; background: transparent; }
+.limux-fp-listview > row { padding: 0; background: transparent; }
+.limux-fp-listview > row:hover { background: rgba(255,255,255,0.04); }
+.limux-fp-listview > row:selected { background: rgba(192,160,96,0.16); color: #e0d8c0; }
+.limux-fp-listview > row:selected:hover { background: rgba(192,160,96,0.22); }
 .limux-fp-row { padding: 2px 8px 2px 6px; color: #8a8a8a; background: transparent; }
-.limux-fp-row:selected { background: rgba(192, 160, 96, 0.12); color: #d0d0c8; }
-.limux-fp-indent { background-image: linear-gradient(to right, transparent 7px, rgba(255,255,255,0.06) 7px, rgba(255,255,255,0.06) 8px, transparent 8px); }
-.limux-fp-chevron { color: #555; }
-.limux-fp-rowicon { color: #888; }
+.limux-fp-indent { background-image: linear-gradient(to right, transparent 7px, rgba(255,255,255,0.08) 7px, rgba(255,255,255,0.08) 8px, transparent 8px); }
+.limux-fp-chevron { color: #7a7a7a; }
+.limux-fp-rowicon { color: #9a9a9a; }
 .limux-fp-name { color: #b8b8b0; }
 .limux-fp-git { font-size: 9px; padding-left: 8px; }
 .limux-fp-git-m { color: #c0a060; }
 .limux-fp-git-a { color: #7aa67a; }
 .limux-fp-git-d { color: #c08080; }
-.limux-fp-git-u { color: #7a7a7a; }
+.limux-fp-git-u { color: #9a9a9a; }
 .limux-fp-git-c { color: #c06060; }
+.limux-fp-row-ignored .limux-fp-name,
+.limux-fp-row-ignored .limux-fp-rowicon,
+.limux-fp-row-ignored .limux-fp-chevron,
+.limux-fp-row-ignored .limux-fp-git { opacity: 0.6; }
+.limux-fp-name-modified { color: #e5c07b; }
+.limux-fp-name-added { color: #56b6c2; }
+.limux-fp-name-deleted { color: #e06c75; }
+.limux-fp-name-untracked { color: #98c379; }
+.limux-fp-name-conflict { color: #e06c75; font-weight: bold; }
 "#
 }
 
@@ -281,6 +372,5 @@ fn update_sticky(
 }
 
 fn approximate_top_visible_index(scroll_y: f64) -> u32 {
-    let row_h = 22.0;
-    (scroll_y / row_h).floor() as u32
+    (scroll_y / ROW_HEIGHT_PX).floor() as u32
 }
