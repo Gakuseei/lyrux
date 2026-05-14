@@ -42,6 +42,7 @@ pub struct Row {
     pub expanded: bool,
     pub git_status: GitStatus,
     pub parent_idx: Option<usize>,
+    pub ignored: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -51,6 +52,13 @@ pub struct TreeModel {
     pub expanded_paths: HashSet<PathBuf>,
     pub hidden_visible: bool,
     pub git_status_map: HashMap<PathBuf, GitStatus>,
+    pub git_status_prefixes: Vec<(PathBuf, GitStatus)>,
+    pub gitignore: Option<ignore::gitignore::Gitignore>,
+}
+
+#[derive(Clone, Debug)]
+pub enum ListChange {
+    Replace { at: u32, removed: u32, rows: Vec<Row> },
 }
 
 impl TreeModel {
@@ -61,6 +69,8 @@ impl TreeModel {
             expanded_paths: HashSet::new(),
             hidden_visible: false,
             git_status_map: HashMap::new(),
+            git_status_prefixes: Vec::new(),
+            gitignore: None,
         }
     }
 
@@ -68,15 +78,35 @@ impl TreeModel {
         self.hidden_visible = v;
     }
 
+    pub fn set_gitignore(&mut self, gi: ignore::gitignore::Gitignore) {
+        self.gitignore = Some(gi);
+    }
+
+    fn is_ignored(&self, path: &Path, is_dir: bool) -> bool {
+        match &self.gitignore {
+            Some(gi) => gi.matched(path, is_dir).is_ignore(),
+            None => false,
+        }
+    }
+
     pub fn set_git_status_map(&mut self, map: HashMap<PathBuf, GitStatus>) {
+        let mut prefixes: Vec<(PathBuf, GitStatus)> =
+            map.iter().map(|(p, s)| (p.clone(), *s)).collect();
+        prefixes.sort_by(|a, b| a.0.cmp(&b.0));
+        self.git_status_prefixes = prefixes;
         self.git_status_map = map;
     }
 
     fn rollup_dir_status(&self, dir: &Path) -> GitStatus {
-        let prefix = dir;
+        let lo = self
+            .git_status_prefixes
+            .partition_point(|(p, _)| p.as_path() < dir);
         let mut best = GitStatus::Clean;
-        for (p, s) in &self.git_status_map {
-            if p.starts_with(prefix) && s.priority() > best.priority() {
+        for (p, s) in &self.git_status_prefixes[lo..] {
+            if !p.starts_with(dir) {
+                break;
+            }
+            if s.priority() > best.priority() {
                 best = *s;
             }
         }
@@ -89,17 +119,17 @@ impl TreeModel {
         self.rows.extend(children);
     }
 
-    pub fn toggle_expand(&mut self, idx: usize) {
+    pub fn toggle_expand(&mut self, idx: usize) -> Option<ListChange> {
         if idx >= self.rows.len() {
-            return;
+            return None;
         }
         if self.rows[idx].kind != Kind::Dir {
-            return;
+            return None;
         }
         if self.rows[idx].expanded {
-            self.collapse_at(idx);
+            Some(self.collapse_at(idx))
         } else {
-            self.expand_at(idx);
+            Some(self.expand_at(idx))
         }
     }
 
@@ -107,62 +137,235 @@ impl TreeModel {
         self.rows.iter().position(|r| r.path == path)
     }
 
-    pub fn refresh_subtree(&mut self, parent_path: &Path) {
+    pub fn refresh_subtree(&mut self, parent_path: &Path) -> bool {
+        crate::file_panel::perf_log!(
+            "limux-perf: refresh_subtree ENTER path={:?} expanded_paths_len={}",
+            parent_path,
+            self.expanded_paths.len()
+        );
         if parent_path == self.root {
-            let was_expanded: HashSet<PathBuf> = self.expanded_paths.clone();
+            if self.tree_matches_fs() {
+                crate::file_panel::perf_log!(
+                    "limux-perf: refresh_subtree EXIT(root,no-fs-change) expanded_paths_len={} rows_len={}",
+                    self.expanded_paths.len(),
+                    self.rows.len()
+                );
+                return false;
+            }
+            let mut was_expanded: Vec<PathBuf> = self.expanded_paths.iter().cloned().collect();
+            was_expanded.sort_by_key(|p| p.components().count());
             let saved = std::mem::take(&mut self.expanded_paths);
             self.rebuild_visible();
             self.expanded_paths = saved;
             for path in was_expanded {
-                if let Some(idx) = self.find_row(&path) {
-                    if !self.rows[idx].expanded {
-                        self.toggle_expand(idx);
-                    }
-                }
+                self.force_expand_at_path(&path);
             }
-            return;
+            crate::file_panel::perf_log!(
+                "limux-perf: refresh_subtree EXIT(root) expanded_paths_len={} rows_len={}",
+                self.expanded_paths.len(),
+                self.rows.len()
+            );
+            return true;
         }
         let parent_idx = match self.find_row(parent_path) {
             Some(idx) => idx,
-            None => return,
+            None => return false,
         };
         if !self.rows[parent_idx].expanded {
-            return;
+            return false;
         }
         let depth = self.rows[parent_idx].depth;
-        self.rows[parent_idx].expanded = false;
         let mut end = parent_idx + 1;
         while end < self.rows.len() && self.rows[end].depth > depth {
             end += 1;
         }
+        let mut deep_expanded: Vec<PathBuf> = self.rows[parent_idx + 1..end]
+            .iter()
+            .filter(|r| self.expanded_paths.contains(&r.path))
+            .map(|r| r.path.clone())
+            .collect();
+        deep_expanded.sort_by_key(|p| p.components().count());
+        self.rows[parent_idx].expanded = false;
         self.rows.drain(parent_idx + 1..end);
         self.expand_at(parent_idx);
+        for path in deep_expanded {
+            self.force_expand_at_path(&path);
+        }
+        crate::file_panel::perf_log!(
+            "limux-perf: refresh_subtree EXIT(parent) path={:?} expanded_paths_len={} rows_len={}",
+            parent_path,
+            self.expanded_paths.len(),
+            self.rows.len()
+        );
+        true
     }
 
-    fn expand_at(&mut self, idx: usize) {
+    /// Locate `path` in `rows` and force a fresh expansion (loads children
+    /// into `rows`). Tolerates a stale `row.expanded == true` left over from
+    /// `list_children` consulting `expanded_paths` — without this reset,
+    /// `toggle_expand` would `collapse_at` instead of `expand_at`.
+    fn force_expand_at_path(&mut self, path: &Path) {
+        match self.find_row(path) {
+            Some(idx) => {
+                if self.rows[idx].kind == Kind::Dir {
+                    if self.rows[idx].expanded && self.row_kids_match_fs(idx) {
+                        crate::file_panel::perf_log!(
+                            "limux-perf: force_expand_at_path SKIP(already-expanded-with-kids) {:?}",
+                            path
+                        );
+                        return;
+                    }
+                    crate::file_panel::perf_log!("limux-perf: force_expand_at_path RE-EXPAND {:?}", path);
+                    self.rows[idx].expanded = false;
+                    // Use the no-ListChange variant: refresh_subtree discards
+                    // the return value, so building the Vec<Row> just to drop
+                    // it allocates O(children) Rows per re-expand × O(50)
+                    // expansions = wasted alloc burst on every root refresh.
+                    self.expand_at_no_change(idx);
+                } else {
+                    crate::file_panel::perf_log!(
+                        "limux-perf: force_expand_at_path SKIP(not-dir) {:?}",
+                        path
+                    );
+                }
+            }
+            None => {
+                crate::file_panel::perf_log!(
+                    "limux-perf: force_expand_at_path SKIP(no-row) {:?}",
+                    path
+                );
+            }
+        }
+    }
+
+    fn fs_child_names(&self, dir: &Path) -> Option<Vec<std::ffi::OsString>> {
+        let rd = std::fs::read_dir(dir).ok()?;
+        let mut names: Vec<std::ffi::OsString> = rd
+            .filter_map(|e| e.ok())
+            .filter_map(|e| {
+                let name = e.file_name();
+                if !self.hidden_visible {
+                    if let Some(s) = name.to_str() {
+                        if s.starts_with('.') {
+                            return None;
+                        }
+                    }
+                }
+                Some(name)
+            })
+            .collect();
+        names.sort();
+        Some(names)
+    }
+
+    fn row_kids_match_fs(&self, parent_idx: usize) -> bool {
+        let parent = &self.rows[parent_idx];
+        let parent_depth = parent.depth;
+        let parent_path = &parent.path;
+        let fs_names = match self.fs_child_names(parent_path) {
+            Some(n) => n,
+            None => return false,
+        };
+        let mut current: Vec<std::ffi::OsString> = Vec::with_capacity(fs_names.len());
+        let mut i = parent_idx + 1;
+        while i < self.rows.len() && self.rows[i].depth > parent_depth {
+            if self.rows[i].depth == parent_depth + 1 {
+                if let Some(name) = self.rows[i].path.file_name() {
+                    current.push(name.to_os_string());
+                }
+            }
+            i += 1;
+        }
+        current.sort();
+        current == fs_names
+    }
+
+    fn tree_matches_fs(&self) -> bool {
+        let root_fs = match self.fs_child_names(&self.root) {
+            Some(n) => n,
+            None => return false,
+        };
+        let mut root_rows: Vec<std::ffi::OsString> = self
+            .rows
+            .iter()
+            .filter(|r| r.depth == 0)
+            .filter_map(|r| r.path.file_name().map(|n| n.to_os_string()))
+            .collect();
+        root_rows.sort();
+        if root_rows != root_fs {
+            return false;
+        }
+        for path in &self.expanded_paths {
+            let idx = match self.find_row(path) {
+                Some(i) => i,
+                None => return false,
+            };
+            if self.rows[idx].kind != Kind::Dir {
+                return false;
+            }
+            if !self.row_kids_match_fs(idx) {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn expand_at(&mut self, idx: usize) -> ListChange {
+        let inserted = self.expand_at_no_change(idx);
+        let mut rows = Vec::with_capacity(1 + inserted);
+        rows.push(self.rows[idx].clone());
+        let start = idx + 1;
+        rows.extend(self.rows[start..start + inserted].iter().cloned());
+        ListChange::Replace {
+            at: idx as u32,
+            removed: 1,
+            rows,
+        }
+    }
+
+    /// Same as `expand_at` but does NOT build the `ListChange`. Callers that
+    /// discard the return value (refresh paths) skip the O(children) Row
+    /// clone burst that the public variant produces just to be dropped.
+    /// Returns the number of children inserted after `idx`.
+    fn expand_at_no_change(&mut self, idx: usize) -> usize {
         let path = self.rows[idx].path.clone();
         let depth = self.rows[idx].depth + 1;
         self.rows[idx].expanded = true;
         self.expanded_paths.insert(path.clone());
         let children = self.list_children(&path, depth, Some(idx));
+        let count = children.len();
         let insert_at = idx + 1;
-        for (offset, child) in children.into_iter().enumerate() {
-            self.rows.insert(insert_at + offset, child);
-        }
+        self.rows.splice(insert_at..insert_at, children);
         self.reindex_parents_after(insert_at);
+        count
     }
 
-    fn collapse_at(&mut self, idx: usize) {
+    fn collapse_at(&mut self, idx: usize) -> ListChange {
         let depth = self.rows[idx].depth;
+        let top_path = self.rows[idx].path.clone();
         self.rows[idx].expanded = false;
-        self.expanded_paths.remove(&self.rows[idx].path);
+        self.expanded_paths.remove(&top_path);
         let mut end = idx + 1;
+        let mut descendant_removed = 0u32;
         while end < self.rows.len() && self.rows[end].depth > depth {
             self.expanded_paths.remove(&self.rows[end].path);
+            descendant_removed += 1;
             end += 1;
         }
+        crate::file_panel::perf_log!(
+            "limux-perf: collapse_at path={:?} descendants_removed={} expanded_paths_len={}",
+            top_path,
+            descendant_removed,
+            self.expanded_paths.len()
+        );
+        let removed_count = end - idx;
         self.rows.drain(idx + 1..end);
         self.reindex_parents_after(idx + 1);
+        ListChange::Replace {
+            at: idx as u32,
+            removed: removed_count as u32,
+            rows: vec![self.rows[idx].clone()],
+        }
     }
 
     fn reindex_parents_after(&mut self, _from: usize) {}
@@ -181,10 +384,7 @@ impl TreeModel {
                     Some((path, kind, name))
                 })
                 .collect(),
-            Err(err) => {
-                eprintln!("limux: read_dir {} failed: {err}", dir.display());
-                Vec::new()
-            }
+            Err(_) => Vec::new(),
         };
         entries.sort_by(|a, b| {
             let a_dir = matches!(a.1, Kind::Dir);
@@ -199,7 +399,8 @@ impl TreeModel {
             .into_iter()
             .map(|(path, kind, _)| {
                 let expanded = self.expanded_paths.contains(&path);
-                let git_status = if matches!(kind, Kind::Dir) {
+                let is_dir = matches!(kind, Kind::Dir);
+                let git_status = if is_dir {
                     self.rollup_dir_status(&path)
                 } else {
                     self.git_status_map
@@ -207,6 +408,7 @@ impl TreeModel {
                         .copied()
                         .unwrap_or(GitStatus::Clean)
                 };
+                let ignored = self.is_ignored(&path, is_dir);
                 Row {
                     path,
                     depth,
@@ -214,6 +416,7 @@ impl TreeModel {
                     expanded,
                     git_status,
                     parent_idx,
+                    ignored,
                 }
             })
             .collect()
@@ -489,6 +692,188 @@ mod tests {
         touch(&src, "new.rs");
         m.refresh_subtree(&src);
         assert_eq!(m.rows.len(), 2);
+    }
+
+    #[test]
+    fn refresh_subtree_root_preserves_depth2_expansion() {
+        // Regression: opening `tests/sub/` (depth-2 expansion) and then
+        // having `apply_git_result` fire `refresh_subtree(&root)` used to
+        // drop the depth-2 children. The depth-sort re-expand loop relied
+        // on `toggle_expand`, which collapsed instead of expanded because
+        // `list_children` had pre-set `row.expanded = true` from the
+        // restored `expanded_paths` set.
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        mkdir(root, "tests");
+        let tests = root.join("tests");
+        mkdir(&tests, "sub");
+        let sub = tests.join("sub");
+        touch(&sub, "a.txt");
+        touch(&sub, "b.txt");
+        let mut m = TreeModel::new(root.to_path_buf());
+        m.rebuild_visible();
+        let tests_idx = m.find_row(&tests).unwrap();
+        m.toggle_expand(tests_idx);
+        let sub_idx = m.find_row(&sub).unwrap();
+        m.toggle_expand(sub_idx);
+        assert_eq!(m.rows.len(), 4, "expect root/tests + tests/sub + 2 files");
+        // Force a full-tree refresh — mimics apply_git_result.
+        m.refresh_subtree(&root.to_path_buf());
+        assert_eq!(
+            m.rows.len(),
+            4,
+            "refresh_subtree(root) must preserve depth-2 expansion"
+        );
+        assert!(m.find_row(&sub.join("a.txt")).is_some());
+        assert!(m.find_row(&sub.join("b.txt")).is_some());
+    }
+
+    #[test]
+    fn refresh_subtree_parent_preserves_descendant_expansion() {
+        // Regression: refresh_subtree on a parent path used to drop deeper
+        // expansions because `expand_at` only loads direct children.
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        mkdir(root, "src");
+        let src = root.join("src");
+        mkdir(&src, "inner");
+        let inner = src.join("inner");
+        touch(&inner, "x.rs");
+        let mut m = TreeModel::new(root.to_path_buf());
+        m.rebuild_visible();
+        let src_idx = m.find_row(&src).unwrap();
+        m.toggle_expand(src_idx);
+        let inner_idx = m.find_row(&inner).unwrap();
+        m.toggle_expand(inner_idx);
+        assert_eq!(m.rows.len(), 3);
+        // Refresh subtree at the parent of the deeper expansion.
+        m.refresh_subtree(&src);
+        assert_eq!(
+            m.rows.len(),
+            3,
+            "refresh_subtree(parent) must preserve grandchildren"
+        );
+        assert!(m.find_row(&inner.join("x.rs")).is_some());
+    }
+
+    #[test]
+    fn refresh_subtree_root_does_not_reexpand_collapsed_path() {
+        // Bug A regression: user expands tests/sub, then collapses it.
+        // Some time later apply_git_result fires refresh_subtree(&root).
+        // The collapsed path must NOT be re-expanded.
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        mkdir(root, "tests");
+        let tests = root.join("tests");
+        mkdir(&tests, "sub");
+        let sub = tests.join("sub");
+        touch(&sub, "a.txt");
+        let mut m = TreeModel::new(root.to_path_buf());
+        m.rebuild_visible();
+        let tests_idx = m.find_row(&tests).unwrap();
+        m.toggle_expand(tests_idx);
+        let sub_idx = m.find_row(&sub).unwrap();
+        m.toggle_expand(sub_idx);
+        assert_eq!(m.rows.len(), 3);
+        let sub_idx = m.find_row(&sub).unwrap();
+        m.toggle_expand(sub_idx);
+        assert_eq!(m.rows.len(), 2);
+        assert!(!m.expanded_paths.contains(&sub));
+        m.refresh_subtree(&root.to_path_buf());
+        assert_eq!(
+            m.rows.len(),
+            2,
+            "collapsed sub must stay collapsed after refresh_subtree(root)"
+        );
+        assert!(!m.expanded_paths.contains(&sub));
+        let sub_row = m.find_row(&sub).unwrap();
+        assert!(
+            !m.rows[sub_row].expanded,
+            "collapsed sub row must not be re-expanded"
+        );
+    }
+
+    #[test]
+    fn refresh_subtree_parent_does_not_reexpand_collapsed_child() {
+        // Bug A regression: collapse a depth-2 dir, then watcher fires
+        // refresh_subtree on the depth-1 parent. The collapsed child
+        // must not be re-expanded.
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        mkdir(root, "src");
+        let src = root.join("src");
+        mkdir(&src, "inner");
+        let inner = src.join("inner");
+        touch(&inner, "x.rs");
+        let mut m = TreeModel::new(root.to_path_buf());
+        m.rebuild_visible();
+        let src_idx = m.find_row(&src).unwrap();
+        m.toggle_expand(src_idx);
+        let inner_idx = m.find_row(&inner).unwrap();
+        m.toggle_expand(inner_idx);
+        assert_eq!(m.rows.len(), 3);
+        let inner_idx = m.find_row(&inner).unwrap();
+        m.toggle_expand(inner_idx);
+        assert_eq!(m.rows.len(), 2);
+        assert!(!m.expanded_paths.contains(&inner));
+        m.refresh_subtree(&src);
+        assert_eq!(
+            m.rows.len(),
+            2,
+            "collapsed inner must stay collapsed after refresh_subtree(parent)"
+        );
+        assert!(!m.expanded_paths.contains(&inner));
+    }
+
+    #[test]
+    fn refresh_subtree_root_is_noop_when_fs_unchanged() {
+        // Patch B regression: when nothing on disk has changed, the
+        // root-refresh path used to do a destructive rebuild_visible +
+        // re-expand-all anyway, allocating churn for every drain tick.
+        // Now: detect fingerprint match and return false without touching
+        // `rows`.
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        mkdir(root, "src");
+        let src = root.join("src");
+        touch(&src, "main.rs");
+        let mut m = TreeModel::new(root.to_path_buf());
+        m.rebuild_visible();
+        let src_idx = m.find_row(&src).unwrap();
+        m.toggle_expand(src_idx);
+        let rows_before = m.rows.clone();
+        let changed = m.refresh_subtree(&root.to_path_buf());
+        assert!(!changed, "refresh_subtree(root) must report no-change when fs unchanged");
+        assert_eq!(m.rows, rows_before, "rows must be untouched");
+    }
+
+    #[test]
+    fn row_in_gitignored_dir_has_ignored_flag() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        fs::write(root.join(".gitignore"), "*.log\n").unwrap();
+        touch(root, "foo.log");
+        touch(root, "bar.txt");
+        let gi = {
+            let mut b = ignore::gitignore::GitignoreBuilder::new(root);
+            let _ = b.add(root.join(".gitignore"));
+            b.build().unwrap()
+        };
+        let mut m = TreeModel::new(root.to_path_buf());
+        m.set_gitignore(gi);
+        m.rebuild_visible();
+        let foo = m
+            .rows
+            .iter()
+            .find(|r| r.path == root.join("foo.log"))
+            .unwrap();
+        let bar = m
+            .rows
+            .iter()
+            .find(|r| r.path == root.join("bar.txt"))
+            .unwrap();
+        assert!(foo.ignored, "foo.log must be marked ignored");
+        assert!(!bar.ignored, "bar.txt must not be marked ignored");
     }
 
     #[test]
