@@ -58,7 +58,11 @@ pub struct TreeModel {
 
 #[derive(Clone, Debug)]
 pub enum ListChange {
-    Replace { at: u32, removed: u32, rows: Vec<Row> },
+    Replace {
+        at: u32,
+        removed: u32,
+        rows: Vec<Row>,
+    },
 }
 
 impl TreeModel {
@@ -215,7 +219,10 @@ impl TreeModel {
                         );
                         return;
                     }
-                    crate::file_panel::perf_log!("limux-perf: force_expand_at_path RE-EXPAND {:?}", path);
+                    crate::file_panel::perf_log!(
+                        "limux-perf: force_expand_at_path RE-EXPAND {:?}",
+                        path
+                    );
                     self.rows[idx].expanded = false;
                     // Use the no-ListChange variant: refresh_subtree discards
                     // the return value, so building the Vec<Row> just to drop
@@ -718,7 +725,7 @@ mod tests {
         m.toggle_expand(sub_idx);
         assert_eq!(m.rows.len(), 4, "expect root/tests + tests/sub + 2 files");
         // Force a full-tree refresh — mimics apply_git_result.
-        m.refresh_subtree(&root.to_path_buf());
+        m.refresh_subtree(root);
         assert_eq!(
             m.rows.len(),
             4,
@@ -779,7 +786,7 @@ mod tests {
         m.toggle_expand(sub_idx);
         assert_eq!(m.rows.len(), 2);
         assert!(!m.expanded_paths.contains(&sub));
-        m.refresh_subtree(&root.to_path_buf());
+        m.refresh_subtree(root);
         assert_eq!(
             m.rows.len(),
             2,
@@ -842,8 +849,11 @@ mod tests {
         let src_idx = m.find_row(&src).unwrap();
         m.toggle_expand(src_idx);
         let rows_before = m.rows.clone();
-        let changed = m.refresh_subtree(&root.to_path_buf());
-        assert!(!changed, "refresh_subtree(root) must report no-change when fs unchanged");
+        let changed = m.refresh_subtree(root);
+        assert!(
+            !changed,
+            "refresh_subtree(root) must report no-change when fs unchanged"
+        );
         assert_eq!(m.rows, rows_before, "rows must be untouched");
     }
 

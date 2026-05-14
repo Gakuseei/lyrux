@@ -228,16 +228,16 @@ pub fn apply_model_to_store(model: &TreeModel, store: &gtk4::gio::ListStore) {
     let old_len = store.n_items() as usize;
     let mut splices: u32 = 0;
     let common = old_len.min(new_len);
-    for i in 0..common {
+    for (i, row) in rows.iter().enumerate().take(common) {
         let cur = store
             .item(i as u32)
             .and_then(|o| o.downcast::<RowObject>().ok());
         let matches = match &cur {
-            Some(obj) => obj.matches_row(&rows[i]),
+            Some(obj) => obj.matches_row(row),
             None => false,
         };
         if !matches {
-            let replacement = RowObject::from_row(&rows[i]);
+            let replacement = RowObject::from_row(row);
             let additions: [glib::Object; 1] = [replacement.upcast()];
             store.splice(i as u32, 1, &additions);
             splices += 1;
@@ -257,7 +257,9 @@ pub fn apply_model_to_store(model: &TreeModel, store: &gtk4::gio::ListStore) {
     }
     crate::file_panel::perf_log!(
         "limux-perf: apply_model_to_store old={} new={} splices={}",
-        old_len, new_len, splices
+        old_len,
+        new_len,
+        splices
     );
 }
 
@@ -265,8 +267,7 @@ pub fn apply_changes_to_store(changes: &[ListChange], store: &gtk4::gio::ListSto
     for change in changes {
         match change {
             ListChange::Replace { at, removed, rows } => {
-                let additions: Vec<RowObject> =
-                    rows.iter().map(RowObject::from_row).collect();
+                let additions: Vec<RowObject> = rows.iter().map(RowObject::from_row).collect();
                 store.splice(*at, *removed, &additions);
             }
         }

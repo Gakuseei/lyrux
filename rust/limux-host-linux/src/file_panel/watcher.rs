@@ -93,11 +93,7 @@ fn run_poll_watcher(root: PathBuf, sink: mpsc::Sender<Vec<PathBuf>>) {
     }
     while let Ok(ev) = rx.recv() {
         if let Ok(ev) = ev {
-            let paths: Vec<PathBuf> = ev
-                .paths
-                .into_iter()
-                .filter(|p| !is_excluded(p))
-                .collect();
+            let paths: Vec<PathBuf> = ev.paths.into_iter().filter(|p| !is_excluded(p)).collect();
             if paths.is_empty() {
                 continue;
             }
