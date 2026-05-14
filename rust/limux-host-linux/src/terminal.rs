@@ -1814,6 +1814,41 @@ fn translate_mouse_mods(state: gtk::gdk::ModifierType) -> c_int {
     mods
 }
 
+/// Returns `true` when the per-tab auto-render pause is disabled via the
+/// `LIMUX_NO_AUTORENDER_PAUSE` environment variable. Lets users opt out
+/// without rebuilding if the pause causes any regression.
+fn autorender_pause_disabled() -> bool {
+    std::env::var_os("LIMUX_NO_AUTORENDER_PAUSE").is_some()
+}
+
+/// Pause GTK rendering on every live GLArea whose surface does not belong to
+/// `active_root`; resume it on the one that does. The Ghostty surface, PTY,
+/// scrollback, and shell process are completely unaffected — only GTK's
+/// continuous frame-upload loop is paused for hidden tabs.
+///
+/// Pass `None` to pause every surface (e.g. window minimised), or
+/// `Some(&workspace_root_widget)` to resume just that one.
+///
+/// Set `LIMUX_NO_AUTORENDER_PAUSE=1` in the environment to disable this
+/// behaviour entirely (every surface stays auto-rendered).
+pub fn set_active_workspace_root(active_root: Option<&gtk::Widget>) {
+    if autorender_pause_disabled() {
+        return;
+    }
+    SURFACE_MAP.with(|map| {
+        for entry in map.borrow().values() {
+            let is_active = match active_root {
+                Some(root) => entry.gl_area.is_ancestor(root),
+                None => false,
+            };
+            entry.gl_area.set_auto_render(is_active);
+            if is_active {
+                entry.gl_area.queue_render();
+            }
+        }
+    });
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1998,5 +2033,39 @@ mod tests {
         release_wakeup_idle_slot(&flag);
 
         assert!(claim_wakeup_idle_slot(&flag));
+    }
+
+    /// `set_active_workspace_root` must be a no-op when the
+    /// `LIMUX_NO_AUTORENDER_PAUSE` env var is set, so users can disable the
+    /// auto-render pause without rebuilding.
+    ///
+    /// We test the pure-logic short-circuit (`autorender_pause_disabled`)
+    /// because the real-thing test would need a GTK display + GL context
+    /// (SURFACE_MAP entries hold live `gtk::GLArea` widgets) and `cargo test`
+    /// shares process env across threads.
+    #[test]
+    fn autorender_pause_respects_env_opt_out() {
+        // SAFETY: this test mutates process-global env. There is no other
+        // test in this binary that reads `LIMUX_NO_AUTORENDER_PAUSE`, and we
+        // always restore the previous value before returning.
+        let key = "LIMUX_NO_AUTORENDER_PAUSE";
+        let previous = std::env::var_os(key);
+
+        std::env::remove_var(key);
+        assert!(
+            !autorender_pause_disabled(),
+            "pause must be active when env var is unset"
+        );
+
+        std::env::set_var(key, "1");
+        assert!(
+            autorender_pause_disabled(),
+            "pause must be disabled when env var is set"
+        );
+
+        match previous {
+            Some(value) => std::env::set_var(key, value),
+            None => std::env::remove_var(key),
+        }
     }
 }

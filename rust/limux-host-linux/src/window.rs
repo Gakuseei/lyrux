@@ -2733,6 +2733,9 @@ fn create_workspace_for_tab(state: &State, payload: &str) -> bool {
         app_state.stack.set_visible_child_name(&stack_name);
     }
 
+    // New workspace becomes active — resume its surfaces, pause others.
+    crate::terminal::set_active_workspace_root(Some(root.upcast_ref::<gtk::Widget>()));
+
     {
         let sidebar_list = state.borrow().sidebar_list.clone();
         sidebar_list.select_row(Some(&row_clone));
@@ -3292,6 +3295,7 @@ fn add_workspace_from_state(state: &State, workspace: &WorkspaceState) {
     install_workspace_row_interactions(state, &id, &row, &favorite_button, &close_button);
 
     let cwd: Rc<RefCell<Option<String>>> = Rc::new(RefCell::new(workspace.cwd.clone()));
+    let workspace_root = root.clone();
     let ws = Workspace {
         id,
         name: workspace.name.clone(),
@@ -3320,6 +3324,8 @@ fn add_workspace_from_state(state: &State, workspace: &WorkspaceState) {
     }
 
     stack.set_visible_child_name(&stack_name);
+    // New workspace becomes active — resume its surfaces, pause others.
+    crate::terminal::set_active_workspace_root(Some(&workspace_root));
     sidebar_list.select_row(Some(&row));
 }
 
@@ -3530,8 +3536,12 @@ fn close_workspace_by_id_internal(
     s.stack.set_visible_child_name(&stack_name);
 
     let row = s.workspaces[new_idx].sidebar_row.clone();
+    let new_active_root = s.workspaces[new_idx].root.clone();
     let sidebar_list = s.sidebar_list.clone();
     drop(s);
+
+    // The remaining workspace is now active — resume its surfaces, pause others.
+    crate::terminal::set_active_workspace_root(Some(&new_active_root));
 
     sidebar_list.select_row(Some(&row));
     if persist {
@@ -3586,6 +3596,10 @@ fn switch_workspace(state: &State, idx: usize) {
     };
 
     stack.set_visible_child_name(&stack_name);
+    // Pause GTK auto-render on inactive workspaces' GLAreas to drop the
+    // ~500 MB-per-surface GPU footprint while keeping every PTY + scrollback
+    // intact (Phase 2 memory fix).
+    crate::terminal::set_active_workspace_root(Some(&focus_root));
     glib::idle_add_local_once(move || {
         focus_workspace_entrypoint(&focus_root);
     });
