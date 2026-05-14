@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
@@ -53,7 +54,7 @@ pub struct TreeModel {
     pub hidden_visible: bool,
     pub git_status_map: HashMap<PathBuf, GitStatus>,
     pub git_status_prefixes: Vec<(PathBuf, GitStatus)>,
-    pub gitignore: Option<ignore::gitignore::Gitignore>,
+    pub gitignore: Option<Rc<ignore::gitignore::Gitignore>>,
 }
 
 #[derive(Clone, Debug)]
@@ -82,7 +83,7 @@ impl TreeModel {
         self.hidden_visible = v;
     }
 
-    pub fn set_gitignore(&mut self, gi: ignore::gitignore::Gitignore) {
+    pub fn set_gitignore(&mut self, gi: Rc<ignore::gitignore::Gitignore>) {
         self.gitignore = Some(gi);
     }
 
@@ -870,7 +871,7 @@ mod tests {
             b.build().unwrap()
         };
         let mut m = TreeModel::new(root.to_path_buf());
-        m.set_gitignore(gi);
+        m.set_gitignore(Rc::new(gi));
         m.rebuild_visible();
         let foo = m
             .rows

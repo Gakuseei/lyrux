@@ -68,7 +68,7 @@ pub struct PerWorkspace {
     // don't track (e.g. `.superpowers/`, `.playwright/`, `.todos/`). The
     // watcher thread stays per-workspace-state-free; per-workspace state
     // lives where `PerWorkspace` lives.
-    pub gitignore: ignore::gitignore::Gitignore,
+    pub gitignore: std::rc::Rc<ignore::gitignore::Gitignore>,
     // Coalescing flags for the async `git status` job. `git_in_flight` is
     // set when a worker thread is currently running `git status` for this
     // workspace; further refresh requests during that window flip
@@ -101,6 +101,7 @@ pub struct Inner {
     // Bug 5: snapshot of expanded_paths captured on collapse-all so the next
     // press can restore the previously-open folders.
     pub last_expanded_snapshot: HashMap<WorkspaceId, HashSet<PathBuf>>,
+    pub gitignore_cache: HashMap<WorkspaceId, std::rc::Rc<ignore::gitignore::Gitignore>>,
 }
 
 #[derive(Clone)]
@@ -135,6 +136,7 @@ impl FilePanelHandle {
                 active: None,
                 visible: false,
                 last_expanded_snapshot: HashMap::new(),
+                gitignore_cache: HashMap::new(),
             })),
             untitled_counter: Rc::new(AtomicU32::new(0)),
         }
@@ -156,21 +158,26 @@ impl FilePanelHandle {
             }
         }
         if !self.inner.borrow().cache.contains_key(&workspace_id) {
-            // Build a gitignore matcher rooted at the workspace. Only the
-            // root-level `.gitignore` is loaded; nested ignores are not
-            // walked. `add()` returns `Some(err)` if the file is missing or
-            // unreadable — that's fine, we discard it and fall through to a
-            // (possibly empty) matcher.
             let gitignore = {
-                let mut builder = ignore::gitignore::GitignoreBuilder::new(&root);
-                let _ = builder.add(root.join(".gitignore"));
-                builder
-                    .build()
-                    .unwrap_or_else(|_| ignore::gitignore::Gitignore::empty())
+                let mut inner = self.inner.borrow_mut();
+                if let Some(existing) = inner.gitignore_cache.get(&workspace_id) {
+                    Rc::clone(existing)
+                } else {
+                    let mut builder = ignore::gitignore::GitignoreBuilder::new(&root);
+                    let _ = builder.add(root.join(".gitignore"));
+                    let built = builder
+                        .build()
+                        .unwrap_or_else(|_| ignore::gitignore::Gitignore::empty());
+                    let rc = Rc::new(built);
+                    inner
+                        .gitignore_cache
+                        .insert(workspace_id.clone(), Rc::clone(&rc));
+                    rc
+                }
             };
 
             let mut model = TreeModel::new(root.clone());
-            model.set_gitignore(gitignore.clone());
+            model.set_gitignore(Rc::clone(&gitignore));
             for p in &expanded {
                 crate::file_panel::perf_log!(
                     "limux-perf: expanded_paths::insert(show_workspace seed) {:?}",
@@ -435,6 +442,7 @@ impl FilePanelHandle {
             inner.active = None;
         }
         inner.last_expanded_snapshot.remove(workspace_id);
+        inner.gitignore_cache.remove(workspace_id);
     }
 
     /// Switch-time cleanup: drop the heavy per-workspace state for
