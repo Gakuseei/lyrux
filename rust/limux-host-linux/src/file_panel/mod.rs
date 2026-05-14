@@ -51,6 +51,8 @@ use crate::file_panel::watcher::WatcherHandle;
 
 pub type WorkspaceId = String;
 
+pub(crate) const MAX_PATHS_PER_TICK: usize = 10_000;
+
 pub struct PerWorkspace {
     pub model: TreeModel,
     // Held to keep the filesystem watcher thread alive for this workspace's lifetime.
@@ -212,11 +214,16 @@ impl FilePanelHandle {
             // receiver here without crossing thread boundaries.
             let self_clone = self.clone();
             let id_clone = workspace_id.clone();
-            let timeout_source = glib::timeout_add_local(Duration::from_millis(1000), move || {
-                let mut merged: Vec<PathBuf> = Vec::new();
+            let timeout_source = glib::timeout_add_local(Duration::from_millis(100), move || {
+                let mut merged: Vec<PathBuf> = Vec::with_capacity(1024);
                 loop {
                     match rx.try_recv() {
-                        Ok(paths) => merged.extend(paths),
+                        Ok(paths) => {
+                            merged.extend(paths);
+                            if merged.len() >= MAX_PATHS_PER_TICK {
+                                self_clone.on_watcher_event(&id_clone, std::mem::take(&mut merged));
+                            }
+                        }
                         Err(mpsc::TryRecvError::Empty) => break,
                         Err(mpsc::TryRecvError::Disconnected) => {
                             if !merged.is_empty() {
@@ -332,10 +339,7 @@ impl FilePanelHandle {
             match inner.cache.get(workspace_id) {
                 Some(per) => paths
                     .into_iter()
-                    .filter(|p| {
-                        let is_dir = p.is_dir();
-                        !per.gitignore.matched(p, is_dir).is_ignore()
-                    })
+                    .filter(|p| !per.gitignore.matched(p, false).is_ignore())
                     .collect(),
                 None => paths,
             }
@@ -989,6 +993,11 @@ mod tests {
     fn compute_desired_width_empty_model_returns_min() {
         let m = TreeModel::new(PathBuf::from("/tmp"));
         assert_eq!(compute_desired_width(&m), 260);
+    }
+
+    #[test]
+    fn watcher_drain_dispatches_in_batches_of_at_most_10k() {
+        assert_eq!(super::MAX_PATHS_PER_TICK, 10_000);
     }
 
     #[test]
