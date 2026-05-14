@@ -4,6 +4,7 @@ use gtk4::prelude::*;
 
 use crate::file_panel::model::{GitStatus, Kind, ListChange, TreeModel};
 use crate::file_panel::row_object::RowObject;
+use crate::file_panel::MemScope;
 
 // Visual constants shared by the row factory and layout helpers.
 // `ROW_INDENT_PX` must match `compute_desired_width`'s `INDENT_PX` in `mod.rs`
@@ -223,6 +224,7 @@ fn git_marker_for(s: GitStatus) -> (&'static str, Option<&'static str>) {
 }
 
 pub fn apply_model_to_store(model: &TreeModel, store: &gtk4::gio::ListStore) {
+    let _scope = MemScope::new("apply_model_to_store");
     let rows = &model.rows;
     let new_len = rows.len();
     let old_len = store.n_items() as usize;
@@ -255,6 +257,10 @@ pub fn apply_model_to_store(model: &TreeModel, store: &gtk4::gio::ListStore) {
         store.splice(old_len as u32, 0, &additions);
         splices += 1;
     }
+    eprintln!(
+        "limux-mem: apply_model_to_store old={} new={} splices={}",
+        old_len, new_len, splices
+    );
     crate::file_panel::perf_log!(
         "limux-perf: apply_model_to_store old={} new={} splices={}",
         old_len,
@@ -264,14 +270,22 @@ pub fn apply_model_to_store(model: &TreeModel, store: &gtk4::gio::ListStore) {
 }
 
 pub fn apply_changes_to_store(changes: &[ListChange], store: &gtk4::gio::ListStore) {
+    let _scope = MemScope::new("apply_changes_to_store");
+    let mut total_added: usize = 0;
     for change in changes {
         match change {
             ListChange::Replace { at, removed, rows } => {
                 let additions: Vec<RowObject> = rows.iter().map(RowObject::from_row).collect();
+                total_added += additions.len();
                 store.splice(*at, *removed, &additions);
             }
         }
     }
+    eprintln!(
+        "limux-mem: apply_changes_to_store changes.len()={} total_rows_added={}",
+        changes.len(),
+        total_added
+    );
 }
 
 pub fn file_panel_css() -> &'static str {

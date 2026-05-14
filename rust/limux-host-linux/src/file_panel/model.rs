@@ -1,6 +1,8 @@
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
+use crate::file_panel::MemScope;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
     Dir,
@@ -94,9 +96,15 @@ impl TreeModel {
     }
 
     pub fn set_git_status_map(&mut self, map: HashMap<PathBuf, GitStatus>) {
+        let _scope = MemScope::new("set_git_status_map");
+        eprintln!("limux-mem: set_git_status_map map.len()={}", map.len());
         let mut prefixes: Vec<(PathBuf, GitStatus)> =
             map.iter().map(|(p, s)| (p.clone(), *s)).collect();
         prefixes.sort_by(|a, b| a.0.cmp(&b.0));
+        eprintln!(
+            "limux-mem: set_git_status_map prefixes.len()={}",
+            prefixes.len()
+        );
         self.git_status_prefixes = prefixes;
         self.git_status_map = map;
     }
@@ -118,12 +126,15 @@ impl TreeModel {
     }
 
     pub fn rebuild_visible(&mut self) {
+        let _scope = MemScope::new("rebuild_visible");
         self.rows.clear();
         let children = self.list_children(&self.root.clone(), 0, None);
+        eprintln!("limux-mem: rebuild_visible new_rows={}", children.len());
         self.rows.extend(children);
     }
 
     pub fn toggle_expand(&mut self, idx: usize) -> Option<ListChange> {
+        let _scope = MemScope::new("toggle_expand");
         if idx >= self.rows.len() {
             return None;
         }
@@ -142,6 +153,7 @@ impl TreeModel {
     }
 
     pub fn refresh_subtree(&mut self, parent_path: &Path) -> bool {
+        let _scope = MemScope::new("refresh_subtree");
         crate::file_panel::perf_log!(
             "limux-perf: refresh_subtree ENTER path={:?} expanded_paths_len={}",
             parent_path,
@@ -149,6 +161,7 @@ impl TreeModel {
         );
         if parent_path == self.root {
             if self.tree_matches_fs() {
+                eprintln!("limux-mem: refresh_subtree changed=false (no-fs-change)");
                 crate::file_panel::perf_log!(
                     "limux-perf: refresh_subtree EXIT(root,no-fs-change) expanded_paths_len={} rows_len={}",
                     self.expanded_paths.len(),
@@ -157,6 +170,10 @@ impl TreeModel {
                 return false;
             }
             let mut was_expanded: Vec<PathBuf> = self.expanded_paths.iter().cloned().collect();
+            eprintln!(
+                "limux-mem: refresh_subtree was_expanded.len()={}",
+                was_expanded.len()
+            );
             was_expanded.sort_by_key(|p| p.components().count());
             let saved = std::mem::take(&mut self.expanded_paths);
             self.rebuild_visible();
@@ -164,6 +181,7 @@ impl TreeModel {
             for path in was_expanded {
                 self.force_expand_at_path(&path);
             }
+            eprintln!("limux-mem: refresh_subtree changed=true (root)");
             crate::file_panel::perf_log!(
                 "limux-perf: refresh_subtree EXIT(root) expanded_paths_len={} rows_len={}",
                 self.expanded_paths.len(),
@@ -188,6 +206,10 @@ impl TreeModel {
             .filter(|r| self.expanded_paths.contains(&r.path))
             .map(|r| r.path.clone())
             .collect();
+        eprintln!(
+            "limux-mem: refresh_subtree deep_expanded.len()={}",
+            deep_expanded.len()
+        );
         deep_expanded.sort_by_key(|p| p.components().count());
         self.rows[parent_idx].expanded = false;
         self.rows.drain(parent_idx + 1..end);
@@ -195,6 +217,7 @@ impl TreeModel {
         for path in deep_expanded {
             self.force_expand_at_path(&path);
         }
+        eprintln!("limux-mem: refresh_subtree changed=true (parent)");
         crate::file_panel::perf_log!(
             "limux-perf: refresh_subtree EXIT(parent) path={:?} expanded_paths_len={} rows_len={}",
             parent_path,
@@ -209,6 +232,7 @@ impl TreeModel {
     /// `list_children` consulting `expanded_paths` — without this reset,
     /// `toggle_expand` would `collapse_at` instead of `expand_at`.
     fn force_expand_at_path(&mut self, path: &Path) {
+        let _scope = MemScope::new("force_expand_at_path");
         match self.find_row(path) {
             Some(idx) => {
                 if self.rows[idx].kind == Kind::Dir {
@@ -318,7 +342,13 @@ impl TreeModel {
     }
 
     fn expand_at(&mut self, idx: usize) -> ListChange {
+        let _scope = MemScope::new("expand_at");
         let inserted = self.expand_at_no_change(idx);
+        eprintln!(
+            "limux-mem: expand_at inserted={} Vec::with_capacity({})",
+            inserted,
+            1 + inserted
+        );
         let mut rows = Vec::with_capacity(1 + inserted);
         rows.push(self.rows[idx].clone());
         let start = idx + 1;
@@ -335,12 +365,18 @@ impl TreeModel {
     /// clone burst that the public variant produces just to be dropped.
     /// Returns the number of children inserted after `idx`.
     fn expand_at_no_change(&mut self, idx: usize) -> usize {
+        let _scope = MemScope::new("expand_at_no_change");
         let path = self.rows[idx].path.clone();
         let depth = self.rows[idx].depth + 1;
         self.rows[idx].expanded = true;
         self.expanded_paths.insert(path.clone());
         let children = self.list_children(&path, depth, Some(idx));
         let count = children.len();
+        eprintln!(
+            "limux-mem: expand_at_no_change inserted={} rows_len_before_splice={}",
+            count,
+            self.rows.len()
+        );
         let insert_at = idx + 1;
         self.rows.splice(insert_at..insert_at, children);
         self.reindex_parents_after(insert_at);

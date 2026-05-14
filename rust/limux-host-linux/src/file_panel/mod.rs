@@ -28,6 +28,38 @@ macro_rules! perf_log {
 }
 pub(crate) use perf_log;
 
+pub(crate) fn rss_kb() -> u64 {
+    std::fs::read_to_string("/proc/self/status")
+        .ok()
+        .and_then(|s| {
+            s.lines()
+                .find(|l| l.starts_with("VmRSS:"))
+                .and_then(|l| l.split_whitespace().nth(1).and_then(|n| n.parse().ok()))
+        })
+        .unwrap_or(0)
+}
+
+pub(crate) struct MemScope {
+    name: &'static str,
+    entry_rss: u64,
+}
+
+impl MemScope {
+    pub(crate) fn new(name: &'static str) -> Self {
+        let r = rss_kb();
+        eprintln!("limux-mem: {} ENTER rss={}KB", name, r);
+        Self { name, entry_rss: r }
+    }
+}
+
+impl Drop for MemScope {
+    fn drop(&mut self) {
+        let now = rss_kb();
+        let delta = now as i64 - self.entry_rss as i64;
+        eprintln!("limux-mem: {} EXIT rss={}KB Δ={}KB", self.name, now, delta);
+    }
+}
+
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -325,6 +357,11 @@ impl FilePanelHandle {
     }
 
     fn on_watcher_event(&self, workspace_id: &str, paths: Vec<PathBuf>) {
+        let _scope = crate::file_panel::MemScope::new("on_watcher_event");
+        eprintln!(
+            "limux-mem: on_watcher_event paths.len()={} (received)",
+            paths.len()
+        );
         let active_now = self.inner.borrow().active.as_deref() == Some(workspace_id);
         if !active_now {
             return;
@@ -344,6 +381,10 @@ impl FilePanelHandle {
                 None => paths,
             }
         };
+        eprintln!(
+            "limux-mem: on_watcher_event paths.len()={} (post-filter)",
+            paths.len()
+        );
         if paths.is_empty() {
             return;
         }
@@ -476,20 +517,26 @@ impl FilePanelHandle {
     // + `git_rerun_pending`) prevents duplicate jobs from piling up during
     // a watcher burst.
     fn refresh_git_for(&self, workspace_id: WorkspaceId) {
+        let _scope = crate::file_panel::MemScope::new("refresh_git_for");
         let t0 = std::time::Instant::now();
         let root = {
             let mut inner = self.inner.borrow_mut();
             let per = match inner.cache.get_mut(&workspace_id) {
                 Some(p) => p,
-                None => return,
+                None => {
+                    eprintln!("limux-mem: refresh_git_for SKIP (no workspace)");
+                    return;
+                }
             };
             if per.git_in_flight {
                 per.git_rerun_pending = true;
+                eprintln!("limux-mem: refresh_git_for COALESCED (thread NOT spawned)");
                 return;
             }
             per.git_in_flight = true;
             per.model.root.clone()
         };
+        eprintln!("limux-mem: refresh_git_for SPAWNING worker thread");
 
         let (tx, rx) = mpsc::channel::<HashMap<PathBuf, crate::file_panel::model::GitStatus>>();
         let root_for_thread = root.clone();
@@ -556,6 +603,8 @@ impl FilePanelHandle {
         workspace_id: &str,
         map: HashMap<PathBuf, crate::file_panel::model::GitStatus>,
     ) {
+        let _scope = crate::file_panel::MemScope::new("apply_git_result");
+        eprintln!("limux-mem: apply_git_result map.len()={}", map.len());
         let t0 = std::time::Instant::now();
         let rerun;
         {
@@ -572,6 +621,7 @@ impl FilePanelHandle {
                     root
                 );
                 let changed = per.model.refresh_subtree(&root);
+                eprintln!("limux-mem: apply_git_result changed={}", changed);
                 crate::file_panel::perf_log!(
                     "limux-perf: apply_git_result refresh_subtree took {:?} changed={}",
                     t_refresh.elapsed(),
@@ -628,6 +678,7 @@ impl FilePanelHandle {
     }
 
     fn toggle_expand_path(&self, path: &Path) {
+        let _scope = crate::file_panel::MemScope::new("toggle_expand_path");
         let t0 = std::time::Instant::now();
         {
             let mut inner = self.inner.borrow_mut();
@@ -646,6 +697,15 @@ impl FilePanelHandle {
                     );
                     let t_apply = std::time::Instant::now();
                     if let Some(change) = change {
+                        let inserted_rows = match &change {
+                            crate::file_panel::model::ListChange::Replace { rows, .. } => {
+                                rows.len()
+                            }
+                        };
+                        eprintln!(
+                            "limux-mem: toggle_expand_path inserted_rows={}",
+                            inserted_rows
+                        );
                         apply_changes_to_store(&[change], &store);
                     }
                     crate::file_panel::perf_log!(
