@@ -55,6 +55,7 @@ pub struct TreeModel {
     pub git_status_map: HashMap<PathBuf, GitStatus>,
     pub git_status_prefixes: Vec<(PathBuf, GitStatus)>,
     pub gitignore: Option<Rc<ignore::gitignore::Gitignore>>,
+    pub ignored_cache: HashSet<PathBuf>,
 }
 
 #[derive(Clone, Debug)]
@@ -76,6 +77,7 @@ impl TreeModel {
             git_status_map: HashMap::new(),
             git_status_prefixes: Vec::new(),
             gitignore: None,
+            ignored_cache: HashSet::new(),
         }
     }
 
@@ -85,12 +87,38 @@ impl TreeModel {
 
     pub fn set_gitignore(&mut self, gi: Rc<ignore::gitignore::Gitignore>) {
         self.gitignore = Some(gi);
+        self.ignored_cache.clear();
     }
 
-    fn is_ignored(&self, path: &Path, is_dir: bool) -> bool {
-        match &self.gitignore {
-            Some(gi) => gi.matched(path, is_dir).is_ignore(),
-            None => false,
+    fn is_ignored(&self, path: &Path, _is_dir: bool) -> bool {
+        self.ignored_cache.contains(path)
+    }
+
+    fn populate_ignored_cache(&mut self, gi: &ignore::gitignore::Gitignore) {
+        let mut stack: Vec<PathBuf> = vec![self.root.clone()];
+        while let Some(dir) = stack.pop() {
+            let entries = match std::fs::read_dir(&dir) {
+                Ok(e) => e,
+                Err(_) => continue,
+            };
+            for entry in entries.flatten() {
+                let path = entry.path();
+                let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
+                let name = match path.file_name() {
+                    Some(n) => n.to_os_string(),
+                    None => continue,
+                };
+                if !self.hidden_visible && name.to_string_lossy().starts_with('.') {
+                    continue;
+                }
+                if gi.matched(&path, is_dir).is_ignore() {
+                    self.ignored_cache.insert(path);
+                    continue;
+                }
+                if is_dir {
+                    stack.push(path);
+                }
+            }
         }
     }
 
@@ -120,6 +148,10 @@ impl TreeModel {
 
     pub fn rebuild_visible(&mut self) {
         self.rows.clear();
+        self.ignored_cache.clear();
+        if let Some(gi) = self.gitignore.clone() {
+            self.populate_ignored_cache(&gi);
+        }
         let children = self.list_children(&self.root.clone(), 0, None);
         self.rows.extend(children);
     }
@@ -192,6 +224,10 @@ impl TreeModel {
         deep_expanded.sort_by_key(|p| p.components().count());
         self.rows[parent_idx].expanded = false;
         self.rows.drain(parent_idx + 1..end);
+        self.ignored_cache.clear();
+        if let Some(gi) = self.gitignore.clone() {
+            self.populate_ignored_cache(&gi);
+        }
         self.expand_at(parent_idx);
         for path in deep_expanded {
             self.force_expand_at_path(&path);
