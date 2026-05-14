@@ -94,8 +94,8 @@ impl TreeModel {
         self.ignored_cache.contains(path)
     }
 
-    fn populate_ignored_cache(&mut self, gi: &ignore::gitignore::Gitignore) {
-        let mut stack: Vec<PathBuf> = vec![self.root.clone()];
+    fn populate_ignored_cache(&mut self, gi: &ignore::gitignore::Gitignore, walk_root: &Path) {
+        let mut stack: Vec<PathBuf> = vec![walk_root.to_path_buf()];
         while let Some(dir) = stack.pop() {
             let entries = match std::fs::read_dir(&dir) {
                 Ok(e) => e,
@@ -150,7 +150,8 @@ impl TreeModel {
         self.rows.clear();
         self.ignored_cache.clear();
         if let Some(gi) = self.gitignore.clone() {
-            self.populate_ignored_cache(&gi);
+            let root = self.root.clone();
+            self.populate_ignored_cache(&gi, &root);
         }
         let children = self.list_children(&self.root.clone(), 0, None);
         self.rows.extend(children);
@@ -224,9 +225,9 @@ impl TreeModel {
         deep_expanded.sort_by_key(|p| p.components().count());
         self.rows[parent_idx].expanded = false;
         self.rows.drain(parent_idx + 1..end);
-        self.ignored_cache.clear();
+        self.ignored_cache.retain(|p| !p.starts_with(parent_path));
         if let Some(gi) = self.gitignore.clone() {
-            self.populate_ignored_cache(&gi);
+            self.populate_ignored_cache(&gi, parent_path);
         }
         self.expand_at(parent_idx);
         for path in deep_expanded {
@@ -937,5 +938,48 @@ mod tests {
         let root = tmp.path().canonicalize().unwrap();
         let good = root.join("inside.txt");
         assert!(is_within_root(&good, &root));
+    }
+
+    #[test]
+    fn refresh_subtree_partial_populate_keeps_unrelated_ignored_entries() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        fs::write(root.join(".gitignore"), "*.log\n").unwrap();
+        mkdir(root, "A");
+        mkdir(root, "B");
+        let a = root.join("A");
+        let b = root.join("B");
+        touch(&a, "a.log");
+        touch(&a, "a.txt");
+        touch(&b, "b.log");
+        touch(&b, "b.txt");
+        let gi = {
+            let mut bld = ignore::gitignore::GitignoreBuilder::new(root);
+            let _ = bld.add(root.join(".gitignore"));
+            bld.build().unwrap()
+        };
+        let mut m = TreeModel::new(root.to_path_buf());
+        m.set_gitignore(Rc::new(gi));
+        m.rebuild_visible();
+        let a_idx = m.find_row(&a).unwrap();
+        m.toggle_expand(a_idx);
+        let b_idx = m.find_row(&b).unwrap();
+        m.toggle_expand(b_idx);
+        assert!(m.ignored_cache.contains(&a.join("a.log")));
+        assert!(m.ignored_cache.contains(&b.join("b.log")));
+        touch(&a, "extra.log");
+        m.refresh_subtree(&a);
+        assert!(
+            m.ignored_cache.contains(&b.join("b.log")),
+            "B's cached ignored entry must survive refresh_subtree(A)"
+        );
+        assert!(
+            m.ignored_cache.contains(&a.join("a.log")),
+            "A's existing ignored entry must remain after partial repopulate"
+        );
+        assert!(
+            m.ignored_cache.contains(&a.join("extra.log")),
+            "newly added A entry must be picked up by partial repopulate"
+        );
     }
 }

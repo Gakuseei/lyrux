@@ -63,12 +63,6 @@ pub struct PerWorkspace {
     // debouncer is dropped on unwind. This is the only handle that stops the
     // watcher; `WatcherHandle` carries no state.
     pub timeout_source: Option<glib::SourceId>,
-    // Workspace-root `.gitignore` matcher. Applied at the consumer side (in
-    // `on_watcher_event`) to drop noisy paths Aria/Limux/etc. write to but
-    // don't track (e.g. `.superpowers/`, `.playwright/`, `.todos/`). The
-    // watcher thread stays per-workspace-state-free; per-workspace state
-    // lives where `PerWorkspace` lives.
-    pub gitignore: std::rc::Rc<ignore::gitignore::Gitignore>,
     // Coalescing flags for the async `git status` job. `git_in_flight` is
     // set when a worker thread is currently running `git status` for this
     // workspace; further refresh requests during that window flip
@@ -253,7 +247,6 @@ impl FilePanelHandle {
                     model,
                     watcher: watcher_handle,
                     timeout_source: Some(timeout_source),
-                    gitignore,
                     git_in_flight: false,
                     git_rerun_pending: false,
                     git_poll_source: None,
@@ -346,7 +339,7 @@ impl FilePanelHandle {
             match inner.cache.get(workspace_id) {
                 Some(per) => paths
                     .into_iter()
-                    .filter(|p| !per.gitignore.matched(p, false).is_ignore())
+                    .filter(|p| !per.model.ignored_cache.contains(p))
                     .collect(),
                 None => paths,
             }
