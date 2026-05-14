@@ -75,6 +75,11 @@ pub struct PerWorkspace {
     // kicks one fresh run.
     pub git_in_flight: bool,
     pub git_rerun_pending: bool,
+    // Polling source for the async `git status` worker's result channel.
+    // Stored so `hibernate_workspace` / `forget_workspace` can remove it
+    // explicitly when the workspace goes away before the worker delivers.
+    // Cleared back to `None` when the closure itself returns `Break`.
+    pub git_poll_source: Option<glib::SourceId>,
 }
 
 pub struct Inner {
@@ -171,9 +176,25 @@ impl FilePanelHandle {
                 );
                 model.expanded_paths.insert(p.clone());
             }
+            // Restore expansion captured by a prior `hibernate_workspace` call
+            // so re-showing this workspace feels stateful. Explicit `expanded`
+            // (from layout_state) and snapshot paths are unioned; duplicates
+            // are idempotent because `HashSet::insert` and the toggle loop
+            // below both no-op on already-expanded entries.
+            let snapshot_expanded: Vec<PathBuf> = self
+                .inner
+                .borrow()
+                .last_expanded_snapshot
+                .get(&workspace_id)
+                .map(|s| s.iter().cloned().collect())
+                .unwrap_or_default();
+            for p in &snapshot_expanded {
+                model.expanded_paths.insert(p.clone());
+            }
             model.rebuild_visible();
-            let expanded_paths: Vec<PathBuf> = expanded.clone();
-            for p in expanded_paths {
+            let mut all_expanded: Vec<PathBuf> = expanded.clone();
+            all_expanded.extend(snapshot_expanded.iter().cloned());
+            for p in all_expanded {
                 if let Some(idx) = model.find_row(&p) {
                     if !model.rows[idx].expanded {
                         model.toggle_expand(idx);
@@ -221,6 +242,7 @@ impl FilePanelHandle {
                     gitignore,
                     git_in_flight: false,
                     git_rerun_pending: false,
+                    git_poll_source: None,
                 },
             );
         }
@@ -235,6 +257,24 @@ impl FilePanelHandle {
             inner.header.title.set_text(&title);
         }
         self.inner.borrow_mut().active = Some(workspace_id.clone());
+
+        // Evict every other cached workspace. The cache previously grew
+        // unbounded — switching between workspaces left their TreeModel,
+        // watcher thread, debouncer, gitignore matcher, and timeout sources
+        // resident forever. `hibernate_workspace` drops the heavy state but
+        // keeps a snapshot of expanded paths so a future re-show restores
+        // the open folders.
+        let to_hibernate: Vec<WorkspaceId> = self
+            .inner
+            .borrow()
+            .cache
+            .keys()
+            .filter(|k| *k != &workspace_id)
+            .cloned()
+            .collect();
+        for id in to_hibernate {
+            self.hibernate_workspace(&id);
+        }
 
         self.refresh_git_for(workspace_id);
     }
@@ -363,7 +403,9 @@ impl FilePanelHandle {
                 apply_model_to_store(&per.model, &inner.view.store);
             }
         } else {
-            crate::file_panel::perf_log!("limux-perf: on_watcher_event SKIP apply_model_to_store (no-op refresh)");
+            crate::file_panel::perf_log!(
+                "limux-perf: on_watcher_event SKIP apply_model_to_store (no-op refresh)"
+            );
         }
         if touched_git {
             self.refresh_git_for(workspace_id.to_string());
@@ -380,12 +422,46 @@ impl FilePanelHandle {
             if let Some(src) = per.timeout_source.take() {
                 src.remove();
             }
+            if let Some(src) = per.git_poll_source.take() {
+                src.remove();
+            }
         }
         let mut inner = self.inner.borrow_mut();
         if inner.active.as_ref() == Some(workspace_id) {
             inner.active = None;
         }
         inner.last_expanded_snapshot.remove(workspace_id);
+    }
+
+    /// Switch-time cleanup: drop the heavy per-workspace state for
+    /// `workspace_id` but keep a snapshot of its expanded paths so a future
+    /// `show_workspace` call can restore the open folders. Unlike
+    /// `forget_workspace` (close-time) this deliberately does NOT clear
+    /// `inner.active` — it is called from inside `show_workspace` after a
+    /// new active has already been set.
+    ///
+    /// Watcher shutdown chain: removing `timeout_source` drops the closure
+    /// that owns the watcher channel's `rx`. The next watcher `send` fails,
+    /// the watcher thread exits, and the debouncer drops on unwind.
+    pub fn hibernate_workspace(&self, workspace_id: &WorkspaceId) {
+        let entry = self.inner.borrow_mut().cache.remove(workspace_id);
+        let Some(mut per) = entry else {
+            return;
+        };
+        // Capture the expanded set BEFORE dropping `per` so a future re-show
+        // can restore the tree. Replaces any prior snapshot (e.g. an empty
+        // one written by collapse-all) — accepted trade per the leak fix.
+        let snapshot = per.model.expanded_paths.clone();
+        self.inner
+            .borrow_mut()
+            .last_expanded_snapshot
+            .insert(workspace_id.clone(), snapshot);
+        if let Some(src) = per.timeout_source.take() {
+            src.remove();
+        }
+        if let Some(src) = per.git_poll_source.take() {
+            src.remove();
+        }
     }
 
     // `git status` runs on a worker thread spawned via `std::thread::spawn`.
@@ -431,27 +507,39 @@ impl FilePanelHandle {
 
         let self_clone = self.clone();
         let id = workspace_id.clone();
-        glib::timeout_add_local(Duration::from_millis(50), move || match rx.try_recv() {
+        let src = glib::timeout_add_local(Duration::from_millis(50), move || match rx.try_recv() {
             Ok(map) => {
                 crate::file_panel::perf_log!(
                     "limux-perf: refresh_git_for (spawn to result delivered) took {:?}",
                     t0.elapsed()
                 );
+                // Clear our stored SourceId BEFORE calling `apply_git_result`.
+                // That call may synchronously re-enter `refresh_git_for` (if
+                // `git_rerun_pending` is set) and assign a NEW SourceId; we
+                // must not clobber it on the way out.
+                if let Some(per) = self_clone.inner.borrow_mut().cache.get_mut(&id) {
+                    per.git_poll_source = None;
+                }
                 self_clone.apply_git_result(&id, map);
                 glib::ControlFlow::Break
             }
             Err(mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
             Err(mpsc::TryRecvError::Disconnected) => {
-                // Worker exited without sending (git status failed).
-                // Clear in-flight so future refreshes can run.
+                // Worker exited without sending (git status failed, or the
+                // workspace was hibernated/forgotten while the worker was
+                // running). Clear our state so future refreshes can run.
                 let mut inner = self_clone.inner.borrow_mut();
                 if let Some(per) = inner.cache.get_mut(&id) {
                     per.git_in_flight = false;
                     per.git_rerun_pending = false;
+                    per.git_poll_source = None;
                 }
                 glib::ControlFlow::Break
             }
         });
+        if let Some(per) = self.inner.borrow_mut().cache.get_mut(&workspace_id) {
+            per.git_poll_source = Some(src);
+        }
     }
 
     /// Apply a freshly-computed git status map to the workspace's model and,
@@ -476,7 +564,8 @@ impl FilePanelHandle {
                 let t_refresh = std::time::Instant::now();
                 crate::file_panel::perf_log!(
                     "limux-perf: apply_git_result calling refresh_subtree ws={} root={:?}",
-                    workspace_id, root
+                    workspace_id,
+                    root
                 );
                 let changed = per.model.refresh_subtree(&root);
                 crate::file_panel::perf_log!(
@@ -527,7 +616,10 @@ impl FilePanelHandle {
                 None => return,
             };
             handle.toggle_expand_path(&row_obj.path());
-            crate::file_panel::perf_log!("limux-perf: list_view connect_activate (full click) took {:?}", t0.elapsed());
+            crate::file_panel::perf_log!(
+                "limux-perf: list_view connect_activate (full click) took {:?}",
+                t0.elapsed()
+            );
         });
     }
 
@@ -544,16 +636,25 @@ impl FilePanelHandle {
                 if let Some(idx) = per.model.find_row(path) {
                     let t_toggle = std::time::Instant::now();
                     let change = per.model.toggle_expand(idx);
-                    crate::file_panel::perf_log!("limux-perf: model.toggle_expand took {:?}", t_toggle.elapsed());
+                    crate::file_panel::perf_log!(
+                        "limux-perf: model.toggle_expand took {:?}",
+                        t_toggle.elapsed()
+                    );
                     let t_apply = std::time::Instant::now();
                     if let Some(change) = change {
                         apply_changes_to_store(&[change], &store);
                     }
-                    crate::file_panel::perf_log!("limux-perf: apply_changes_to_store (after toggle) took {:?}", t_apply.elapsed());
+                    crate::file_panel::perf_log!(
+                        "limux-perf: apply_changes_to_store (after toggle) took {:?}",
+                        t_apply.elapsed()
+                    );
                 }
             }
         }
-        crate::file_panel::perf_log!("limux-perf: toggle_expand_path total took {:?}", t0.elapsed());
+        crate::file_panel::perf_log!(
+            "limux-perf: toggle_expand_path total took {:?}",
+            t0.elapsed()
+        );
     }
 
     fn wire_context_menu(&self) {
@@ -904,5 +1005,112 @@ mod tests {
             ignored: false,
         });
         assert_eq!(compute_desired_width(&m), 600);
+    }
+
+    // Tests below exercise the cache/hibernate machinery. They build a real
+    // `FilePanelHandle`, which constructs `gtk::Box` and therefore needs GTK
+    // initialized. The pattern matches the integration tests in
+    // `tests/file_panel_*.rs`: skip cleanly when no display is available.
+    use std::fs;
+    use tempfile::TempDir;
+
+    fn try_init_gtk() -> bool {
+        gtk::init().is_ok()
+    }
+
+    #[test]
+    fn hibernate_workspace_saves_expanded_paths_to_snapshot() {
+        if !try_init_gtk() {
+            eprintln!("skipping: gtk init failed (no display)");
+            return;
+        }
+        let ws = TempDir::new().unwrap();
+        let sub = ws.path().join("sub");
+        fs::create_dir(&sub).unwrap();
+        fs::write(sub.join("inner.txt"), b"x").unwrap();
+        let h = FilePanelHandle::new();
+        h.show_workspace("A".into(), ws.path().to_path_buf(), vec![sub.clone()]);
+
+        h.hibernate_workspace(&"A".to_string());
+
+        let inner = h.inner.borrow();
+        let snap = inner
+            .last_expanded_snapshot
+            .get("A")
+            .expect("snapshot present");
+        assert!(snap.contains(&sub), "snapshot should contain expanded path");
+    }
+
+    #[test]
+    fn hibernate_workspace_drops_cache_entry() {
+        if !try_init_gtk() {
+            eprintln!("skipping: gtk init failed (no display)");
+            return;
+        }
+        let ws = TempDir::new().unwrap();
+        let h = FilePanelHandle::new();
+        h.show_workspace("A".into(), ws.path().to_path_buf(), Vec::new());
+        assert!(h.inner.borrow().cache.contains_key("A"));
+
+        h.hibernate_workspace(&"A".to_string());
+
+        assert!(!h.inner.borrow().cache.contains_key("A"));
+    }
+
+    #[test]
+    fn show_workspace_hibernates_previously_active() {
+        if !try_init_gtk() {
+            eprintln!("skipping: gtk init failed (no display)");
+            return;
+        }
+        let a = TempDir::new().unwrap();
+        let a_sub = a.path().join("sub");
+        fs::create_dir(&a_sub).unwrap();
+        fs::write(a_sub.join("f.txt"), b"a").unwrap();
+        let b = TempDir::new().unwrap();
+        fs::write(b.path().join("ib.txt"), b"b").unwrap();
+        let h = FilePanelHandle::new();
+        h.show_workspace("A".into(), a.path().to_path_buf(), vec![a_sub.clone()]);
+        h.show_workspace("B".into(), b.path().to_path_buf(), Vec::new());
+
+        let inner = h.inner.borrow();
+        assert!(!inner.cache.contains_key("A"), "A should be hibernated");
+        assert!(inner.cache.contains_key("B"), "B should be active");
+        let snap_a = inner
+            .last_expanded_snapshot
+            .get("A")
+            .expect("A snapshot present");
+        assert!(
+            snap_a.contains(&a_sub),
+            "A's expanded path should survive in snapshot"
+        );
+    }
+
+    #[test]
+    fn show_workspace_restores_expansion_from_snapshot() {
+        if !try_init_gtk() {
+            eprintln!("skipping: gtk init failed (no display)");
+            return;
+        }
+        let a = TempDir::new().unwrap();
+        let sub = a.path().join("sub");
+        fs::create_dir(&sub).unwrap();
+        fs::write(sub.join("inner.txt"), b"x").unwrap();
+        let h = FilePanelHandle::new();
+        // First show with explicit expansion → snapshot picks it up via
+        // hibernate (triggered by the second show below).
+        h.show_workspace("A".into(), a.path().to_path_buf(), vec![sub.clone()]);
+        let other = TempDir::new().unwrap();
+        h.show_workspace("B".into(), other.path().to_path_buf(), Vec::new());
+        // Re-show A with an EMPTY explicit expansion list — the snapshot
+        // captured during hibernation must restore `sub`.
+        h.show_workspace("A".into(), a.path().to_path_buf(), Vec::new());
+
+        let inner = h.inner.borrow();
+        let per = inner.cache.get("A").expect("A re-cached");
+        assert!(
+            per.model.expanded_paths.contains(&sub),
+            "expansion should be restored from snapshot"
+        );
     }
 }
