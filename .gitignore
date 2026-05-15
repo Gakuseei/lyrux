@@ -11,3 +11,9 @@ __pycache__/
 *.py[cod]
 *.deb
 *.AppImage
+*.rpm
+CLAUDE.md
+AGENTS.md
+.claude/
+.playwright/
+heaptrack.*.zst
