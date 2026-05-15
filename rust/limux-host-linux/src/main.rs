@@ -15,6 +15,10 @@ use adw::prelude::*;
 use libadwaita as adw;
 use std::path::{Path, PathBuf};
 
+#[cfg(not(target_env = "msvc"))]
+#[global_allocator]
+static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+
 const APP_ID: &str = "dev.limux.linux";
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
