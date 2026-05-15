@@ -1,6 +1,7 @@
 use std::collections::HashMap;
+use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 use crate::file_panel::model::GitStatus;
 
@@ -24,15 +25,48 @@ pub fn is_git_repo(root: &Path) -> bool {
 }
 
 pub fn run_status(root: &Path) -> Result<HashMap<PathBuf, GitStatus>, GitError> {
-    let out = Command::new("git")
+    const MAX_STDOUT: usize = 100 * 1024 * 1024;
+
+    let mut child = Command::new("git")
         .args(["status", "--porcelain=v2", "-z", "--untracked-files=all"])
         .current_dir(root)
-        .output()
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
         .map_err(GitError::Spawn)?;
-    if !out.status.success() {
-        return Err(GitError::NonZero(out.status.code().unwrap_or(-1)));
+
+    let mut stdout = child.stdout.take().expect("piped stdout");
+    let mut buf: Vec<u8> = Vec::with_capacity(64 * 1024);
+    let mut chunk = [0u8; 64 * 1024];
+    loop {
+        let n = match stdout.read(&mut chunk) {
+            Ok(n) => n,
+            Err(e) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(GitError::Spawn(e));
+            }
+        };
+        if n == 0 {
+            break;
+        }
+        if buf.len() + n > MAX_STDOUT {
+            let _ = child.kill();
+            let _ = child.wait();
+            // -2 = stdout exceeded MAX_STDOUT cap (reuse NonZero variant for now)
+            return Err(GitError::NonZero(-2));
+        }
+        buf.extend_from_slice(&chunk[..n]);
     }
-    Ok(parse_porcelain_v2(root, &out.stdout))
+
+    let status = child.wait().map_err(GitError::Spawn)?;
+    if !status.success() {
+        return Err(GitError::NonZero(status.code().unwrap_or(-1)));
+    }
+
+    let map = parse_porcelain_v2(root, &buf);
+    drop(buf);
+    Ok(map)
 }
 
 pub fn parse_porcelain_v2(root: &Path, output: &[u8]) -> HashMap<PathBuf, GitStatus> {
