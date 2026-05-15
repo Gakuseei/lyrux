@@ -6,14 +6,51 @@ use notify::{RecursiveMode, Watcher};
 use notify_debouncer_mini::{new_debouncer, DebouncedEvent};
 
 const EXCLUDED_COMPONENTS: &[&str] = &[
+    // Build outputs
     "target",
     "node_modules",
-    ".git",
     ".next",
     "dist",
     "build",
-    ".cache",
     "out",
+    // VCS
+    ".git",
+    ".hg",
+    ".svn",
+    // OS / Browser caches
+    ".cache",
+    ".thumbnails",
+    ".mozilla",
+    ".var",
+    // Language tool caches
+    ".cargo",
+    ".rustup",
+    ".npm",
+    ".yarn",
+    ".pnpm-store",
+    ".gradle",
+    ".m2",
+    ".ivy2",
+    ".sbt",
+    ".conda",
+    // Python
+    "__pycache__",
+    ".venv",
+    "venv",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".tox",
+    ".eggs",
+    // IDE / Tool state
+    ".idea",
+    ".vscode",
+    ".vs",
+    // Agent / scratch dirs commonly created by dev tools
+    ".superpowers",
+    ".todos",
+    ".playwright",
+    ".claude",
 ];
 
 fn is_excluded(path: &Path) -> bool {
@@ -43,11 +80,34 @@ fn spawn_inotify(root: PathBuf, sink: mpsc::Sender<Vec<PathBuf>>) -> Option<Watc
                 return;
             }
         };
+        let mut watch_failed = false;
         if debouncer
             .watcher()
-            .watch(&root, RecursiveMode::Recursive)
+            .watch(&root, RecursiveMode::NonRecursive)
             .is_err()
         {
+            watch_failed = true;
+        }
+        if !watch_failed {
+            if let Ok(rd) = std::fs::read_dir(&root) {
+                for entry in rd.flatten() {
+                    let path = entry.path();
+                    let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
+                    if !is_dir {
+                        continue;
+                    }
+                    let name = match path.file_name().and_then(|s| s.to_str()) {
+                        Some(n) => n,
+                        None => continue,
+                    };
+                    if EXCLUDED_COMPONENTS.contains(&name) {
+                        continue;
+                    }
+                    let _ = debouncer.watcher().watch(&path, RecursiveMode::Recursive);
+                }
+            }
+        }
+        if watch_failed {
             run_poll_watcher(root, sink);
             return;
         }
@@ -88,8 +148,25 @@ fn run_poll_watcher(root: PathBuf, sink: mpsc::Sender<Vec<PathBuf>>) {
         Ok(w) => w,
         Err(_) => return,
     };
-    if Watcher::watch(&mut watcher, &root, RecursiveMode::Recursive).is_err() {
+    if Watcher::watch(&mut watcher, &root, RecursiveMode::NonRecursive).is_err() {
         return;
+    }
+    if let Ok(rd) = std::fs::read_dir(&root) {
+        for entry in rd.flatten() {
+            let path = entry.path();
+            let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
+            if !is_dir {
+                continue;
+            }
+            let name = match path.file_name().and_then(|s| s.to_str()) {
+                Some(n) => n,
+                None => continue,
+            };
+            if EXCLUDED_COMPONENTS.contains(&name) {
+                continue;
+            }
+            let _ = Watcher::watch(&mut watcher, &path, RecursiveMode::Recursive);
+        }
     }
     while let Ok(ev) = rx.recv() {
         if let Ok(ev) = ev {
