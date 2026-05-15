@@ -6,23 +6,19 @@ use notify::{RecursiveMode, Watcher};
 use notify_debouncer_mini::{new_debouncer, DebouncedEvent};
 
 const EXCLUDED_COMPONENTS: &[&str] = &[
-    // Build outputs
     "target",
     "node_modules",
     ".next",
     "dist",
     "build",
     "out",
-    // VCS
     ".git",
     ".hg",
     ".svn",
-    // OS / Browser caches
     ".cache",
     ".thumbnails",
     ".mozilla",
     ".var",
-    // Language tool caches
     ".cargo",
     ".rustup",
     ".npm",
@@ -33,7 +29,6 @@ const EXCLUDED_COMPONENTS: &[&str] = &[
     ".ivy2",
     ".sbt",
     ".conda",
-    // Python
     "__pycache__",
     ".venv",
     "venv",
@@ -42,11 +37,9 @@ const EXCLUDED_COMPONENTS: &[&str] = &[
     ".ruff_cache",
     ".tox",
     ".eggs",
-    // IDE / Tool state
     ".idea",
     ".vscode",
     ".vs",
-    // Agent / scratch dirs commonly created by dev tools
     ".superpowers",
     ".todos",
     ".playwright",

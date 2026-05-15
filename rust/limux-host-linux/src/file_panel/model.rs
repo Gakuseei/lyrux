@@ -248,10 +248,6 @@ impl TreeModel {
         true
     }
 
-    /// Locate `path` in `rows` and force a fresh expansion (loads children
-    /// into `rows`). Tolerates a stale `row.expanded == true` left over from
-    /// `list_children` consulting `expanded_paths` — without this reset,
-    /// `toggle_expand` would `collapse_at` instead of `expand_at`.
     fn force_expand_at_path(&mut self, path: &Path) {
         match self.find_row(path) {
             Some(idx) => {
@@ -374,10 +370,6 @@ impl TreeModel {
         }
     }
 
-    /// Same as `expand_at` but does NOT build the `ListChange`. Callers that
-    /// discard the return value (refresh paths) skip the O(children) Row
-    /// clone burst that the public variant produces just to be dropped.
-    /// Returns the number of children inserted after `idx`.
     fn expand_at_no_change(&mut self, idx: usize) -> usize {
         let path = self.rows[idx].path.clone();
         let depth = self.rows[idx].depth + 1;
@@ -768,7 +760,6 @@ mod tests {
         let sub_idx = m.find_row(&sub).unwrap();
         m.toggle_expand(sub_idx);
         assert_eq!(m.rows.len(), 4, "expect root/tests + tests/sub + 2 files");
-        // Force a full-tree refresh — mimics apply_git_result.
         m.refresh_subtree(root);
         assert_eq!(
             m.rows.len(),
@@ -797,7 +788,6 @@ mod tests {
         let inner_idx = m.find_row(&inner).unwrap();
         m.toggle_expand(inner_idx);
         assert_eq!(m.rows.len(), 3);
-        // Refresh subtree at the parent of the deeper expansion.
         m.refresh_subtree(&src);
         assert_eq!(
             m.rows.len(),

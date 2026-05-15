@@ -3,8 +3,6 @@ use std::path::{Path, PathBuf};
 use crate::file_panel::clipboard::ClipMode;
 use crate::file_panel::model::is_within_root;
 
-// Error payloads are surfaced via `Debug`; the wrapped values aren't read
-// structurally yet. Allow until UI-level error reporting consumes them.
 #[allow(dead_code)]
 #[derive(Debug)]
 pub enum OpError {
@@ -178,8 +176,6 @@ pub fn reveal_in_fm(path: &Path) -> Result<(), OpError> {
     Ok(())
 }
 
-// Used by "Open in Terminal" once the action wires through to the active
-// ghostty pane (Phase 2). Already covered by tests.
 #[allow(dead_code)]
 pub fn cd_command_for(path: &Path) -> String {
     let dir = if path.is_dir() {

@@ -1,9 +1,3 @@
-//! PaneWidget: a tabbed container with action icons in the tab bar.
-//!
-//! Layout: [tab1 x] [tab2 x] ... ←spacer→ [terminal] [browser] [split-h] [split-v] [close]
-//!
-//! All on one line. Tabs left-justified, icons right-justified.
-
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -151,10 +145,6 @@ pub fn set_workspace_dragging_all(active: bool) {
     });
 }
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 type PaneSplitCallback = dyn Fn(&gtk::Widget, gtk::Orientation);
 type PaneWidgetCallback = dyn Fn(&gtk::Widget);
 type PaneSignalCallback = dyn Fn();
@@ -253,10 +243,6 @@ struct TabContextMenuContext {
     label: gtk::Label,
     pin_icon: gtk::Label,
 }
-
-// ---------------------------------------------------------------------------
-// CSS
-// ---------------------------------------------------------------------------
 
 pub const PANE_CSS: &str = r#"
 .limux-pane-header {
@@ -374,10 +360,6 @@ pub const PANE_CSS: &str = r#"
 }
 "#;
 
-// ---------------------------------------------------------------------------
-// PaneWidget builder
-// ---------------------------------------------------------------------------
-
 pub fn create_pane(
     callbacks: Rc<PaneCallbacks>,
     shortcuts: Rc<ResolvedShortcutConfig>,
@@ -391,7 +373,6 @@ pub fn create_pane(
         .vexpand(true)
         .build();
 
-    // The single header line: tabs (left) + action icons (right)
     let header = gtk::Box::builder()
         .orientation(gtk::Orientation::Horizontal)
         .spacing(0)
@@ -434,7 +415,6 @@ pub fn create_pane(
     content_drop_overlay.set_can_target(false);
     content_overlay.add_overlay(&content_drop_overlay);
 
-    // Action icons (right side)
     let actions = gtk::Box::builder()
         .orientation(gtk::Orientation::Horizontal)
         .spacing(1)
@@ -575,7 +555,6 @@ pub fn create_pane(
     outer
 }
 
-/// Cycle tabs in the focused pane. `delta`: 1 = next, -1 = prev.
 pub fn cycle_tab_in_pane(pane_widget: &gtk::Widget, delta: i32) {
     let outer = pane_widget.downcast_ref::<gtk::Box>();
     let outer = match outer {
@@ -679,10 +658,6 @@ pub fn terminal_handle_for_surface(
     fallback
 }
 
-// ---------------------------------------------------------------------------
-// Internal tab state
-// ---------------------------------------------------------------------------
-
 #[derive(Clone)]
 enum TabKind {
     Terminal { state: TerminalTabState },
@@ -739,7 +714,6 @@ struct TabState {
     active_tab: Option<String>,
 }
 
-/// Shared internals stored on the pane outer Box for external access.
 pub struct PaneInternals {
     pane_id: u32,
     tab_state: Rc<std::cell::RefCell<TabState>>,
@@ -767,10 +741,6 @@ fn next_tab_id() -> String {
     uuid::Uuid::new_v4().to_string()
 }
 
-// ---------------------------------------------------------------------------
-// Icon button helper
-// ---------------------------------------------------------------------------
-
 fn icon_button(icon_name: &str, tooltip: &str) -> gtk::Button {
     let btn = gtk::Button::builder()
         .icon_name(icon_name)
@@ -791,8 +761,6 @@ fn pane_action_tooltip(
         .unwrap_or_else(|| base.to_string())
 }
 
-/// Create a split-pane icon button with two rectangles separated by a divider.
-/// Horizontal = left|right panes, Vertical = top/bottom panes.
 #[allow(dead_code)]
 fn split_icon_button(orientation: gtk::Orientation, tooltip: &str) -> gtk::Button {
     let icon = gtk::Box::new(orientation, 1);
@@ -817,10 +785,6 @@ fn split_icon_button(orientation: gtk::Orientation, tooltip: &str) -> gtk::Butto
     btn.add_css_class("limux-split-btn");
     btn
 }
-
-// ---------------------------------------------------------------------------
-// Tab creation
-// ---------------------------------------------------------------------------
 
 struct TerminalTabOptions<'a> {
     id: Option<&'a str>,
@@ -1279,7 +1243,6 @@ fn add_keybind_editor_tab_inner(internals: &Rc<PaneInternals>, input: KeybindsTa
     }
 }
 
-// Public wrappers for keyboard shortcut use
 #[allow(dead_code)]
 pub fn add_terminal_tab_to_pane(pane_widget: &gtk::Widget) {
     if let Some(internals) = find_pane_internals(pane_widget) {
@@ -1516,10 +1479,6 @@ fn apply_pin_visuals(tab_button: &gtk::Box, pinned: bool) {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Tab button (label + close)
-// ---------------------------------------------------------------------------
-
 fn new_tab_title_label(title: &str) -> gtk::Label {
     let label = gtk::Label::builder()
         .label(title)
@@ -1684,7 +1643,6 @@ fn show_tab_context_menu(tab_btn: &gtk::Box, tab_id: &str, context: &TabContextM
     menu_box.set_margin_start(4);
     menu_box.set_margin_end(4);
 
-    // Rename
     let rename_btn = gtk::Button::with_label("Rename");
     rename_btn.add_css_class("flat");
     {
@@ -1699,7 +1657,6 @@ fn show_tab_context_menu(tab_btn: &gtk::Box, tab_id: &str, context: &TabContextM
         });
     }
 
-    // Pin / Unpin
     let is_pinned = context
         .tab_state
         .borrow()
@@ -1713,7 +1670,7 @@ fn show_tab_context_menu(tab_btn: &gtk::Box, tab_id: &str, context: &TabContextM
         let state = context.tab_state.clone();
         let tid = tab_id.to_string();
         let pin = context.pin_icon.clone();
-        let close = tab_btn.last_child(); // close button
+        let close = tab_btn.last_child();
         let menu_ref = menu.clone();
         let callbacks = context.callbacks.clone();
         pin_btn.connect_clicked(move |_| {
@@ -1733,7 +1690,6 @@ fn show_tab_context_menu(tab_btn: &gtk::Box, tab_id: &str, context: &TabContextM
         });
     }
 
-    // Close
     let close_btn = gtk::Button::with_label("Close");
     close_btn.add_css_class("flat");
     {
@@ -1765,7 +1721,6 @@ fn show_tab_context_menu(tab_btn: &gtk::Box, tab_id: &str, context: &TabContextM
     menu.set_parent(tab_btn);
     menu.set_has_arrow(false);
 
-    // Clean up popover when it closes
     menu.connect_closed(move |popover| {
         popover.unparent();
     });
@@ -1781,7 +1736,6 @@ fn show_rename_dialog(
 ) {
     let current_name = label.label().to_string();
 
-    // Replace label with an entry temporarily
     let parent = label.parent().and_then(|p| p.downcast::<gtk::Box>().ok());
     let Some(parent) = parent else {
         return;
@@ -1796,12 +1750,10 @@ fn show_rename_dialog(
     }
 
     label.set_visible(false);
-    // Insert entry before the close button
     parent.insert_child_after(&entry, Some(label));
     entry.grab_focus();
     entry.select_region(0, -1);
 
-    // On activate (Enter) or focus-out, commit rename
     let lbl = label.clone();
     let state = tab_state.clone();
     let tid = tab_id.to_string();
@@ -2329,10 +2281,6 @@ fn install_content_drop_target(internals: &Rc<PaneInternals>) {
     });
 }
 
-// ---------------------------------------------------------------------------
-// Tab activation / removal
-// ---------------------------------------------------------------------------
-
 fn activate_tab(
     _tab_strip: &gtk::Box,
     content_stack: &gtk::Stack,
@@ -2342,7 +2290,6 @@ fn activate_tab(
     let mut ts = tab_state.borrow_mut();
     ts.active_tab = Some(tab_id.to_string());
 
-    // Update visual state on all tabs
     for entry in &ts.tabs {
         if entry.id == tab_id {
             entry.tab_button.add_css_class("limux-tab-active");
@@ -2396,7 +2343,6 @@ fn remove_tab(
         return;
     }
 
-    // Activate neighbor tab
     let new_idx = idx.min(ts.tabs.len() - 1);
     let new_id = ts.tabs[new_idx].id.clone();
     let was_active = ts.active_tab.as_deref() == Some(tab_id);
@@ -2407,10 +2353,6 @@ fn remove_tab(
     }
     (callbacks.on_state_changed)();
 }
-
-// ---------------------------------------------------------------------------
-// Browser widget
-// ---------------------------------------------------------------------------
 
 #[cfg(feature = "webkit")]
 #[derive(Clone)]
@@ -2782,7 +2724,6 @@ fn create_browser_widget(
         .vexpand(true)
         .build();
 
-    // Set permissive settings
     if let Some(settings) = webkit6::prelude::WebViewExt::settings(&webview) {
         settings.set_enable_developer_extras(true);
         settings.set_javascript_can_open_windows_automatically(true);
@@ -2925,7 +2866,6 @@ fn create_browser_widget(
         });
     }
 
-    // Suppress unused variable warnings
     let _ = network_session;
     let _ = web_context;
 

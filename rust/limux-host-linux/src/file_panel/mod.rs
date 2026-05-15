@@ -330,9 +330,6 @@ impl FilePanelHandle {
         self.inner.borrow().visible
     }
 
-    /// Width (px) needed so the longest visible filename in the active
-    /// workspace fits without truncation. Falls back to 200 when no
-    /// workspace is active or the cache entry is missing.
     pub fn desired_width(&self) -> i32 {
         let inner = self.inner.borrow();
         let active = match inner.active.as_ref() {
@@ -379,7 +376,7 @@ impl FilePanelHandle {
         // in the tree — i.e. the workspace root, or a path the user has
         // expanded. Watcher events for collapsed/never-opened subtrees have
         // nothing to update in the UI; refreshing them just burns main-thread
-        // cycles and fights user clicks. Mirrors VSCode's behavior.
+        // cycles and fights user clicks.
         let (visible_parents, root) = {
             let inner = self.inner.borrow();
             match inner.cache.get(workspace_id) {
@@ -446,10 +443,6 @@ impl FilePanelHandle {
         }
     }
 
-    /// Stop the watcher and drop the cached state for `workspace_id`. Removes
-    /// the 100ms timeout source first (its closure owns the watcher channel
-    /// receiver), then drops the cache entry, which releases the watcher
-    /// thread and debouncer.
     pub fn forget_workspace(&self, workspace_id: &WorkspaceId) {
         let entry = self.inner.borrow_mut().cache.remove(workspace_id);
         if let Some(mut per) = entry {
@@ -470,16 +463,6 @@ impl FilePanelHandle {
         inner.last_refresh_at.remove(workspace_id);
     }
 
-    /// Switch-time cleanup: drop the heavy per-workspace state for
-    /// `workspace_id` but keep a snapshot of its expanded paths so a future
-    /// `show_workspace` call can restore the open folders. Unlike
-    /// `forget_workspace` (close-time) this deliberately does NOT clear
-    /// `inner.active` — it is called from inside `show_workspace` after a
-    /// new active has already been set.
-    ///
-    /// Watcher shutdown chain: removing `timeout_source` drops the closure
-    /// that owns the watcher channel's `rx`. The next watcher `send` fails,
-    /// the watcher thread exits, and the debouncer drops on unwind.
     pub fn hibernate_workspace(&self, workspace_id: &WorkspaceId) {
         let entry = self.inner.borrow_mut().cache.remove(workspace_id);
         let Some(mut per) = entry else {
@@ -584,11 +567,6 @@ impl FilePanelHandle {
         }
     }
 
-    /// Apply a freshly-computed git status map to the workspace's model and,
-    /// if it is active, the visible store. Runs on the GTK main thread.
-    /// Uses `refresh_subtree(&root)` (not `rebuild_visible`) so previously-
-    /// expanded folders survive the refresh — `rebuild_visible` alone only
-    /// re-populates depth-0 rows and would collapse the tree.
     fn apply_git_result(
         &self,
         workspace_id: &str,

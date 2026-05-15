@@ -16,16 +16,12 @@ use std::time::Duration;
 
 use limux_ghostty_sys::*;
 
-// ---------------------------------------------------------------------------
-// Global Ghostty app singleton
-// ---------------------------------------------------------------------------
-
 struct GhosttyState {
     app: ghostty_app_t,
     background_opacity: f64,
 }
 
-// Safety: ghostty_app_t is thread-safe for the operations we perform
+// SAFETY: ghostty_app_t is thread-safe for the operations we perform
 unsafe impl Send for GhosttyState {}
 unsafe impl Sync for GhosttyState {}
 
@@ -39,7 +35,6 @@ type DesktopNotificationCallback = dyn Fn(&str, &str);
 type VoidCallback = dyn Fn();
 type WidgetCallback = dyn Fn(&gtk::Widget);
 
-/// Per-surface state, stored in a global registry keyed by surface pointer.
 struct SurfaceEntry {
     gl_area: gtk::GLArea,
     toast_overlay: gtk::Overlay,
@@ -170,9 +165,6 @@ impl TerminalHandle {
         surface.is_some()
     }
 
-    /// Inject text into the terminal surface for control-socket requests and
-    /// drag/drop payloads. Ghostty treats this as pasted text, which matches
-    /// the current control protocol semantics.
     pub fn send_text(&self, text: &str) {
         if let Some(surface) = *self.surface_cell.borrow() {
             unsafe {
@@ -336,23 +328,8 @@ fn send_committed_text(surface: ghostty_surface_t, text: &str) {
     }
 }
 
-/// Cap on Ghostty's per-surface scrollback ring buffer.
-///
-/// Ghostty's upstream default is 10 MB per surface (see Config.zig:
-/// `scrollback-limit: usize = 10_000_000`). With many panes plus PTY
-/// readers running for hidden workspaces, this dominates limux's
-/// steady-state RAM. 1 MB still buffers ~10k lines of typical output,
-/// which is plenty for interactive use.
 const LIMUX_SCROLLBACK_LIMIT_BYTES: usize = 1_000_000;
 
-/// Write a transient override file containing limux's scrollback cap and
-/// load it into the supplied config. The file is written into the system
-/// tempdir under a PID-suffixed name so concurrent limux instances don't
-/// collide, and is removed once libghostty has parsed it.
-///
-/// Loaded AFTER the user's config files so the cap wins even when the
-/// user has explicitly raised `scrollback-limit` themselves. Loaded
-/// BEFORE `ghostty_config_finalize`.
 fn apply_limux_config_overrides(config: ghostty_config_t) {
     let path = std::env::temp_dir().join(format!(
         "limux-ghostty-overrides-{}.conf",
@@ -384,7 +361,6 @@ fn load_ghostty_config() -> ghostty_config_t {
     }
 }
 
-/// Initialize the global Ghostty app. Must be called once before creating surfaces.
 pub fn init_ghostty() {
     GHOSTTY.get_or_init(|| {
         unsafe {
@@ -486,10 +462,6 @@ pub fn sync_color_scheme(dark: bool) {
         }
     });
 }
-
-// ---------------------------------------------------------------------------
-// Runtime callbacks (C ABI)
-// ---------------------------------------------------------------------------
 
 fn claim_wakeup_idle_slot(flag: &AtomicBool) -> bool {
     !flag.swap(true, Ordering::AcqRel)
@@ -683,7 +655,6 @@ unsafe extern "C" fn ghostty_read_clipboard_cb(
     let clipboard = clipboard_from_type(&display, clipboard_type);
 
     clipboard.read_text_async(gtk::gio::Cancellable::NONE, move |result| {
-        // Get clipboard text, defaulting to empty string on failure
         let text = result
             .ok()
             .flatten()
@@ -791,7 +762,6 @@ unsafe extern "C" fn ghostty_write_clipboard_cb(
         None => return,
     };
 
-    // Write to the requested clipboard
     let clipboard = if clipboard_type == GHOSTTY_CLIPBOARD_SELECTION {
         display.primary_clipboard()
     } else {
@@ -799,14 +769,12 @@ unsafe extern "C" fn ghostty_write_clipboard_cb(
     };
     clipboard.set_text(&text);
 
-    // Also set the other clipboard for convenience
     if clipboard_type == GHOSTTY_CLIPBOARD_SELECTION {
         display.clipboard().set_text(&text);
     } else {
         display.primary_clipboard().set_text(&text);
     }
 
-    // Show "Copied to clipboard" toast on the surface's overlay
     let surface_key = match unsafe { clipboard_surface_from_userdata(userdata) } {
         Some(surface) => surface as usize,
         None => return,
@@ -835,10 +803,6 @@ unsafe extern "C" fn ghostty_close_surface_cb(userdata: *mut c_void, _process_al
     });
 }
 
-// ---------------------------------------------------------------------------
-// Surface creation
-// ---------------------------------------------------------------------------
-
 pub struct TerminalCallbacks {
     pub on_title_changed: Box<TitleChangedCallback>,
     pub on_pwd_changed: Box<PwdChangedCallback>,
@@ -856,15 +820,12 @@ pub struct TerminalOptions {
     pub saved_font_size: Option<f32>,
 }
 
-/// Default font-size from ghostty config (cached on first access).
 pub(crate) fn default_font_size() -> f32 {
     use std::sync::OnceLock;
     static SIZE: OnceLock<f32> = OnceLock::new();
     *SIZE.get_or_init(crate::ghostty_config::read_font_size)
 }
 
-/// Create a new Ghostty-powered terminal widget.
-/// Returns an Overlay (GLArea + toast layer) for embedding in the pane.
 pub fn create_terminal(
     working_directory: Option<&str>,
     options: TerminalOptions,
@@ -977,7 +938,6 @@ pub fn create_terminal(
         });
     }
 
-    // On realize: create the Ghostty surface
     {
         let gl = gl_area.clone();
         let overlay_for_map = overlay.clone();
@@ -1037,7 +997,6 @@ pub fn create_terminal(
             }
             clipboard_context_cell.set(clipboard_context);
 
-            // Apply saved font size (if different from ghostty default)
             if let Some(size) = saved_font_size {
                 let action = format!("set_font_size:{size}");
                 unsafe {
@@ -1114,12 +1073,10 @@ pub fn create_terminal(
                 ghostty_surface_set_focus(surface, true);
             }
 
-            // Grab GTK focus so key events reach this widget.
             request_terminal_focus(gl_area, &had_focus);
         });
     }
 
-    // On render: draw the surface.
     {
         let surface_cell = surface_cell.clone();
         gl_area.connect_render(move |_gl_area, _context| {
@@ -1162,8 +1119,6 @@ pub fn create_terminal(
         });
     }
 
-    // Keyboard input
-    //
     // Send key events with the text field populated. Ghostty uses the
     // text field for actual character input and the keycode for bindings.
     // Do NOT use ghostty_surface_text() for regular typing — Ghostty
@@ -1269,19 +1224,16 @@ pub fn create_terminal(
         gl_area.add_controller(key_controller);
     }
 
-    // Mouse buttons (also handles click-to-focus) — skip right-click (handled below)
     {
         let surface_cell = surface_cell.clone();
         let click = gtk::GestureClick::new();
-        click.set_button(0); // all buttons
+        click.set_button(0);
         let sc = surface_cell.clone();
         let gl_for_focus = gl_area.clone();
         let had_focus = had_focus.clone();
         click.connect_pressed(move |gesture, _n, x, y| {
             let btn = gesture.current_button();
-            // Grab keyboard focus on any click
             request_terminal_focus(&gl_for_focus, &had_focus);
-            // Skip right-click — context menu handles it
             if btn == 3 {
                 return;
             }
@@ -1320,7 +1272,6 @@ pub fn create_terminal(
         gl_area.add_controller(click);
     }
 
-    // Right-click context menu
     {
         let sc = surface_cell.clone();
         let callbacks = callbacks.clone();
@@ -1335,7 +1286,6 @@ pub fn create_terminal(
         gl_area.add_controller(right_click);
     }
 
-    // Mouse motion
     {
         let surface_cell = surface_cell.clone();
         let surface_cell_for_enter = surface_cell.clone();
@@ -1365,7 +1315,6 @@ pub fn create_terminal(
         gl_area.add_controller(motion);
     }
 
-    // Mouse scroll
     {
         let surface_cell = surface_cell.clone();
         let scroll = gtk::EventControllerScroll::new(
@@ -1382,7 +1331,6 @@ pub fn create_terminal(
         gl_area.add_controller(scroll);
     }
 
-    // Focus
     {
         let surface_cell = surface_cell.clone();
         let had_focus_enter = had_focus.clone();
@@ -1408,8 +1356,6 @@ pub fn create_terminal(
         gl_area.add_controller(focus_ctrl);
     }
 
-    // File drop: accept files dragged from a file manager and paste their
-    // shell-escaped paths into the terminal.
     {
         let surface_cell = surface_cell.clone();
         let drop_target = gtk::DropTarget::new(
@@ -1449,7 +1395,6 @@ pub fn create_terminal(
         });
     }
 
-    // Clean up only when the widget is actually destroyed.
     {
         let surface_cell = surface_cell.clone();
         let clipboard_context_cell = clipboard_context_cell.clone();
@@ -1480,11 +1425,6 @@ pub fn create_terminal(
     TerminalWidget { overlay, handle }
 }
 
-// ---------------------------------------------------------------------------
-// Context menu
-// ---------------------------------------------------------------------------
-
-/// Send a binding action to every live surface.
 pub(crate) fn broadcast_binding_action(action: &str) {
     SURFACE_MAP.with(|map| {
         for &key in map.borrow().keys() {
@@ -1562,7 +1502,6 @@ fn show_terminal_context_menu(
     popover.set_has_arrow(false);
     popover.set_pointing_to(Some(&gtk::gdk::Rectangle::new(x as i32, y as i32, 1, 1)));
 
-    // Wire up each button
     let mut child = menu_box.first_child();
     while let Some(widget) = child {
         if let Some(btn) = widget.downcast_ref::<gtk::Button>() {
@@ -1612,10 +1551,6 @@ fn show_terminal_context_menu(
 
     popover.popup();
 }
-
-// ---------------------------------------------------------------------------
-// Key translation
-// ---------------------------------------------------------------------------
 
 fn translate_key_event(
     action: c_int,
@@ -1735,7 +1670,6 @@ fn fallback_unshifted_codepoint(keyval: gtk::gdk::Key) -> u32 {
     }
 }
 
-/// Show a brief "Copied to clipboard" toast at the bottom of the terminal.
 fn show_clipboard_toast(overlay: &gtk::Overlay) {
     let toast = gtk::Box::new(gtk::Orientation::Horizontal, 6);
     toast.set_halign(gtk::Align::Center);
@@ -1769,14 +1703,13 @@ fn show_clipboard_toast(overlay: &gtk::Overlay) {
 
     toast.add_css_class("limux-toast");
     let label = gtk::Label::new(Some("Copied to clipboard"));
-    let close_btn = gtk::Button::with_label("\u{00D7}"); // ×
+    let close_btn = gtk::Button::with_label("\u{00D7}");
     toast.append(&label);
     toast.append(&close_btn);
     toast.set_can_target(false);
 
     overlay.add_overlay(&toast);
 
-    // Close button dismisses immediately
     {
         let t = toast.clone();
         let o = overlay.clone();
@@ -1786,7 +1719,6 @@ fn show_clipboard_toast(overlay: &gtk::Overlay) {
         });
     }
 
-    // Auto-dismiss after 2 seconds
     {
         let t = toast.clone();
         let o = overlay.clone();
@@ -1808,8 +1740,6 @@ fn dropped_file_text(file_list: &gtk::gdk::FileList) -> Option<CString> {
     )
 }
 
-/// Bash-escape a path so it can be safely pasted into the terminal without
-/// sending raw control bytes to Ghostty.
 fn shell_escape_bytes(s: &[u8]) -> Vec<u8> {
     Bash::quote_vec(s)
 }
@@ -1852,23 +1782,10 @@ fn translate_mouse_mods(state: gtk::gdk::ModifierType) -> c_int {
     mods
 }
 
-/// Returns `true` when the per-tab auto-render pause is disabled via the
-/// `LIMUX_NO_AUTORENDER_PAUSE` environment variable. Lets users opt out
-/// without rebuilding if the pause causes any regression.
 fn autorender_pause_disabled() -> bool {
     std::env::var_os("LIMUX_NO_AUTORENDER_PAUSE").is_some()
 }
 
-/// Pause GTK rendering on every live GLArea whose surface does not belong to
-/// `active_root`; resume it on the one that does. The Ghostty surface, PTY,
-/// scrollback, and shell process are completely unaffected — only GTK's
-/// continuous frame-upload loop is paused for hidden tabs.
-///
-/// Pass `None` to pause every surface (e.g. window minimised), or
-/// `Some(&workspace_root_widget)` to resume just that one.
-///
-/// Set `LIMUX_NO_AUTORENDER_PAUSE=1` in the environment to disable this
-/// behaviour entirely (every surface stays auto-rendered).
 pub fn set_active_workspace_root(active_root: Option<&gtk::Widget>) {
     if autorender_pause_disabled() {
         return;
@@ -2073,14 +1990,6 @@ mod tests {
         assert!(claim_wakeup_idle_slot(&flag));
     }
 
-    /// `set_active_workspace_root` must be a no-op when the
-    /// `LIMUX_NO_AUTORENDER_PAUSE` env var is set, so users can disable the
-    /// auto-render pause without rebuilding.
-    ///
-    /// We test the pure-logic short-circuit (`autorender_pause_disabled`)
-    /// because the real-thing test would need a GTK display + GL context
-    /// (SURFACE_MAP entries hold live `gtk::GLArea` widgets) and `cargo test`
-    /// shares process env across threads.
     #[test]
     fn autorender_pause_respects_env_opt_out() {
         // SAFETY: this test mutates process-global env. There is no other

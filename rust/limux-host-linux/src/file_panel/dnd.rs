@@ -10,10 +10,6 @@ use std::time::{Duration, Instant};
 
 use crate::file_panel::row_object::RowObject;
 
-// Phase-2: drag-and-drop wiring. Not invoked yet in Phase 1; helpers kept
-// here so the follow-up task can plug them in without rebuilding from
-// scratch. Suppress dead-code warnings until then.
-
 #[allow(dead_code)]
 pub fn install_drag_source(
     widget: &impl IsA<gtk::Widget>,

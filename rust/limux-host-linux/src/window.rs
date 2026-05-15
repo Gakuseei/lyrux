@@ -21,36 +21,20 @@ use crate::shortcut_config::{
 };
 use crate::split_tree::{self, SplitTreeContainer};
 
-// ---------------------------------------------------------------------------
-// State
-// ---------------------------------------------------------------------------
-
 struct Workspace {
     id: String,
     name: String,
-    /// The root widget in the content stack for this workspace.
     root: gtk::Widget,
-    /// Manages the split tree data model and async widget rebuild.
     split_container: Rc<SplitTreeContainer>,
-    /// The sidebar row widget.
     sidebar_row: gtk::ListBoxRow,
-    /// Name label in sidebar row.
     name_label: gtk::Label,
-    /// Favorite star button in sidebar row.
     favorite_button: gtk::Button,
-    /// Notification dot in the sidebar row.
     notify_dot: gtk::Label,
-    /// Notification message label in the sidebar row.
     notify_label: gtk::Label,
-    /// Whether this workspace has unread notifications.
     unread: bool,
-    /// Whether this workspace is favorited/pinned to top.
     favorite: bool,
-    /// Last known working directory from the terminal (via OSC 7).
     cwd: Rc<RefCell<Option<String>>>,
-    /// The folder path this workspace was opened with.
     folder_path: Option<String>,
-    /// Path label shown below workspace name in sidebar.
     #[allow(dead_code)]
     path_label: gtk::Label,
 }
@@ -74,9 +58,6 @@ pub(crate) struct AppState {
     pub sidebar_peek_btn: gtk::Button,
     #[allow(dead_code)]
     pub file_panel: crate::file_panel::FilePanelHandle,
-    /// Last user-known panel pixel width (right child of inner_paned).
-    /// Persisted across toggle-off → toggle-on and updated on drag.
-    /// `None` until the user has shown the panel at least once.
     pub last_panel_width: Rc<Cell<Option<i32>>>,
     new_ws_btn: gtk::Button,
     sidebar_animation: Option<adw::TimedAnimation>,
@@ -547,9 +528,6 @@ pub(crate) fn attach_split_position_persistence(state: &State, paned: &gtk::Pane
     });
 }
 
-// ---------------------------------------------------------------------------
-// CSS
-// ---------------------------------------------------------------------------
 
 const HOST_ENTRY_CSS_CLASS: &str = "limux-host-entry";
 const WORKSPACE_RENAME_ENTRY_CSS_CLASS: &str = "limux-ws-rename-entry";
@@ -762,9 +740,6 @@ row:selected .limux-ws-path {
 
 const CONTENT_BACKGROUND_RGB: (u8, u8, u8) = (23, 23, 23);
 
-// ---------------------------------------------------------------------------
-// Window construction
-// ---------------------------------------------------------------------------
 
 pub fn build_window(app: &adw::Application) {
     let display = gtk::gdk::Display::default().expect("display");
@@ -787,7 +762,6 @@ pub fn build_window(app: &adw::Application) {
         eprintln!("limux: {warning}");
     }
 
-    // Load CSS
     let provider = gtk::CssProvider::new();
     let mut all_css = format!(
         "{}\n{}\n{}\n{}\n",
@@ -811,12 +785,10 @@ pub fn build_window(app: &adw::Application) {
         &config.borrow().appearance,
     );
 
-    // Register custom icons — look for icons dir relative to the executable
     let icon_theme = gtk::IconTheme::for_display(&display);
     let exe_dir = std::env::current_exe()
         .ok()
         .and_then(|p| p.parent().map(|d| d.to_path_buf()));
-    // Try several possible icon locations
     for path in [
         exe_dir
             .as_ref()
@@ -1200,7 +1172,6 @@ pub fn build_window(app: &adw::Application) {
         click_anywhere.set_propagation_phase(gtk::PropagationPhase::Capture);
         click_anywhere.connect_pressed(move |_, _, x, y| {
             if let Some(entry) = find_active_rename_entry(&sl) {
-                // Translate click coords from window to the entry's coordinate space
                 if let Some((ex, ey)) = win.translate_coordinates(&entry, x, y) {
                     let alloc = entry.allocation();
                     if ex >= 0.0
@@ -1208,7 +1179,7 @@ pub fn build_window(app: &adw::Application) {
                         && ex <= alloc.width() as f64
                         && ey <= alloc.height() as f64
                     {
-                        return; // click is inside the entry
+                        return;
                     }
                 }
                 commit_any_active_rename(&sl);
@@ -1265,7 +1236,6 @@ pub fn build_window(app: &adw::Application) {
         });
     }
 
-    // Save the full session on window close.
     {
         let state = state.clone();
         window.connect_close_request(move |_| {
@@ -1312,9 +1282,6 @@ fn apply_window_background_class(window: &adw::ApplicationWindow, background_opa
     }
 }
 
-// ---------------------------------------------------------------------------
-// Actions
-// ---------------------------------------------------------------------------
 
 fn register_window_actions(window: &adw::ApplicationWindow, state: &State) {
     let action_defs: Vec<(&'static str, ShortcutCommand)> = {
@@ -1371,7 +1338,6 @@ fn register_app_actions(app: &adw::Application, state: &State) {
     }
 }
 
-/// Intercept keyboard shortcuts in the CAPTURE phase for window-level bindings.
 fn install_key_capture(window: &adw::ApplicationWindow, state: &State) {
     let key_controller = gtk::EventControllerKey::new();
     key_controller.set_propagation_phase(gtk::PropagationPhase::Capture);
@@ -2084,9 +2050,6 @@ fn activate_last_workspace_shortcut(state: &State) {
     activate_workspace_shortcut(state, last_idx);
 }
 
-// ---------------------------------------------------------------------------
-// Sidebar row
-// ---------------------------------------------------------------------------
 
 fn build_sidebar_row(
     name: &str,
@@ -2178,7 +2141,6 @@ fn build_sidebar_row(
     )
 }
 
-/// Abbreviate a path by replacing the home directory with ~.
 fn abbreviate_path(path: &str) -> String {
     if let Some(home) = dirs::home_dir() {
         let home_str = home.to_string_lossy();
@@ -2189,9 +2151,6 @@ fn abbreviate_path(path: &str) -> String {
     path.to_string()
 }
 
-// ---------------------------------------------------------------------------
-// Workspace management
-// ---------------------------------------------------------------------------
 
 fn favorites_prefix_len(flags: &[bool]) -> usize {
     flags.iter().take_while(|is_favorite| **is_favorite).count()
@@ -2346,7 +2305,6 @@ fn set_workspace_favorite_visual(workspace: &Workspace) {
     }
 }
 
-/// Find an active rename Entry in the sidebar (if any).
 fn find_active_rename_entry(sidebar_list: &gtk::ListBox) -> Option<gtk::Entry> {
     fn find_entry(widget: &gtk::Widget) -> Option<gtk::Entry> {
         if let Some(entry) = widget.downcast_ref::<gtk::Entry>() {
@@ -2371,11 +2329,9 @@ fn find_active_rename_entry(sidebar_list: &gtk::ListBox) -> Option<gtk::Entry> {
     None
 }
 
-/// Find any active rename Entry in the sidebar and trigger its activate signal to commit.
 fn commit_any_active_rename(sidebar_list: &gtk::ListBox) {
     let mut row = sidebar_list.first_child();
     while let Some(r) = row {
-        // Walk into the row's children to find a gtk::Entry
         fn find_entry(widget: &gtk::Widget) -> Option<gtk::Entry> {
             if let Some(entry) = widget.downcast_ref::<gtk::Entry>() {
                 return Some(entry.clone());
@@ -2526,7 +2482,6 @@ fn reorder_workspace_by_id(
             return false;
         };
 
-        // Insert after the target when dropping on the bottom half
         let raw_insert_idx = if drop_below {
             target_idx_after_removal + 1
         } else {
@@ -2733,7 +2688,6 @@ fn create_workspace_for_tab(state: &State, payload: &str) -> bool {
         app_state.stack.set_visible_child_name(&stack_name);
     }
 
-    // New workspace becomes active — resume its surfaces, pause others.
     crate::terminal::set_active_workspace_root(Some(root.upcast_ref::<gtk::Widget>()));
 
     {
@@ -2967,7 +2921,6 @@ fn add_workspace(state: &State, _working_directory: Option<&str>) {
     );
     dialog.set_modal(true);
 
-    // Start in the home directory
     if let Some(home) = dirs::home_dir() {
         let home_file = gtk::gio::File::for_path(&home);
         let _ = dialog.set_current_folder(Some(&home_file));
@@ -3324,12 +3277,10 @@ fn add_workspace_from_state(state: &State, workspace: &WorkspaceState) {
     }
 
     stack.set_visible_child_name(&stack_name);
-    // New workspace becomes active — resume its surfaces, pause others.
     crate::terminal::set_active_workspace_root(Some(&workspace_root));
     sidebar_list.select_row(Some(&row));
 }
 
-/// Create a PaneWidget wired up with callbacks for a specific workspace.
 pub(crate) fn create_pane_for_workspace(
     state: &State,
     shortcuts: &Rc<ResolvedShortcutConfig>,
@@ -3540,7 +3491,6 @@ fn close_workspace_by_id_internal(
     let sidebar_list = s.sidebar_list.clone();
     drop(s);
 
-    // The remaining workspace is now active — resume its surfaces, pause others.
     crate::terminal::set_active_workspace_root(Some(&new_active_root));
 
     sidebar_list.select_row(Some(&row));
@@ -3682,7 +3632,6 @@ fn first_leaf_pane(widget: &gtk::Widget) -> gtk::Widget {
     widget.clone()
 }
 
-/// Default sidebar width in pixels.
 const SIDEBAR_WIDTH: i32 = 220;
 
 fn sync_top_bar_visibility(state: &State) {
@@ -3748,7 +3697,6 @@ fn toggle_sidebar(state: &State) {
     }
 
     if is_visible {
-        // Collapse: animate position to 0, then hide sidebar.
         let target = adw::CallbackAnimationTarget::new({
             let p = paned.clone();
             move |value| {
@@ -3783,7 +3731,6 @@ fn toggle_sidebar(state: &State) {
         state.borrow_mut().sidebar_animation = Some(animation.clone());
         animation.play();
     } else {
-        // Expand: make sidebar visible, then animate position from 0 to remembered width.
         sidebar.set_visible(true);
         state.borrow().sidebar_peek_btn.set_visible(false);
         paned.set_position(0);
@@ -3821,9 +3768,6 @@ fn toggle_sidebar(state: &State) {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Split / close pane operations
-// ---------------------------------------------------------------------------
 
 struct SplitPaneOptions {
     initial_state: Option<PaneState>,
@@ -3907,7 +3851,6 @@ fn remove_pane_internal(state: &State, ws_id: &str, pane_widget: &gtk::Widget, p
         return;
     }
 
-    // Mutate the data model and trigger async widget tree rebuild
     container.remove(pane_widget);
 
     if persist {
@@ -3944,8 +3887,6 @@ fn handle_split_with_tab(
     }
 }
 
-/// Find the focused pane widget (a gtk::Box with class limux-pane-toolbar child)
-/// by walking up from the currently focused widget.
 fn find_leaf_focused_pane(state: &State) -> Option<(String, gtk::Widget)> {
     let (ws_id, root, stack) = {
         let s = state.borrow();
@@ -3953,7 +3894,6 @@ fn find_leaf_focused_pane(state: &State) -> Option<(String, gtk::Widget)> {
         (ws.id.clone(), ws.root.clone(), s.stack.clone())
     };
 
-    // Get the window's focus widget and walk up to find a pane Box
     let window = stack.root()?.downcast::<gtk::Window>().ok()?;
     let focus = gtk::prelude::GtkWindowExt::focus(&window)?;
 
@@ -4195,7 +4135,6 @@ fn add_tab_to_focused_pane(_state: &State, _browser: bool) {
     }
 }
 
-/// Direction for pane navigation.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Direction {
     Left,
@@ -4220,7 +4159,6 @@ struct NeighborScore {
     center_delta: i32,
 }
 
-/// Focus the neighboring pane in the given direction by walking the gtk::Paned tree.
 fn focus_pane_in_direction(state: &State, direction: Direction) {
     let (_ws_id, pane_widget) = match find_focused_pane(state) {
         Some(v) => v,
@@ -4228,27 +4166,23 @@ fn focus_pane_in_direction(state: &State, direction: Direction) {
     };
     let root = state.borrow().window.clone().upcast::<gtk::Widget>();
 
-    // Determine which axis and sides we care about.
     let (target_orientation, must_be_start) = match direction {
-        Direction::Left => (gtk::Orientation::Horizontal, false), // must be end_child to go left
-        Direction::Right => (gtk::Orientation::Horizontal, true), // must be start_child to go right
-        Direction::Up => (gtk::Orientation::Vertical, false),     // must be end_child to go up
-        Direction::Down => (gtk::Orientation::Vertical, true),    // must be start_child to go down
+        Direction::Left => (gtk::Orientation::Horizontal, false),
+        Direction::Right => (gtk::Orientation::Horizontal, true),
+        Direction::Up => (gtk::Orientation::Vertical, false),
+        Direction::Down => (gtk::Orientation::Vertical, true),
     };
 
-    // Walk up from the focused pane to find a gtk::Paned with the right
-    // orientation where the current subtree is on the correct side.
     let mut current: gtk::Widget = pane_widget.clone();
     loop {
         let parent = match current.parent() {
             Some(p) => p,
-            None => return, // reached the top without finding a valid split
+            None => return,
         };
         if let Some(paned) = parent.downcast_ref::<gtk::Paned>() {
             if paned.orientation() == target_orientation {
                 let is_start = paned.start_child().map(|c| c == current).unwrap_or(false);
                 if is_start == must_be_start {
-                    // Found the split point. Navigate to the sibling subtree.
                     let sibling = if must_be_start {
                         paned.end_child()
                     } else {
@@ -4258,12 +4192,9 @@ fn focus_pane_in_direction(state: &State, direction: Direction) {
                         let leaf =
                             best_directional_leaf_pane(&pane_widget, &sibling, &root, direction)
                                 .unwrap_or_else(|| {
-                                    // Fall back to the old edge-based heuristic if bounds
-                                    // are unavailable for some reason.
                                     let prefer_start = !must_be_start;
                                     find_leaf_pane(&sibling, target_orientation, prefer_start)
                                 });
-                        // Find the GLArea inside the pane and focus it directly
                         if let Some(gl) = find_gl_area(&leaf) {
                             gl.grab_focus();
                         }
@@ -4416,13 +4347,10 @@ fn best_directional_leaf_pane(
     best.map(|(leaf, _)| leaf)
 }
 
-/// Recursively find the first visible GLArea inside a widget tree.
-/// For gtk::Stack containers, only descend into the visible child.
 pub(crate) fn find_gl_area(widget: &gtk::Widget) -> Option<gtk::GLArea> {
     if let Some(gl) = widget.downcast_ref::<gtk::GLArea>() {
         return Some(gl.clone());
     }
-    // For Stack widgets, only search the visible child
     if let Some(stack) = widget.downcast_ref::<gtk::Stack>() {
         if let Some(visible) = stack.visible_child() {
             return find_gl_area(&visible);
@@ -4439,16 +4367,12 @@ pub(crate) fn find_gl_area(widget: &gtk::Widget) -> Option<gtk::GLArea> {
     None
 }
 
-/// Descend a pane/split subtree to find a leaf pane widget.
-/// When encountering a gtk::Paned matching `axis`, prefer `start_child` if
-/// `prefer_start` is true (to find the nearest edge). For Paned widgets on
-/// the other axis, prefer start_child (arbitrary but consistent).
 fn find_leaf_pane(widget: &gtk::Widget, axis: gtk::Orientation, prefer_start: bool) -> gtk::Widget {
     if let Some(paned) = widget.downcast_ref::<gtk::Paned>() {
         let pick_start = if paned.orientation() == axis {
             prefer_start
         } else {
-            true // arbitrary default for orthogonal splits
+            true
         };
         let child = if pick_start {
             paned.start_child()
@@ -4460,7 +4384,6 @@ fn find_leaf_pane(widget: &gtk::Widget, axis: gtk::Orientation, prefer_start: bo
             None => widget.clone(),
         }
     } else {
-        // Leaf pane — this is a pane gtk::Box
         widget.clone()
     }
 }
@@ -4497,7 +4420,6 @@ fn mark_workspace_unread_with_message(state: &State, ws_id: &str, message: &str)
             ws.notify_label.remove_css_class("limux-notify-msg");
             ws.notify_label.add_css_class("limux-notify-msg-unread");
             ws.notify_label.set_visible(true);
-            // Add glow pulse to the sidebar row box
             if let Some(row_box) = ws.sidebar_row.child() {
                 row_box.add_css_class("limux-sidebar-row-unread");
             }

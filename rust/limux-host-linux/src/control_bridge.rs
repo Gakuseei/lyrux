@@ -1,5 +1,3 @@
-//! Bridge the limux control socket onto the GTK host state.
-
 use std::io::{self, Write};
 use std::os::unix::net::UnixStream;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -406,8 +404,6 @@ impl Drop for ConnectionSlot {
     }
 }
 
-/// Start the control socket server in a background thread and dispatch each
-/// command onto the GTK main context.
 pub fn start(dispatch: fn(ControlCommand)) {
     let context = glib::MainContext::default();
     let dispatch = std::sync::Arc::new(move |command: ControlCommand| {

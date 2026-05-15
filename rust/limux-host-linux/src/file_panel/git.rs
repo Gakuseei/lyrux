@@ -5,8 +5,6 @@ use std::process::{Command, Stdio};
 
 use crate::file_panel::model::GitStatus;
 
-// Error fields/variants are kept for diagnostics; consumers currently only
-// `match` for the `Ok` arm. Allow until detailed error handling lands.
 #[allow(dead_code)]
 #[derive(Debug)]
 pub enum GitError {

@@ -1,23 +1,10 @@
-//! Raw FFI bindings to libghostty's C embedding API.
-//!
-//! These bindings mirror the types and functions declared in ghostty.h.
-//! Only the subset needed by limux is included.
-
 #![allow(non_camel_case_types, non_upper_case_globals)]
 
 use std::os::raw::{c_char, c_int, c_void};
 
-// -------------------------------------------------------------------
-// Opaque handles
-// -------------------------------------------------------------------
-
 pub type ghostty_app_t = *mut c_void;
 pub type ghostty_config_t = *mut c_void;
 pub type ghostty_surface_t = *mut c_void;
-
-// -------------------------------------------------------------------
-// Enums
-// -------------------------------------------------------------------
 
 pub const GHOSTTY_PLATFORM_INVALID: c_int = 0;
 pub const GHOSTTY_PLATFORM_MACOS: c_int = 1;
@@ -56,7 +43,6 @@ pub const GHOSTTY_SURFACE_CONTEXT_SPLIT: c_int = 2;
 pub const GHOSTTY_COLOR_SCHEME_LIGHT: c_int = 0;
 pub const GHOSTTY_COLOR_SCHEME_DARK: c_int = 1;
 
-// Action tags — values must match ghostty_action_tag_e in ghostty.h
 pub const GHOSTTY_ACTION_QUIT: c_int = 0;
 pub const GHOSTTY_ACTION_NEW_WINDOW: c_int = 1;
 pub const GHOSTTY_ACTION_NEW_TAB: c_int = 2;
@@ -74,9 +60,7 @@ pub const GHOSTTY_ACTION_CLOSE_WINDOW: c_int = 48;
 pub const GHOSTTY_ACTION_RING_BELL: c_int = 49;
 pub const GHOSTTY_ACTION_SHOW_CHILD_EXITED: c_int = 54;
 
-// Key codes (W3C UIEvents, subset)
 pub const GHOSTTY_KEY_UNIDENTIFIED: c_int = 0;
-// Writing System Keys
 pub const GHOSTTY_KEY_BACKQUOTE: c_int = 1;
 pub const GHOSTTY_KEY_BACKSLASH: c_int = 2;
 pub const GHOSTTY_KEY_BRACKET_LEFT: c_int = 3;
@@ -127,7 +111,6 @@ pub const GHOSTTY_KEY_PERIOD: c_int = 47;
 pub const GHOSTTY_KEY_QUOTE: c_int = 48;
 pub const GHOSTTY_KEY_SEMICOLON: c_int = 49;
 pub const GHOSTTY_KEY_SLASH: c_int = 50;
-// Functional Keys
 pub const GHOSTTY_KEY_ALT_LEFT: c_int = 51;
 pub const GHOSTTY_KEY_ALT_RIGHT: c_int = 52;
 pub const GHOSTTY_KEY_BACKSPACE: c_int = 53;
@@ -145,7 +128,6 @@ pub const GHOSTTY_KEY_TAB: c_int = 64;
 pub const GHOSTTY_KEY_CONVERT: c_int = 65;
 pub const GHOSTTY_KEY_KANA_MODE: c_int = 66;
 pub const GHOSTTY_KEY_NON_CONVERT: c_int = 67;
-// Control Pad
 pub const GHOSTTY_KEY_DELETE: c_int = 68;
 pub const GHOSTTY_KEY_END: c_int = 69;
 pub const GHOSTTY_KEY_HELP: c_int = 70;
@@ -153,12 +135,10 @@ pub const GHOSTTY_KEY_HOME: c_int = 71;
 pub const GHOSTTY_KEY_INSERT: c_int = 72;
 pub const GHOSTTY_KEY_PAGE_DOWN: c_int = 73;
 pub const GHOSTTY_KEY_PAGE_UP: c_int = 74;
-// Arrow Pad
 pub const GHOSTTY_KEY_ARROW_DOWN: c_int = 75;
 pub const GHOSTTY_KEY_ARROW_LEFT: c_int = 76;
 pub const GHOSTTY_KEY_ARROW_RIGHT: c_int = 77;
 pub const GHOSTTY_KEY_ARROW_UP: c_int = 78;
-// Function Keys
 pub const GHOSTTY_KEY_ESCAPE: c_int = 120;
 pub const GHOSTTY_KEY_F1: c_int = 121;
 pub const GHOSTTY_KEY_F2: c_int = 122;
@@ -172,10 +152,6 @@ pub const GHOSTTY_KEY_F9: c_int = 129;
 pub const GHOSTTY_KEY_F10: c_int = 130;
 pub const GHOSTTY_KEY_F11: c_int = 131;
 pub const GHOSTTY_KEY_F12: c_int = 132;
-
-// -------------------------------------------------------------------
-// Structs
-// -------------------------------------------------------------------
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -204,8 +180,8 @@ pub struct ghostty_platform_ios_s {
 
 #[repr(C)]
 pub struct ghostty_input_key_s {
-    pub action: c_int, // ghostty_input_action_e
-    pub mods: c_int,   // ghostty_input_mods_e
+    pub action: c_int,
+    pub mods: c_int,
     pub consumed_mods: c_int,
     pub keycode: u32,
     pub text: *const c_char,
@@ -228,8 +204,8 @@ pub struct ghostty_surface_config_s {
     pub env_var_count: usize,
     pub initial_input: *const c_char,
     pub wait_after_command: bool,
-    pub context: c_int, // ghostty_surface_context_e
-    pub io_mode: c_int, // ghostty_surface_io_mode_e (0 = exec)
+    pub context: c_int,
+    pub io_mode: c_int,
     pub io_write_cb: Option<ghostty_io_write_cb>,
     pub io_write_userdata: *mut c_void,
 }
@@ -266,10 +242,9 @@ pub struct ghostty_text_s {
     pub text_len: usize,
 }
 
-// Target
 #[repr(C)]
 pub struct ghostty_target_s {
-    pub tag: c_int, // GHOSTTY_TARGET_APP or GHOSTTY_TARGET_SURFACE
+    pub tag: c_int,
     pub target: ghostty_target_u,
 }
 
@@ -281,15 +256,12 @@ pub union ghostty_target_u {
 pub const GHOSTTY_TARGET_APP: c_int = 0;
 pub const GHOSTTY_TARGET_SURFACE: c_int = 1;
 
-// Action
 #[repr(C)]
 pub struct ghostty_action_s {
     pub tag: c_int,
     pub action: ghostty_action_u,
 }
 
-// We only need a subset of the action union — for matching on tag
-// we just access the right field after checking the tag.
 // Must be exactly 24 bytes to match the C union.
 #[repr(C)]
 pub union ghostty_action_u {
@@ -326,7 +298,6 @@ pub struct ghostty_surface_message_childexited_s {
     pub runtime_ms: u64,
 }
 
-// Runtime config (callbacks)
 pub type ghostty_runtime_wakeup_cb = unsafe extern "C" fn(*mut c_void);
 pub type ghostty_runtime_action_cb =
     unsafe extern "C" fn(ghostty_app_t, ghostty_target_s, ghostty_action_s) -> bool;
@@ -351,21 +322,14 @@ pub struct ghostty_runtime_config_s {
     pub close_surface_cb: ghostty_runtime_close_surface_cb,
 }
 
-// -------------------------------------------------------------------
-// Functions
-// -------------------------------------------------------------------
-
-// GL functions via libepoxy (used by GTK4 for GL dispatch)
 extern "C" {
     #[link_name = "epoxy_glViewport"]
     pub fn glViewport(x: c_int, y: c_int, width: c_int, height: c_int);
 }
 
 extern "C" {
-    // Init
     pub fn ghostty_init(argc: usize, argv: *mut *mut c_char) -> c_int;
 
-    // Config
     pub fn ghostty_config_new() -> ghostty_config_t;
     pub fn ghostty_config_free(config: ghostty_config_t);
     pub fn ghostty_config_load_default_files(config: ghostty_config_t);
@@ -379,7 +343,6 @@ extern "C" {
         key_len: usize,
     ) -> bool;
 
-    // App
     pub fn ghostty_app_new(
         config: *const ghostty_runtime_config_s,
         ghostty_config: ghostty_config_t,
@@ -390,10 +353,8 @@ extern "C" {
     pub fn ghostty_app_set_focus(app: ghostty_app_t, focused: bool);
     pub fn ghostty_app_set_color_scheme(app: ghostty_app_t, scheme: c_int);
 
-    // Surface config
     pub fn ghostty_surface_config_new() -> ghostty_surface_config_s;
 
-    // Surface
     pub fn ghostty_surface_new(
         app: ghostty_app_t,
         config: *const ghostty_surface_config_s,
@@ -429,7 +390,6 @@ extern "C" {
     pub fn ghostty_surface_update_config(surface: ghostty_surface_t, config: ghostty_config_t);
     pub fn ghostty_surface_set_color_scheme(surface: ghostty_surface_t, scheme: c_int);
 
-    // Binding actions
     pub fn ghostty_surface_binding_action(
         surface: ghostty_surface_t,
         action: *const c_char,
@@ -442,7 +402,6 @@ extern "C" {
     ) -> bool;
     pub fn ghostty_surface_free_text(surface: ghostty_surface_t, text: *mut ghostty_text_s);
 
-    // Clipboard
     pub fn ghostty_surface_complete_clipboard_request(
         surface: ghostty_surface_t,
         data: *const c_char,

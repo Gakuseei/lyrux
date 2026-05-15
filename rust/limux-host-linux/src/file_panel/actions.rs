@@ -3,7 +3,6 @@ use gtk4::gio;
 use gtk4::prelude::*;
 
 pub struct ActionSet {
-    // Exposed for test/diagnostic consumers; not read by the wiring path itself.
     #[allow(dead_code)]
     pub names: Vec<&'static str>,
 }

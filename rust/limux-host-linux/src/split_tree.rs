@@ -12,20 +12,12 @@ use crate::window::{
     State,
 };
 
-// ---------------------------------------------------------------------------
-// SplitNode — runtime data model for the split tree
-// ---------------------------------------------------------------------------
-
-/// Runtime split tree node. Source of truth for the split layout.
-/// The widget tree is rebuilt from this on every structural change.
 pub(crate) enum SplitNode {
     Leaf {
         pane_widget: gtk::Widget,
     },
     Split {
         orientation: gtk::Orientation,
-        /// Shared with the Paned's position_notify handler so resize drags
-        /// update the data model directly.
         ratio: Rc<RefCell<f64>>,
         left: Box<SplitNode>,
         right: Box<SplitNode>,
@@ -37,7 +29,6 @@ impl SplitNode {
         matches!(self, SplitNode::Leaf { .. })
     }
 
-    /// Find the leaf containing `target` and replace it with `replacement`.
     pub(crate) fn replace(&mut self, target: &gtk::Widget, replacement: SplitNode) -> bool {
         match self {
             SplitNode::Leaf { pane_widget } => {
@@ -49,7 +40,6 @@ impl SplitNode {
                 }
             }
             SplitNode::Split { left, right, .. } => {
-                // Check containment first to route ownership to the correct subtree
                 if left.contains_pane(target) {
                     left.replace(target, replacement)
                 } else {
@@ -68,14 +58,12 @@ impl SplitNode {
         }
     }
 
-    /// Find the leaf containing `target` and promote its sibling in place.
     pub(crate) fn remove(&mut self, target: &gtk::Widget) -> bool {
         match self {
             SplitNode::Leaf { .. } => false,
             SplitNode::Split { left, right, .. } => {
                 if matches!(left.as_ref(), SplitNode::Leaf { pane_widget } if pane_widget == target)
                 {
-                    // Target is left child — promote right sibling.
                     *self = std::mem::replace(
                         right.as_mut(),
                         SplitNode::Leaf {
@@ -86,7 +74,6 @@ impl SplitNode {
                 }
                 if matches!(right.as_ref(), SplitNode::Leaf { pane_widget } if pane_widget == target)
                 {
-                    // Target is right child — promote left sibling.
                     *self = std::mem::replace(
                         left.as_mut(),
                         SplitNode::Leaf {
@@ -100,7 +87,6 @@ impl SplitNode {
         }
     }
 
-    /// Snapshot to the serializable layout format for session persistence.
     pub(crate) fn snapshot(&self, working_directory: Option<&str>) -> LayoutNodeState {
         match self {
             SplitNode::Leaf { pane_widget } => pane::snapshot_pane_state(pane_widget)
@@ -125,14 +111,6 @@ impl SplitNode {
     }
 }
 
-// ---------------------------------------------------------------------------
-// SplitTreeContainer — manages async widget-tree rebuild lifecycle
-// ---------------------------------------------------------------------------
-
-/// Manages the workspace's split layout following Ghostty's atomic rebuild
-/// pattern. Holds a SplitNode data model (source of truth) and a gtk::Box
-/// container for the built widget tree. On structural changes, tears down the
-/// old widget tree and rebuilds from the data model on the next idle tick.
 pub(crate) struct SplitTreeContainer {
     tree: RefCell<SplitNode>,
     bin: gtk::Box,
@@ -142,7 +120,6 @@ pub(crate) struct SplitTreeContainer {
 }
 
 impl SplitTreeContainer {
-    /// Create a new container with a single pane (no splits).
     pub(crate) fn new(state: &State, initial_pane: gtk::Widget) -> Rc<Self> {
         let bin = gtk::Box::new(gtk::Orientation::Vertical, 0);
         bin.set_hexpand(true);
@@ -160,13 +137,11 @@ impl SplitTreeContainer {
         })
     }
 
-    /// Create a container from a pre-built tree (for session restore).
     pub(crate) fn new_from_tree(state: &State, node: SplitNode) -> Rc<Self> {
         let bin = gtk::Box::new(gtk::Orientation::Vertical, 0);
         bin.set_hexpand(true);
         bin.set_vexpand(true);
 
-        // Build the initial widget tree synchronously (no async needed on first build)
         let widget = build_widget_tree(&node, state);
         bin.append(&widget);
 
@@ -179,22 +154,18 @@ impl SplitTreeContainer {
         })
     }
 
-    /// The container widget to add to the gtk::Stack.
     pub(crate) fn widget(&self) -> &gtk::Box {
         &self.bin
     }
 
-    /// Borrow the tree for reading (e.g. session snapshot).
     pub(crate) fn tree(&self) -> std::cell::Ref<'_, SplitNode> {
         self.tree.borrow()
     }
 
-    /// Whether the tree is a single leaf (no splits).
     pub(crate) fn is_single_pane(&self) -> bool {
         self.tree.borrow().is_leaf()
     }
 
-    /// Split a pane. Mutates the data model, then triggers async rebuild.
     pub(crate) fn split(
         self: &Rc<Self>,
         target: &gtk::Widget,
@@ -241,7 +212,6 @@ impl SplitTreeContainer {
         }
     }
 
-    /// Remove a pane. Mutates the data model, then triggers async rebuild.
     pub(crate) fn remove(self: &Rc<Self>, target: &gtk::Widget) -> bool {
         self.save_focus();
 
@@ -256,27 +226,20 @@ impl SplitTreeContainer {
         removed
     }
 
-    /// Tear down the old widget tree and schedule a rebuild on the next idle
-    /// tick. The one-tick separation between unrealize (teardown) and realize
-    /// (rebuild) is what prevents GLArea breakage.
     fn trigger_rebuild(self: &Rc<Self>) {
-        // Cancel any pending rebuild
         if let Some(source) = self.rebuild_source.take() {
             source.remove();
         }
 
-        // Clear the bin — tears down the old widget tree.
-        // unrealize cascades to all GLAreas in the subtree.
         while let Some(child) = self.bin.first_child() {
             self.bin.remove(&child);
         }
 
-        // Rebuild on the next idle tick. The tick separation between
-        // unrealize (above) and realize (rebuild) is critical.
+        // Tick separation between unrealize (above) and realize (rebuild) is critical:
+        // without it, GLArea contexts in the old tree break.
         self.schedule_rebuild();
     }
 
-    /// Schedule the actual rebuild on the next idle tick.
     fn schedule_rebuild(self: &Rc<Self>) {
         if self.rebuild_source.borrow().is_some() {
             return;
@@ -289,7 +252,6 @@ impl SplitTreeContainer {
         self.rebuild_source.replace(Some(source));
     }
 
-    /// Build new widget tree from data model, attach atomically.
     fn do_rebuild(&self) {
         // Pane widgets may still be parented to old (floating) Paneds from
         // the previous tree. GTK4 won't let us add them to new containers
@@ -300,9 +262,6 @@ impl SplitTreeContainer {
         let widget = build_widget_tree(&tree, &self.state);
         self.bin.append(&widget);
 
-        // Newly created panes are tracked as pane containers rather than the
-        // inner terminal/browser widget, so restore through the pane helper
-        // when possible and fall back to plain widget focus otherwise.
         if let Some(focused) = self.last_focused.borrow().as_ref() {
             if !pane::focus_active_tab_in_pane(focused) {
                 focused.grab_focus();
@@ -328,19 +287,11 @@ impl Drop for SplitTreeContainer {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Widget tree helpers
-// ---------------------------------------------------------------------------
-
-/// Detach pane widgets from their old parents (floating Paneds left over
-/// from the previous widget tree). GTK4 requires a widget to have no parent
-/// before it can be added to a new container.
 fn detach_panes_from_old_tree(node: &SplitNode) {
     match node {
         SplitNode::Leaf { pane_widget } => {
             if let Some(parent) = pane_widget.parent() {
                 if let Some(paned) = parent.downcast_ref::<gtk::Paned>() {
-                    // Detach from the old Paned by clearing whichever slot holds us
                     if paned
                         .start_child()
                         .map(|c| c == *pane_widget)
@@ -360,7 +311,6 @@ fn detach_panes_from_old_tree(node: &SplitNode) {
     }
 }
 
-/// Build a GTK widget tree from the SplitNode data model.
 fn build_widget_tree(node: &SplitNode, state: &State) -> gtk::Widget {
     match node {
         SplitNode::Leaf { pane_widget } => pane_widget.clone(),
@@ -380,13 +330,12 @@ fn build_widget_tree(node: &SplitNode, state: &State) -> gtk::Widget {
             update_split_ratio_state(&paned, ratio_val);
             attach_split_position_persistence(state, &paned);
 
-            // Flag to suppress position_notify during programmatic set_position calls
+            // Flag suppresses position_notify during programmatic set_position calls
             // (initial layout and workspace re-map). Without this, set_position triggers
-            // position_notify which recalculates the ratio from the not-yet-stable pixel
-            // position, corrupting the stored ratio.
+            // position_notify which recalculates ratio from not-yet-stable pixel position,
+            // corrupting the stored ratio.
             let applying = Rc::new(Cell::new(false));
 
-            // Wire resize drags back to the shared ratio cell in the data model.
             let shared_ratio = ratio.clone();
             let applying_for_notify = applying.clone();
             paned.connect_position_notify(move |paned| {
@@ -419,11 +368,6 @@ fn build_widget_tree(node: &SplitNode, state: &State) -> gtk::Widget {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Conversion from serialized LayoutNodeState to runtime SplitNode
-// ---------------------------------------------------------------------------
-
-/// Build a SplitNode tree from a persisted LayoutNodeState.
 pub(crate) fn build_split_node_from_layout(
     state: &State,
     shortcuts: &Rc<crate::shortcut_config::ResolvedShortcutConfig>,

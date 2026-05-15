@@ -22,7 +22,6 @@ static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 const APP_ID: &str = "dev.limux.linux";
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// Append a value to an environment variable (comma-separated), or set it.
 fn append_env(key: &str, value: &str) {
     match std::env::var(key) {
         Ok(existing) if !existing.is_empty() => {
@@ -127,7 +126,6 @@ fn set_ghostty_runtime_env() {
 }
 
 fn main() {
-    // Handle --version flag
     if std::env::args().any(|a| a == "--version" || a == "-v") {
         println!("Limux {VERSION}");
         return;
@@ -150,7 +148,6 @@ fn main() {
         std::env::set_var("WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS", "1");
     }
 
-    // Initialize Ghostty before GTK app starts
     terminal::init_ghostty();
 
     let app = adw::Application::builder()
