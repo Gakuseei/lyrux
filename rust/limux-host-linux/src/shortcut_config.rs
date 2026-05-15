@@ -338,7 +338,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 48] = [
         config_key: "quit_app",
         action_name: "app.quit",
         default_accel: "<Ctrl>q",
-        label: "Quit Limux",
+        label: "Quit Lyrux",
         registers_gtk_accel: true,
         command: ShortcutCommand::QuitApp,
         scope: ShortcutScope::AppGlobal,

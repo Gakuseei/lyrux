@@ -807,7 +807,7 @@ pub fn build_window(app: &adw::Application) {
         }
     }
 
-    let title = format!("Limux v{}", crate::VERSION);
+    let title = format!("Lyrux v{}", crate::VERSION);
     let window = adw::ApplicationWindow::builder()
         .application(app)
         .title(&title)

@@ -127,7 +127,7 @@ fn set_ghostty_runtime_env() {
 
 fn main() {
     if std::env::args().any(|a| a == "--version" || a == "-v") {
-        println!("Limux {VERSION}");
+        println!("Lyrux {VERSION}");
         return;
     }
 
