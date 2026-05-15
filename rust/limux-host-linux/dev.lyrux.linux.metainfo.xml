@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>dev.lyrux.linux</id>
+  <launchable type="desktop-id">dev.lyrux.linux.desktop</launchable>
+  <name>Lyrux</name>
+  <summary>GTK4 file manager + terminal multiplexer for Linux</summary>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <content_rating type="oars-1.1" />
+  <developer id="dev.lyrux">
+    <name>Gakuseei</name>
+  </developer>
+  <url type="homepage">https://github.com/Gakuseei/lyrux</url>
+  <url type="bugtracker">https://github.com/Gakuseei/lyrux/issues</url>
+  <description>
+    <p>
+      Lyrux is a GTK4 file manager and terminal multiplexer powered by
+      Ghostty&apos;s GPU-rendered terminal engine, with split panes,
+      tabbed workspaces, and a built-in browser.
+    </p>
+  </description>
+  <recommends>
+    <control>keyboard</control>
+    <control>pointing</control>
+  </recommends>
+</component>

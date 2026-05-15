@@ -10,7 +10,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-authors = ["limux contributors"]
+authors = ["Gakuseei <erikschaefer07@icloud.com>"]
 edition = "2021"
 license = "MIT"
 version = "0.1.13"

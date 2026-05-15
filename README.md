@@ -1,10 +1,6 @@
-# Limux
+# Lyrux
 
-A GPU-accelerated terminal workspace manager for Linux, powered by Ghostty's rendering engine. A special thanks to the cmux contributors who inspired this build. 
-
-If you are on Mac, please visit https://github.com/manaflow-ai/cmux to download the original. 
-
-https://github.com/user-attachments/assets/6f3047c2-e2b6-49f2-b536-570a1570d0f8
+A GTK4 file manager + terminal multiplexer for Linux, powered by Ghostty's GPU-accelerated rendering engine.
 
 ## Features
 
@@ -19,37 +15,30 @@ https://github.com/user-attachments/assets/6f3047c2-e2b6-49f2-b536-570a1570d0f8
 
 ## Install
 
-Download the latest release from [GitHub Releases](https://github.com/am-will/limux/releases).
+Download the latest release from [GitHub Releases](https://github.com/Gakuseei/lyrux/releases).
 
 **Debian/Ubuntu (.deb)** — recommended:
 ```bash
-sudo dpkg -i ./limux_0.1.13_amd64.deb
+sudo dpkg -i ./lyrux_0.1.13_amd64.deb
 ```
 
 **AppImage** — portable, no install needed:
 ```bash
-chmod +x Limux-0.1.13-x86_64.AppImage
-./Limux-0.1.13-x86_64.AppImage
+chmod +x Lyrux-0.1.13-x86_64.AppImage
+./Lyrux-0.1.13-x86_64.AppImage
 ```
 
 **Tarball** — manual install:
 ```bash
-tar xzf limux-*-linux-x86_64.tar.gz
-cd limux-*-linux-x86_64
+tar xzf lyrux-*-linux-x86_64.tar.gz
+cd lyrux-*-linux-x86_64
 sudo ./install.sh
 ```
-
-**Arch Linux (unofficial AUR package)** — community-maintained by [antonbarchukov](https://github.com/antonbarchukov):
-```bash
-yay -S limux-bin
-```
-
-The AUR package is available at [`limux-bin`](https://aur.archlinux.org/packages/limux-bin). Thanks to [antonbarchukov](https://github.com/antonbarchukov) for packaging Limux for Arch users. Arch packaging is not currently maintained by upstream; please report AUR packaging issues to the package maintainer first. See [issue #5](https://github.com/am-will/limux/issues/5).
 
 To uninstall:
 ```bash
 # deb
-sudo apt remove limux
+sudo apt remove lyrux
 
 # tarball
 sudo ./install.sh --uninstall
@@ -79,11 +68,11 @@ sudo apt install libgtk-4-dev libadwaita-1-dev libwebkitgtk-6.0-dev pkg-config b
 git submodule update --init --recursive
 (cd ghostty && zig build -Dapp-runtime=none -Doptimize=ReleaseFast)
 
-# Build limux
+# Build lyrux
 cargo build --release
 
 # Run (point to libghostty.so location)
-LD_LIBRARY_PATH=../ghostty/zig-out/lib:$LD_LIBRARY_PATH ./target/release/limux
+LD_LIBRARY_PATH=../ghostty/zig-out/lib:$LD_LIBRARY_PATH ./target/release/lyrux
 ```
 
 ### Package a release tarball
@@ -107,14 +96,14 @@ Repository maintainability rules live in [`docs/maintainability.md`](docs/mainta
 
 ## Keyboard shortcuts
 
-Most default shortcuts use `Ctrl`. Fullscreen defaults to `F11`. Custom remaps may also use `Cmd`, which Limux maps to either the Linux `Meta` or `Super` modifier. `Opt` maps to `Alt`.
+Most default shortcuts use `Ctrl`. Fullscreen defaults to `F11`. Custom remaps may also use `Cmd`, which Lyrux maps to either the Linux `Meta` or `Super` modifier. `Opt` maps to `Alt`.
 
 ### App
 
 | Shortcut | Action |
 |---|---|
-| `Ctrl+Q` | Quit Limux |
-| `Ctrl+Alt+N` | Open a new Limux instance |
+| `Ctrl+Q` | Quit Lyrux |
+| `Ctrl+Alt+N` | Open a new Lyrux instance |
 | `F11` | Toggle fullscreen |
 
 ### Browser
@@ -181,6 +170,10 @@ rust/
 ```
 
 The terminal rendering is handled entirely by Ghostty's embedded library (`libghostty.so`), which provides GPU-accelerated OpenGL rendering. The UI layer is native GTK4 with libadwaita.
+
+## Maintainer
+
+Gakuseei
 
 ## License
 

@@ -1,19 +1,20 @@
 %global debug_package %{nil}
 
-Name:       limux
+Name:       lyrux
 Version:    %{version}
 Release:    1%{?dist}
-Summary:    GPU-accelerated terminal workspace manager for Linux
+Summary:    GTK4 file manager + terminal multiplexer for Linux
 License:    MIT
-URL:        https://github.com/am-will/limux
-Vendor:     Will R <will@limux.dev>
+URL:        https://github.com/Gakuseei/lyrux
+Vendor:     Gakuseei <erikschaefer07@icloud.com>
 ExclusiveArch: x86_64 aarch64
 AutoReq:    yes
-Source0:    limux-%{version}.tar.gz
+Source0:    lyrux-%{version}.tar.gz
 
 %description
-Limux is a terminal workspace manager powered by Ghostty's GPU-rendered
-terminal engine, with split panes, tabbed workspaces, and a built-in browser.
+Lyrux is a GTK4 file manager and terminal multiplexer powered by Ghostty's
+GPU-rendered terminal engine, with split panes, tabbed workspaces, and a
+built-in browser.
 
 %prep
 %setup -q
@@ -23,12 +24,12 @@ terminal engine, with split panes, tabbed workspaces, and a built-in browser.
 %install
 rm -rf %{buildroot}
 mkdir -p %{buildroot}
-cp -a %{_builddir}/limux-%{version}/usr %{buildroot}/
-cp -a %{_builddir}/limux-%{version}/etc %{buildroot}/
+cp -a %{_builddir}/lyrux-%{version}/usr %{buildroot}/
+cp -a %{_builddir}/lyrux-%{version}/etc %{buildroot}/
 
 %post
 ldconfig 2>/dev/null || true
-rm -f %{_datadir}/applications/limux.desktop
+rm -f %{_datadir}/applications/lyrux.desktop
 gtk-update-icon-cache -f -t %{_datadir}/icons/hicolor 2>/dev/null || true
 update-desktop-database %{_datadir}/applications 2>/dev/null || true
 appstreamcli refresh-cache --force 2>/dev/null || true
@@ -40,12 +41,12 @@ update-desktop-database %{_datadir}/applications 2>/dev/null || true
 appstreamcli refresh-cache --force 2>/dev/null || true
 
 %files
-%{_bindir}/limux
-/usr/lib/limux/libghostty.so
-%{_datadir}/limux/
-%{_datadir}/applications/dev.limux.linux.desktop
-%{_datadir}/metainfo/dev.limux.linux.metainfo.xml
+%{_bindir}/lyrux
+/usr/lib/lyrux/libghostty.so
+%{_datadir}/lyrux/
+%{_datadir}/applications/dev.lyrux.linux.desktop
+%{_datadir}/metainfo/dev.lyrux.linux.metainfo.xml
 %{_datadir}/icons/hicolor/
-%{_sysconfdir}/ld.so.conf.d/limux.conf
+%{_sysconfdir}/ld.so.conf.d/lyrux.conf
 
 %changelog

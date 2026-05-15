@@ -10,7 +10,7 @@ name = "limux_host_linux"
 path = "src/lib.rs"
 
 [[bin]]
-name = "limux"
+name = "lyrux"
 path = "src/main.rs"
 
 [features]

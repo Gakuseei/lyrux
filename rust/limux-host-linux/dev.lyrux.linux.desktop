@@ -1,14 +1,14 @@
 [Desktop Entry]
 Version=1.0
-Name=Limux
-Comment=GPU-accelerated terminal workspace manager
-Exec=limux
-TryExec=limux
-Icon=limux
+Name=Lyrux
+Comment=GTK4 file manager + terminal multiplexer for Linux
+Exec=lyrux
+TryExec=lyrux
+Icon=lyrux
 Terminal=false
 Type=Application
 Categories=Utility;TerminalEmulator;
 Keywords=terminal;multiplexer;ghostty;workspace;
 StartupNotify=true
-StartupWMClass=dev.limux.linux
+StartupWMClass=dev.lyrux.linux
 X-GNOME-UsesNotifications=true

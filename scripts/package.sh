@@ -11,17 +11,17 @@ DEB_ARCH="amd64"
 RPM_ARCH="x86_64"
 [ "$ARCH" = "aarch64" ] && RPM_ARCH="aarch64"
 
-PKG_BASE="limux-${VERSION}-linux-${ARCH}"
-STAGE="/tmp/limux-staging"
-GHOSTTY_INSTALL_ROOT="/tmp/limux-ghostty-install"
+PKG_BASE="lyrux-${VERSION}-linux-${ARCH}"
+STAGE="/tmp/lyrux-staging"
+GHOSTTY_INSTALL_ROOT="/tmp/lyrux-ghostty-install"
 GHOSTTY_SO="${ROOT_DIR}/ghostty/zig-out/lib/libghostty.so"
-MAX_GLIBC_VERSION="${LIMUX_MAX_GLIBC:-2.39}"
+MAX_GLIBC_VERSION="${LYRUX_MAX_GLIBC:-2.39}"
 GHOSTTY_SHARE_DIR=""
 GHOSTTY_TERMINFO_DIR=""
 ICONS_DIR="${ROOT_DIR}/rust/limux-host-linux/icons"
 APP_ICONS_DIR="${ROOT_DIR}/rust/limux-host-linux/icons/app"
-DESKTOP_FILE="${ROOT_DIR}/rust/limux-host-linux/dev.limux.linux.desktop"
-METADATA_FILE="${ROOT_DIR}/rust/limux-host-linux/dev.limux.linux.metainfo.xml"
+DESKTOP_FILE="${ROOT_DIR}/rust/limux-host-linux/dev.lyrux.linux.desktop"
+METADATA_FILE="${ROOT_DIR}/rust/limux-host-linux/dev.lyrux.linux.metainfo.xml"
 OUT_DIR="${ROOT_DIR}/dist"
 GHOSTTY_ZIG_ARGS=(-Doptimize=ReleaseFast -Dcpu=baseline)
 
@@ -71,7 +71,7 @@ assert_glibc_compatibility() {
     if version_gt "$required_glibc" "$MAX_GLIBC_VERSION"; then
         echo "ERROR: ${label} requires GLIBC_${required_glibc}, which exceeds the supported release baseline GLIBC_${MAX_GLIBC_VERSION}."
         echo "Build release artifacts inside Ubuntu 24.04 or another environment pinned to GLIBC_${MAX_GLIBC_VERSION} or older."
-        echo "Override the baseline intentionally with LIMUX_MAX_GLIBC=<version> if you are targeting a newer distro on purpose."
+        echo "Override the baseline intentionally with LYRUX_MAX_GLIBC=<version> if you are targeting a newer distro on purpose."
         exit 1
     fi
 
@@ -154,7 +154,7 @@ build_ghostty_resources() {
     )
 }
 
-echo "=== Limux Packager ==="
+echo "=== Lyrux Packager ==="
 echo "Version: ${VERSION}"
 echo "Arch:    ${ARCH}"
 echo "GLIBC:   <= ${MAX_GLIBC_VERSION}"
@@ -174,8 +174,8 @@ fi
 # Always build libghostty with ReleaseFast to guarantee optimized output.
 # Pinning cpu=baseline keeps the shipped library portable across x86_64 CPUs
 # that do not expose the builder's ISA extensions, such as AVX-512.
-if [ -n "${LIMUX_SKIP_GHOSTTY:-}" ] && [ -f "$GHOSTTY_SO" ]; then
-    echo "LIMUX_SKIP_GHOSTTY set, reusing existing libghostty.so at ${GHOSTTY_SO}"
+if [ -n "${LYRUX_SKIP_GHOSTTY:-}" ] && [ -f "$GHOSTTY_SO" ]; then
+    echo "LYRUX_SKIP_GHOSTTY set, reusing existing libghostty.so at ${GHOSTTY_SO}"
     echo "Skipping build_ghostty_resources, will fall back to system /usr/share/ghostty"
 else
     configure_ghostty_build_args
@@ -211,14 +211,14 @@ fi
 echo "Building release binary..."
 cargo build --release --manifest-path "${ROOT_DIR}/Cargo.toml"
 
-BINARY="${ROOT_DIR}/target/release/limux"
+BINARY="${ROOT_DIR}/target/release/lyrux"
 if [ ! -f "$BINARY" ]; then
     echo "ERROR: Binary not found at ${BINARY}"
     exit 1
 fi
 
 assert_glibc_compatibility "$GHOSTTY_SO" "libghostty.so"
-assert_glibc_compatibility "$BINARY" "limux"
+assert_glibc_compatibility "$BINARY" "lyrux"
 
 # Clean staging and output
 remove_tree "$STAGE"
@@ -233,8 +233,8 @@ populate_tree() {
     local prefix="${2:-/usr/local}"
     local strip_files="${3:-true}"
     local bindir="$dest${prefix}/bin"
-    local libdir="$dest${prefix}/lib/limux"
-    local ghostty_datadir="$dest${prefix}/share/limux"
+    local libdir="$dest${prefix}/lib/lyrux"
+    local ghostty_datadir="$dest${prefix}/share/lyrux"
     local ghostty_resdir="$ghostty_datadir/ghostty"
     local appdir="$dest${prefix}/share/applications"
     local metadatadir="$dest${prefix}/share/metainfo"
@@ -243,11 +243,11 @@ populate_tree() {
     mkdir -p "$bindir" "$libdir" "$ghostty_resdir" "$appdir" "$metadatadir" "$icondir/scalable/actions"
 
     # Binary
-    cp "$BINARY" "$bindir/limux"
+    cp "$BINARY" "$bindir/lyrux"
     if [ "$strip_files" = "true" ]; then
-        strip "$bindir/limux"
+        strip "$bindir/lyrux"
     fi
-    chmod 755 "$bindir/limux"
+    chmod 755 "$bindir/lyrux"
 
     # Shared library
     cp "$GHOSTTY_SO" "$libdir/libghostty.so"
@@ -260,8 +260,8 @@ populate_tree() {
     copy_ghostty_terminfo_entries "$GHOSTTY_TERMINFO_DIR" "$ghostty_datadir/terminfo"
 
     # Desktop file
-    cp "$DESKTOP_FILE" "$appdir/dev.limux.linux.desktop"
-    cp "$METADATA_FILE" "$metadatadir/dev.limux.linux.metainfo.xml"
+    cp "$DESKTOP_FILE" "$appdir/dev.lyrux.linux.desktop"
+    cp "$METADATA_FILE" "$metadatadir/dev.lyrux.linux.metainfo.xml"
 
     # Action icons
     if [ -d "$ICONS_DIR/hicolor" ]; then
@@ -277,7 +277,7 @@ populate_tree() {
             src="${APP_ICONS_DIR}/${size}.png"
             if [ -f "$src" ]; then
                 mkdir -p "$icondir/${size}x${size}/apps"
-                cp "$src" "$icondir/${size}x${size}/apps/limux.png"
+                cp "$src" "$icondir/${size}x${size}/apps/lyrux.png"
             fi
         done
     fi
@@ -291,14 +291,14 @@ build_rpm_source_tree() {
     populate_tree "$dest" "/usr" "false"
 
     mkdir -p "$dest/etc/ld.so.conf.d"
-    echo "/usr/lib/limux" > "$dest/etc/ld.so.conf.d/limux.conf"
+    echo "/usr/lib/lyrux" > "$dest/etc/ld.so.conf.d/lyrux.conf"
 }
 
 build_rpm_package() {
-    local rpm_src_dir="/tmp/limux-$VERSION"
-    local rpm_tarball="/tmp/limux-$VERSION.tar.gz"
+    local rpm_src_dir="/tmp/lyrux-$VERSION"
+    local rpm_tarball="/tmp/lyrux-$VERSION.tar.gz"
     local rpmbuild_dir="/tmp/rpmbuild-$VERSION"
-    local rpm_output="$rpmbuild_dir/RPMS/${RPM_ARCH}/limux-${VERSION}-1.${RPM_ARCH}.rpm"
+    local rpm_output="$rpmbuild_dir/RPMS/${RPM_ARCH}/lyrux-${VERSION}-1.${RPM_ARCH}.rpm"
 
     if ! command -v rpmbuild >/dev/null 2>&1; then
         echo "  WARNING: rpmbuild not found, skipping RPM"
@@ -306,23 +306,23 @@ build_rpm_package() {
     fi
 
     build_rpm_source_tree "$rpm_src_dir"
-    tar -czf "$rpm_tarball" -C /tmp "limux-$VERSION"
+    tar -czf "$rpm_tarball" -C /tmp "lyrux-$VERSION"
     remove_tree "$rpm_src_dir"
 
     remove_tree "$rpmbuild_dir"
     mkdir -p "$rpmbuild_dir"/{BUILD,RPMS,SOURCES,SPECS}
     cp "$rpm_tarball" "$rpmbuild_dir/SOURCES/"
-    cp "$ROOT_DIR/scripts/limux.spec" "$rpmbuild_dir/SPECS/"
+    cp "$ROOT_DIR/scripts/lyrux.spec" "$rpmbuild_dir/SPECS/"
 
     rpmbuild -bb \
         --define "_topdir $rpmbuild_dir" \
         --define "version $VERSION" \
         --target "$RPM_ARCH" \
-        "$rpmbuild_dir/SPECS/limux.spec" 2>&1
+        "$rpmbuild_dir/SPECS/lyrux.spec" 2>&1
 
     if [ -f "$rpm_output" ]; then
         cp "$rpm_output" "$OUT_DIR/"
-        echo "  -> dist/limux-${VERSION}-1.${RPM_ARCH}.rpm"
+        echo "  -> dist/lyrux-${VERSION}-1.${RPM_ARCH}.rpm"
     else
         echo "  WARNING: rpmbuild did not produce expected RPM file"
     fi
@@ -337,18 +337,18 @@ echo ""
 echo "--- Building tarball ---"
 TARBALL_STAGE="/tmp/${PKG_BASE}"
 remove_tree "$TARBALL_STAGE"
-mkdir -p "$TARBALL_STAGE"/{lib,share/limux/ghostty,share/limux/terminfo,share/applications,share/icons/hicolor/scalable/actions}
+mkdir -p "$TARBALL_STAGE"/{lib,share/lyrux/ghostty,share/lyrux/terminfo,share/applications,share/icons/hicolor/scalable/actions}
 mkdir -p "$TARBALL_STAGE/share/metainfo"
 
-cp "$BINARY" "$TARBALL_STAGE/limux"
-strip "$TARBALL_STAGE/limux"
-chmod 755 "$TARBALL_STAGE/limux"
+cp "$BINARY" "$TARBALL_STAGE/lyrux"
+strip "$TARBALL_STAGE/lyrux"
+chmod 755 "$TARBALL_STAGE/lyrux"
 cp "$GHOSTTY_SO" "$TARBALL_STAGE/lib/libghostty.so"
 strip --strip-debug "$TARBALL_STAGE/lib/libghostty.so"
-cp -r "$GHOSTTY_SHARE_DIR"/. "$TARBALL_STAGE/share/limux/ghostty"
-copy_ghostty_terminfo_entries "$GHOSTTY_TERMINFO_DIR" "$TARBALL_STAGE/share/limux/terminfo"
-cp "$DESKTOP_FILE" "$TARBALL_STAGE/share/applications/dev.limux.linux.desktop"
-cp "$METADATA_FILE" "$TARBALL_STAGE/share/metainfo/dev.limux.linux.metainfo.xml"
+cp -r "$GHOSTTY_SHARE_DIR"/. "$TARBALL_STAGE/share/lyrux/ghostty"
+copy_ghostty_terminfo_entries "$GHOSTTY_TERMINFO_DIR" "$TARBALL_STAGE/share/lyrux/terminfo"
+cp "$DESKTOP_FILE" "$TARBALL_STAGE/share/applications/dev.lyrux.linux.desktop"
+cp "$METADATA_FILE" "$TARBALL_STAGE/share/metainfo/dev.lyrux.linux.metainfo.xml"
 
 if [ -d "$ICONS_DIR/hicolor" ]; then
     cp -r "$ICONS_DIR/hicolor/scalable" "$TARBALL_STAGE/share/icons/hicolor/" 2>/dev/null || true
@@ -361,7 +361,7 @@ if [ -d "$APP_ICONS_DIR" ]; then
         src="${APP_ICONS_DIR}/${size}.png"
         if [ -f "$src" ]; then
             mkdir -p "$TARBALL_STAGE/share/icons/hicolor/${size}x${size}/apps"
-            cp "$src" "$TARBALL_STAGE/share/icons/hicolor/${size}x${size}/apps/limux.png"
+            cp "$src" "$TARBALL_STAGE/share/icons/hicolor/${size}x${size}/apps/lyrux.png"
         fi
     done
 fi
@@ -408,41 +408,41 @@ remove_tree() {
 
 if $UNINSTALL; then
     need_root "$@"
-    echo "Uninstalling Limux..."
-    rm -f "$PREFIX/bin/limux"
-    remove_tree "$PREFIX/lib/limux"
-    remove_tree "$PREFIX/share/limux"
-    rm -f /etc/ld.so.conf.d/limux.conf
+    echo "Uninstalling Lyrux..."
+    rm -f "$PREFIX/bin/lyrux"
+    remove_tree "$PREFIX/lib/lyrux"
+    remove_tree "$PREFIX/share/lyrux"
+    rm -f /etc/ld.so.conf.d/lyrux.conf
     ldconfig 2>/dev/null || true
-    rm -f "$PREFIX/share/applications/limux.desktop"
-    rm -f "$PREFIX/share/applications/dev.limux.linux.desktop"
-    rm -f "$PREFIX/share/metainfo/dev.limux.linux.metainfo.xml"
+    rm -f "$PREFIX/share/applications/lyrux.desktop"
+    rm -f "$PREFIX/share/applications/dev.lyrux.linux.desktop"
+    rm -f "$PREFIX/share/metainfo/dev.lyrux.linux.metainfo.xml"
     for size in 16 32 128 256 512; do
-        rm -f "$PREFIX/share/icons/hicolor/${size}x${size}/apps/limux.png"
+        rm -f "$PREFIX/share/icons/hicolor/${size}x${size}/apps/lyrux.png"
     done
-    rm -f "$PREFIX/share/icons/hicolor/scalable/actions/limux-globe-symbolic.svg"
-    rm -f "$PREFIX/share/icons/hicolor/scalable/actions/limux-split-horizontal-symbolic.svg"
-    rm -f "$PREFIX/share/icons/hicolor/scalable/actions/limux-split-vertical-symbolic.svg"
+    rm -f "$PREFIX/share/icons/hicolor/scalable/actions/lyrux-globe-symbolic.svg"
+    rm -f "$PREFIX/share/icons/hicolor/scalable/actions/lyrux-split-horizontal-symbolic.svg"
+    rm -f "$PREFIX/share/icons/hicolor/scalable/actions/lyrux-split-vertical-symbolic.svg"
     gtk-update-icon-cache -f -t "$PREFIX/share/icons/hicolor" 2>/dev/null || true
     update-desktop-database "$PREFIX/share/applications" 2>/dev/null || true
     appstreamcli refresh-cache --force 2>/dev/null || true
-    echo "Limux uninstalled."
+    echo "Lyrux uninstalled."
     exit 0
 fi
 
 need_root "$@"
-echo "Installing Limux to ${PREFIX}..."
+echo "Installing Lyrux to ${PREFIX}..."
 
-install -Dm755 "$SCRIPT_DIR/limux" "$PREFIX/bin/limux"
-install -Dm644 "$SCRIPT_DIR/lib/libghostty.so" "$PREFIX/lib/limux/libghostty.so"
-if [ -d "$SCRIPT_DIR/share/limux" ]; then
-    cp -r "$SCRIPT_DIR/share/limux" "$PREFIX/share/"
+install -Dm755 "$SCRIPT_DIR/lyrux" "$PREFIX/bin/lyrux"
+install -Dm644 "$SCRIPT_DIR/lib/libghostty.so" "$PREFIX/lib/lyrux/libghostty.so"
+if [ -d "$SCRIPT_DIR/share/lyrux" ]; then
+    cp -r "$SCRIPT_DIR/share/lyrux" "$PREFIX/share/"
 fi
-echo "$PREFIX/lib/limux" > /etc/ld.so.conf.d/limux.conf
+echo "$PREFIX/lib/lyrux" > /etc/ld.so.conf.d/lyrux.conf
 ldconfig 2>/dev/null || true
-rm -f "$PREFIX/share/applications/limux.desktop"
-install -Dm644 "$SCRIPT_DIR/share/applications/dev.limux.linux.desktop" "$PREFIX/share/applications/dev.limux.linux.desktop"
-install -Dm644 "$SCRIPT_DIR/share/metainfo/dev.limux.linux.metainfo.xml" "$PREFIX/share/metainfo/dev.limux.linux.metainfo.xml"
+rm -f "$PREFIX/share/applications/lyrux.desktop"
+install -Dm644 "$SCRIPT_DIR/share/applications/dev.lyrux.linux.desktop" "$PREFIX/share/applications/dev.lyrux.linux.desktop"
+install -Dm644 "$SCRIPT_DIR/share/metainfo/dev.lyrux.linux.metainfo.xml" "$PREFIX/share/metainfo/dev.lyrux.linux.metainfo.xml"
 if [ -d "$SCRIPT_DIR/share/icons" ]; then
     cp -r "$SCRIPT_DIR/share/icons/hicolor" "$PREFIX/share/icons/"
 fi
@@ -451,10 +451,10 @@ update-desktop-database "$PREFIX/share/applications" 2>/dev/null || true
 appstreamcli refresh-cache --force 2>/dev/null || true
 
 echo ""
-echo "Limux installed successfully!"
-echo "  Binary:  $PREFIX/bin/limux"
-echo "  Library: $PREFIX/lib/limux/libghostty.so"
-echo "  Run:     limux"
+echo "Lyrux installed successfully!"
+echo "  Binary:  $PREFIX/bin/lyrux"
+echo "  Library: $PREFIX/lib/lyrux/libghostty.so"
+echo "  Run:     lyrux"
 echo ""
 echo "System dependencies (install if missing):"
 echo "  sudo apt install libgtk-4-1 libadwaita-1-0 libwebkitgtk-6.0-4"
@@ -476,33 +476,33 @@ populate_tree "$DEB_ROOT" "/usr"
 
 # ldconfig trigger
 mkdir -p "$DEB_ROOT/etc/ld.so.conf.d"
-echo "/usr/lib/limux" > "$DEB_ROOT/etc/ld.so.conf.d/limux.conf"
+echo "/usr/lib/lyrux" > "$DEB_ROOT/etc/ld.so.conf.d/lyrux.conf"
 
 # Control file
 INSTALLED_SIZE=$(du -sk "$DEB_ROOT" | cut -f1)
 mkdir -p "$DEB_ROOT/DEBIAN"
 cat > "$DEB_ROOT/DEBIAN/control" << EOF
-Package: limux
+Package: lyrux
 Version: ${VERSION}
 Section: utils
 Priority: optional
 Architecture: ${DEB_ARCH}
 Installed-Size: ${INSTALLED_SIZE}
 Depends: libgtk-4-1, libadwaita-1-0, libwebkitgtk-6.0-4
-Maintainer: Will R <will@limux.dev>
-Description: GPU-accelerated terminal workspace manager for Linux
- Limux is a terminal workspace manager powered by Ghostty's
- GPU-rendered terminal engine, with split panes, tabbed workspaces,
- and a built-in browser.
-Homepage: https://github.com/am-will/limux
+Maintainer: Gakuseei <erikschaefer07@icloud.com>
+Description: GTK4 file manager + terminal multiplexer for Linux
+ Lyrux is a GTK4 file manager and terminal multiplexer powered by
+ Ghostty's GPU-rendered terminal engine, with split panes,
+ tabbed workspaces, and a built-in browser.
+Homepage: https://github.com/Gakuseei/lyrux
 EOF
 
 # Post-install: run ldconfig and update caches
 cat > "$DEB_ROOT/DEBIAN/postinst" << 'EOF'
 #!/bin/bash
 ldconfig 2>/dev/null || true
-rm -f /usr/share/applications/limux.desktop
-rm -f /usr/local/share/applications/limux.desktop
+rm -f /usr/share/applications/lyrux.desktop
+rm -f /usr/local/share/applications/lyrux.desktop
 gtk-update-icon-cache -f -t /usr/share/icons/hicolor 2>/dev/null || true
 update-desktop-database /usr/share/applications 2>/dev/null || true
 appstreamcli refresh-cache --force 2>/dev/null || true
@@ -519,9 +519,9 @@ appstreamcli refresh-cache --force 2>/dev/null || true
 EOF
 chmod 755 "$DEB_ROOT/DEBIAN/postrm"
 
-DEB_FILE="$OUT_DIR/limux_${VERSION}_${DEB_ARCH}.deb"
+DEB_FILE="$OUT_DIR/lyrux_${VERSION}_${DEB_ARCH}.deb"
 dpkg-deb --build --root-owner-group "$DEB_ROOT" "$DEB_FILE"
-echo "  -> dist/limux_${VERSION}_${DEB_ARCH}.deb"
+echo "  -> dist/lyrux_${VERSION}_${DEB_ARCH}.deb"
 
 # =========================================================================
 # 3. RPM package
@@ -535,29 +535,29 @@ build_rpm_package
 # =========================================================================
 echo ""
 echo "--- Building AppImage ---"
-APPDIR="$STAGE/Limux.AppDir"
+APPDIR="$STAGE/Lyrux.AppDir"
 remove_tree "$APPDIR"
 mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/lib" "$APPDIR/usr/share/applications" \
          "$APPDIR/usr/share/metainfo" \
          "$APPDIR/usr/share/icons/hicolor/scalable/actions" \
-         "$APPDIR/usr/share/limux"
+         "$APPDIR/usr/share/lyrux"
 
 # Binary
-cp "$BINARY" "$APPDIR/usr/bin/limux"
-strip "$APPDIR/usr/bin/limux"
-chmod 755 "$APPDIR/usr/bin/limux"
+cp "$BINARY" "$APPDIR/usr/bin/lyrux"
+strip "$APPDIR/usr/bin/lyrux"
+chmod 755 "$APPDIR/usr/bin/lyrux"
 
 # Shared library
 cp "$GHOSTTY_SO" "$APPDIR/usr/lib/libghostty.so"
 strip --strip-debug "$APPDIR/usr/lib/libghostty.so"
 
 # Ghostty resources required for named themes and shell integration
-cp -r "$GHOSTTY_SHARE_DIR" "$APPDIR/usr/share/limux/ghostty"
+cp -r "$GHOSTTY_SHARE_DIR" "$APPDIR/usr/share/lyrux/ghostty"
 
 # Desktop file (at AppDir root and in usr/share)
-cp "$DESKTOP_FILE" "$APPDIR/dev.limux.linux.desktop"
-cp "$DESKTOP_FILE" "$APPDIR/usr/share/applications/dev.limux.linux.desktop"
-cp "$METADATA_FILE" "$APPDIR/usr/share/metainfo/dev.limux.linux.metainfo.xml"
+cp "$DESKTOP_FILE" "$APPDIR/dev.lyrux.linux.desktop"
+cp "$DESKTOP_FILE" "$APPDIR/usr/share/applications/dev.lyrux.linux.desktop"
+cp "$METADATA_FILE" "$APPDIR/usr/share/metainfo/dev.lyrux.linux.metainfo.xml"
 
 # Icons
 if [ -d "$ICONS_DIR/hicolor" ]; then
@@ -571,14 +571,14 @@ if [ -d "$APP_ICONS_DIR" ]; then
         src="${APP_ICONS_DIR}/${size}.png"
         if [ -f "$src" ]; then
             mkdir -p "$APPDIR/usr/share/icons/hicolor/${size}x${size}/apps"
-            cp "$src" "$APPDIR/usr/share/icons/hicolor/${size}x${size}/apps/limux.png"
+            cp "$src" "$APPDIR/usr/share/icons/hicolor/${size}x${size}/apps/lyrux.png"
         fi
     done
 fi
 
-# AppImage icon (must be at root as .DirIcon and limux.png)
+# AppImage icon (must be at root as .DirIcon and lyrux.png)
 if [ -f "$APP_ICONS_DIR/256.png" ]; then
-    cp "$APP_ICONS_DIR/256.png" "$APPDIR/limux.png"
+    cp "$APP_ICONS_DIR/256.png" "$APPDIR/lyrux.png"
     cp "$APP_ICONS_DIR/256.png" "$APPDIR/.DirIcon"
 fi
 
@@ -588,12 +588,12 @@ cat > "$APPDIR/AppRun" << 'APPRUN_EOF'
 HERE="$(dirname "$(readlink -f "$0")")"
 export LD_LIBRARY_PATH="${HERE}/usr/lib:${LD_LIBRARY_PATH:-}"
 export XDG_DATA_DIRS="${HERE}/usr/share:${XDG_DATA_DIRS:-/usr/share}"
-exec "${HERE}/usr/bin/limux" "$@"
+exec "${HERE}/usr/bin/lyrux" "$@"
 APPRUN_EOF
 chmod 755 "$APPDIR/AppRun"
 
 # Build AppImage
-APPIMAGE_FILE="$OUT_DIR/Limux-${VERSION}-${ARCH}.AppImage"
+APPIMAGE_FILE="$OUT_DIR/Lyrux-${VERSION}-${ARCH}.AppImage"
 if command -v appimagetool &>/dev/null; then
     APPIMAGETOOL="appimagetool"
 elif [ -x /tmp/appimagetool ]; then
@@ -605,7 +605,7 @@ fi
 
 if [ -n "$APPIMAGETOOL" ]; then
     ARCH="$ARCH" "$APPIMAGETOOL" "$APPDIR" "$APPIMAGE_FILE" 2>&1 | tail -3
-    echo "  -> dist/Limux-${VERSION}-${ARCH}.AppImage"
+    echo "  -> dist/Lyrux-${VERSION}-${ARCH}.AppImage"
 fi
 
 # =========================================================================
@@ -617,6 +617,6 @@ ls -lh "$OUT_DIR"/ 2>/dev/null
 echo ""
 echo "Install options:"
 echo "  Tarball:   tar xzf dist/${PKG_BASE}.tar.gz && cd ${PKG_BASE} && sudo ./install.sh"
-echo "  Deb:       sudo dpkg -i ./dist/limux_${VERSION}_${DEB_ARCH}.deb"
-echo "  RPM:       sudo rpm -i ./dist/limux-${VERSION}-1.${RPM_ARCH}.rpm"
-echo "  AppImage:  chmod +x dist/Limux-${VERSION}-${ARCH}.AppImage && ./dist/Limux-${VERSION}-${ARCH}.AppImage"
+echo "  Deb:       sudo dpkg -i ./dist/lyrux_${VERSION}_${DEB_ARCH}.deb"
+echo "  RPM:       sudo rpm -i ./dist/lyrux-${VERSION}-1.${RPM_ARCH}.rpm"
+echo "  AppImage:  chmod +x dist/Lyrux-${VERSION}-${ARCH}.AppImage && ./dist/Lyrux-${VERSION}-${ARCH}.AppImage"
