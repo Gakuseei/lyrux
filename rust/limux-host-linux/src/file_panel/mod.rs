@@ -95,7 +95,9 @@ pub struct Inner {
     // Bug 5: snapshot of expanded_paths captured on collapse-all so the next
     // press can restore the previously-open folders.
     pub last_expanded_snapshot: HashMap<WorkspaceId, HashSet<PathBuf>>,
+    pub hidden_visible_snapshot: HashMap<WorkspaceId, bool>,
     pub gitignore_cache: HashMap<WorkspaceId, std::rc::Rc<ignore::gitignore::Gitignore>>,
+    pub last_refresh_at: HashMap<WorkspaceId, std::time::Instant>,
 }
 
 #[derive(Clone)]
@@ -130,7 +132,9 @@ impl FilePanelHandle {
                 active: None,
                 visible: false,
                 last_expanded_snapshot: HashMap::new(),
+                hidden_visible_snapshot: HashMap::new(),
                 gitignore_cache: HashMap::new(),
+                last_refresh_at: HashMap::new(),
             })),
             untitled_counter: Rc::new(AtomicU32::new(0)),
         }
@@ -172,6 +176,18 @@ impl FilePanelHandle {
 
             let mut model = TreeModel::new(root.clone());
             model.set_gitignore(Rc::clone(&gitignore));
+            // Restore prior hidden_visible toggle if user had it on. Snapshot
+            // captured during hibernate_workspace; absent = default false.
+            let prior_hidden = self
+                .inner
+                .borrow()
+                .hidden_visible_snapshot
+                .get(&workspace_id)
+                .copied()
+                .unwrap_or(false);
+            if prior_hidden {
+                model.set_hidden_visible(true);
+            }
             for p in &expanded {
                 crate::file_panel::perf_log!(
                     "limux-perf: expanded_paths::insert(show_workspace seed) {:?}",
@@ -283,7 +299,13 @@ impl FilePanelHandle {
             self.hibernate_workspace(&id);
         }
 
-        self.refresh_git_for(workspace_id);
+        // Skip `git status` for non-repo roots. Running `git status` over
+        // $HOME (or any large non-repo tree) walks millions of paths and
+        // burns the main thread for seconds. Generic check via the `git`
+        // CLI — same logic that works for every Linux user under AppImage.
+        if crate::file_panel::git::is_git_repo(&root) {
+            self.refresh_git_for(workspace_id);
+        }
     }
 
     pub fn toggle_visible(&self) {
@@ -347,14 +369,10 @@ impl FilePanelHandle {
         if paths.is_empty() {
             return;
         }
-        let mut touched_git = false;
         let mut parents: HashSet<PathBuf> = HashSet::new();
         for p in &paths {
             if let Some(parent) = p.parent() {
                 parents.insert(parent.to_path_buf());
-            }
-            if p.components().any(|c| c.as_os_str() == ".git") {
-                touched_git = true;
             }
         }
         // Visibility filter: only refresh parents that are currently visible
@@ -377,10 +395,20 @@ impl FilePanelHandle {
             }
         };
         if visible_parents.is_empty() {
-            if touched_git {
-                self.refresh_git_for(workspace_id.to_string());
-            }
             return;
+        }
+        // Cooldown: clamp refresh_subtree to once per 500ms per workspace.
+        // Continuous background FS events (e.g. inside an active build) would
+        // otherwise trigger a refresh storm; the visibility filter alone is
+        // not enough because the root itself is always "visible".
+        const REFRESH_COOLDOWN_MS: u64 = 500;
+        {
+            let inner = self.inner.borrow();
+            if let Some(last) = inner.last_refresh_at.get(workspace_id) {
+                if last.elapsed() < std::time::Duration::from_millis(REFRESH_COOLDOWN_MS) {
+                    return;
+                }
+            }
         }
         // Collapse threshold: many visible parents → one root refresh is
         // cheaper than N parent refreshes, and refresh_subtree(root) already
@@ -406,13 +434,15 @@ impl FilePanelHandle {
             if let Some(per) = inner.cache.get(workspace_id) {
                 apply_model_to_store(&per.model, &inner.view.store);
             }
+            drop(inner);
+            self.inner
+                .borrow_mut()
+                .last_refresh_at
+                .insert(workspace_id.to_string(), std::time::Instant::now());
         } else {
             crate::file_panel::perf_log!(
                 "limux-perf: on_watcher_event SKIP apply_model_to_store (no-op refresh)"
             );
-        }
-        if touched_git {
-            self.refresh_git_for(workspace_id.to_string());
         }
     }
 
@@ -435,7 +465,9 @@ impl FilePanelHandle {
             inner.active = None;
         }
         inner.last_expanded_snapshot.remove(workspace_id);
+        inner.hidden_visible_snapshot.remove(workspace_id);
         inner.gitignore_cache.remove(workspace_id);
+        inner.last_refresh_at.remove(workspace_id);
     }
 
     /// Switch-time cleanup: drop the heavy per-workspace state for
@@ -456,6 +488,11 @@ impl FilePanelHandle {
         // Capture the expanded set BEFORE dropping `per` so a future re-show
         // can restore the tree. Replaces any prior snapshot (e.g. an empty
         // one written by collapse-all) — accepted trade per the leak fix.
+        let hidden = per.model.hidden_visible;
+        self.inner
+            .borrow_mut()
+            .hidden_visible_snapshot
+            .insert(workspace_id.clone(), hidden);
         let snapshot = per.model.expanded_paths.clone();
         self.inner
             .borrow_mut()
