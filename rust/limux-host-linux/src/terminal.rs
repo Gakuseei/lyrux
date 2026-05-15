@@ -336,11 +336,49 @@ fn send_committed_text(surface: ghostty_surface_t, text: &str) {
     }
 }
 
+/// Cap on Ghostty's per-surface scrollback ring buffer.
+///
+/// Ghostty's upstream default is 10 MB per surface (see Config.zig:
+/// `scrollback-limit: usize = 10_000_000`). With many panes plus PTY
+/// readers running for hidden workspaces, this dominates limux's
+/// steady-state RAM. 1 MB still buffers ~10k lines of typical output,
+/// which is plenty for interactive use.
+const LIMUX_SCROLLBACK_LIMIT_BYTES: usize = 1_000_000;
+
+/// Write a transient override file containing limux's scrollback cap and
+/// load it into the supplied config. The file is written into the system
+/// tempdir under a PID-suffixed name so concurrent limux instances don't
+/// collide, and is removed once libghostty has parsed it.
+///
+/// Loaded AFTER the user's config files so the cap wins even when the
+/// user has explicitly raised `scrollback-limit` themselves. Loaded
+/// BEFORE `ghostty_config_finalize`.
+fn apply_limux_config_overrides(config: ghostty_config_t) {
+    let path = std::env::temp_dir().join(format!(
+        "limux-ghostty-overrides-{}.conf",
+        std::process::id()
+    ));
+    let body = format!(
+        "scrollback-limit = {}\n",
+        LIMUX_SCROLLBACK_LIMIT_BYTES
+    );
+    if std::fs::write(&path, body).is_err() {
+        return;
+    }
+    if let Ok(c_path) = CString::new(path.as_os_str().as_encoded_bytes()) {
+        unsafe {
+            ghostty_config_load_file(config, c_path.as_ptr());
+        }
+    }
+    let _ = std::fs::remove_file(&path);
+}
+
 fn load_ghostty_config() -> ghostty_config_t {
     unsafe {
         let config = ghostty_config_new();
         ghostty_config_load_default_files(config);
         ghostty_config_load_recursive_files(config);
+        apply_limux_config_overrides(config);
         ghostty_config_finalize(config);
         config
     }
