@@ -1,6 +1,10 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
+
+const FAST_EXCLUDE_NAMES: &[&str] = &[
+    "target", "node_modules", ".git", ".next", "dist", "build", ".cache", "out",
+];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
@@ -52,8 +56,7 @@ pub struct TreeModel {
     pub rows: Vec<Row>,
     pub expanded_paths: HashSet<PathBuf>,
     pub hidden_visible: bool,
-    pub git_status_map: HashMap<PathBuf, GitStatus>,
-    pub git_status_prefixes: Vec<(PathBuf, GitStatus)>,
+    pub git_status_map: BTreeMap<PathBuf, GitStatus>,
     pub gitignore: Option<Rc<ignore::gitignore::Gitignore>>,
     pub ignored_cache: HashSet<PathBuf>,
 }
@@ -74,8 +77,7 @@ impl TreeModel {
             rows: Vec::new(),
             expanded_paths: HashSet::new(),
             hidden_visible: false,
-            git_status_map: HashMap::new(),
-            git_status_prefixes: Vec::new(),
+            git_status_map: BTreeMap::new(),
             gitignore: None,
             ignored_cache: HashSet::new(),
         }
@@ -111,6 +113,16 @@ impl TreeModel {
                 if !self.hidden_visible && name.to_string_lossy().starts_with('.') {
                     continue;
                 }
+                // Fast-skip well-known excluded dir names BEFORE consulting gitignore.
+                // Avoids opendir-storm walking through target/ etc. on big Rust/Node trees.
+                if is_dir {
+                    if let Some(name_str) = name.to_str() {
+                        if FAST_EXCLUDE_NAMES.contains(&name_str) {
+                            self.ignored_cache.insert(path);
+                            continue;
+                        }
+                    }
+                }
                 if gi.matched(&path, is_dir).is_ignore() {
                     self.ignored_cache.insert(path);
                     continue;
@@ -123,19 +135,13 @@ impl TreeModel {
     }
 
     pub fn set_git_status_map(&mut self, map: HashMap<PathBuf, GitStatus>) {
-        let mut prefixes: Vec<(PathBuf, GitStatus)> =
-            map.iter().map(|(p, s)| (p.clone(), *s)).collect();
-        prefixes.sort_by(|a, b| a.0.cmp(&b.0));
-        self.git_status_prefixes = prefixes;
-        self.git_status_map = map;
+        self.git_status_map.clear();
+        self.git_status_map.extend(map);
     }
 
     fn rollup_dir_status(&self, dir: &Path) -> GitStatus {
-        let lo = self
-            .git_status_prefixes
-            .partition_point(|(p, _)| p.as_path() < dir);
         let mut best = GitStatus::Clean;
-        for (p, s) in &self.git_status_prefixes[lo..] {
+        for (p, s) in self.git_status_map.range(dir.to_path_buf()..) {
             if !p.starts_with(dir) {
                 break;
             }
