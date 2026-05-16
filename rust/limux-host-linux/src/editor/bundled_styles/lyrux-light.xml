@@ -42,4 +42,32 @@
   <style name="def:preprocessor"           foreground="keyword"/>
   <style name="def:error"                  foreground="error"   underline="single"/>
   <style name="def:warning"                foreground="warning" underline="single"/>
+  <style name="def:heading"                foreground="keyword"  bold="true"/>
+  <style name="def:heading0"               foreground="keyword"  bold="true"/>
+  <style name="def:heading1"               foreground="keyword"  bold="true"/>
+  <style name="def:heading2"               foreground="accent"   bold="true"/>
+  <style name="def:heading3"               foreground="function" bold="true"/>
+  <style name="def:heading4"               foreground="type"     bold="true"/>
+  <style name="def:heading5"               foreground="string"   bold="true"/>
+  <style name="def:heading6"               foreground="number"   bold="true"/>
+  <style name="def:emphasis"               foreground="string"   italic="true"/>
+  <style name="def:strong-emphasis"        foreground="function" bold="true"/>
+  <style name="def:inline-code"            foreground="string"   background="#EFEFF2"/>
+  <style name="def:preformatted-section"   foreground="string"   background="#EFEFF2"/>
+  <style name="def:link-text"              foreground="accent"   underline="single"/>
+  <style name="def:link-destination"       foreground="type"     italic="true" underline="single"/>
+  <style name="def:link-symbol"            foreground="fg-muted"/>
+  <style name="def:list-marker"            foreground="accent"   bold="true"/>
+  <style name="def:thematic-break"         foreground="comment"/>
+  <style name="def:shebang"                foreground="comment"  italic="true"/>
+  <style name="def:note"                   foreground="warning"  bold="true"/>
+  <style name="def:underlined"             foreground="accent"   underline="single"/>
+  <style name="def:net-address"            foreground="accent"   underline="single"/>
+  <style name="def:variable"               foreground="type"/>
+  <style name="def:character"              foreground="string"/>
+  <style name="def:boolean"                foreground="number"   bold="true"/>
+  <style name="def:floating-point"         foreground="number"/>
+  <style name="def:base-n-integer"         foreground="number"/>
+  <style name="def:insertion"              foreground="string"   underline="single"/>
+  <style name="def:deletion"               foreground="error"    strikethrough="true"/>
 </style-scheme>
