@@ -1309,6 +1309,8 @@ fn add_editor_tab_for_path_inner(internals: &Rc<PaneInternals>, path: &std::path
     );
 
     install_editor_tab_hooks(internals, &tab_id, &state_for_hooks);
+    let monitor = editor::watcher::install(&state_for_hooks);
+    state_for_hooks.set_monitor(monitor);
 
     activate_tab(
         &internals.tab_strip,

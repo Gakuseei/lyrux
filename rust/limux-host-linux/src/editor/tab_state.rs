@@ -2,7 +2,7 @@
 
 use gtk4::prelude::*;
 use sourceview5::prelude::*;
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::path::PathBuf;
 use std::rc::Rc;
 
@@ -20,6 +20,7 @@ pub struct EditorTabState {
     pub saved_etag: Rc<Cell<Option<FileEtag>>>,
     pub banner: gtk4::Revealer,
     pub root: gtk4::Box,
+    pub monitor: Rc<RefCell<Option<gtk4::gio::FileMonitor>>>,
 }
 
 pub enum BuildOutcome {
@@ -73,6 +74,7 @@ pub fn build(path: PathBuf, cfg: &ViewConfig) -> BuildOutcome {
         saved_etag: Rc::new(Cell::new(Some(etag))),
         banner,
         root,
+        monitor: Rc::new(RefCell::new(None)),
     };
 
     let dirty = state.dirty.clone();
@@ -92,6 +94,10 @@ impl EditorTabState {
     pub fn mark_clean(&self, etag: FileEtag) {
         self.dirty.set(false);
         self.saved_etag.set(Some(etag));
+    }
+
+    pub fn set_monitor(&self, m: Option<gtk4::gio::FileMonitor>) {
+        *self.monitor.borrow_mut() = m;
     }
 
     pub fn is_dirty(&self) -> bool {

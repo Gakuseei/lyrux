@@ -16,7 +16,7 @@ pub use image_viewer::ImageViewerTabState;
 pub use tab_state::EditorTabState;
 pub use view::ViewConfig;
 
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
@@ -70,6 +70,7 @@ pub fn spawn_empty(cfg: &ViewConfig) -> EditorTabState {
         saved_etag: Rc::new(Cell::new(None)),
         banner,
         root,
+        monitor: Rc::new(RefCell::new(None)),
     };
 
     let dirty = state.dirty.clone();
