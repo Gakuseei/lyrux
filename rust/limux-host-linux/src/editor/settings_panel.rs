@@ -23,7 +23,6 @@ pub fn build(current: &EditorSettings, cb: SettingsCallbacks) -> gtk4::Widget {
 
     root.append(&theme_row(current, cb.on_change.clone()));
     root.append(&font_row(current, cb.on_change.clone()));
-    root.append(&font_size_row(current, cb.on_change.clone()));
     root.append(&tab_width_row(current, cb.on_change.clone()));
     root.append(&bool_row(
         strings::SETTING_INSERT_SPACES,
@@ -182,33 +181,39 @@ fn theme_row(current: &EditorSettings, on_change: Rc<dyn Fn(&EditorSettings)>) -
 
 fn font_row(current: &EditorSettings, on_change: Rc<dyn Fn(&EditorSettings)>) -> gtk4::Box {
     let row = labeled_row(strings::SETTING_FONT);
-    let entry = gtk4::Entry::builder().text(&current.font_family).build();
-    entry.set_valign(gtk4::Align::Center);
-    let snapshot = current.clone();
-    entry.connect_changed(move |e| {
-        let mut next = snapshot.clone();
-        next.font_family = e.text().to_string();
-        on_change(&next);
+    let monospace_filter = gtk4::CustomFilter::new(|obj| {
+        obj.downcast_ref::<gtk4::pango::FontFamily>()
+            .map(|family| family.is_monospace())
+            .unwrap_or(false)
     });
-    row.append(&entry);
-    row
-}
-
-fn font_size_row(current: &EditorSettings, on_change: Rc<dyn Fn(&EditorSettings)>) -> gtk4::Box {
-    let row = labeled_row(strings::SETTING_FONT_SIZE);
-    let adj = gtk4::Adjustment::new(current.font_size as f64, 8.0, 24.0, 1.0, 2.0, 0.0);
-    let spin = gtk4::SpinButton::builder()
-        .adjustment(&adj)
-        .numeric(true)
+    let dialog = gtk4::FontDialog::builder()
+        .modal(true)
+        .title(strings::SETTING_FONT)
+        .filter(&monospace_filter)
         .build();
-    spin.set_valign(gtk4::Align::Center);
+    let initial_desc = gtk4::pango::FontDescription::from_string(&format!(
+        "{} {}",
+        current.font_family, current.font_size
+    ));
+    let btn = gtk4::FontDialogButton::builder()
+        .dialog(&dialog)
+        .font_desc(&initial_desc)
+        .build();
+    btn.set_valign(gtk4::Align::Center);
     let snapshot = current.clone();
-    spin.connect_value_changed(move |s| {
-        let mut next = snapshot.clone();
-        next.font_size = s.value() as i32;
-        on_change(&next);
+    btn.connect_font_desc_notify(move |b| {
+        if let Some(desc) = b.font_desc() {
+            let family = desc.family().map(|s| s.to_string()).unwrap_or_default();
+            let size_pts = (desc.size() / gtk4::pango::SCALE).max(8);
+            let mut next = snapshot.clone();
+            if !family.is_empty() {
+                next.font_family = family;
+            }
+            next.font_size = size_pts;
+            on_change(&next);
+        }
     });
-    row.append(&spin);
+    row.append(&btn);
     row
 }
 
