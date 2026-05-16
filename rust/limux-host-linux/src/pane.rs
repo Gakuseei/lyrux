@@ -905,13 +905,21 @@ fn restore_tabs_from_state(
                 cursor_col: saved_col,
                 scroll,
                 dirty: _,
-                swap_file: _,
+                swap_file,
             } => {
                 let p = std::path::PathBuf::from(path);
                 add_editor_tab_for_path_inner(internals, &p);
                 let tabs = internals.tab_state.borrow();
                 if let Some(entry) = tabs.tabs.last() {
                     if let TabKind::Editor { state } = &entry.kind {
+                        if let Some(sp) = swap_file {
+                            let sp_path = std::path::PathBuf::from(sp);
+                            if let Ok(text) = crate::editor::swap::read(&sp_path) {
+                                state.buffer.set_text(&text);
+                                state.dirty.set(true);
+                                *state.swap_path.borrow_mut() = Some(sp_path);
+                            }
+                        }
                         if let Some(iter) =
                             state.buffer.iter_at_line_offset(*saved_line, *saved_col)
                         {
@@ -1543,7 +1551,7 @@ pub fn refresh_shortcut_tooltips(pane_widget: &gtk::Widget, shortcuts: &Resolved
         )));
 }
 
-pub fn snapshot_pane_state(pane_widget: &gtk::Widget) -> Option<PaneState> {
+pub fn snapshot_pane_state(pane_widget: &gtk::Widget, workspace_id: &str) -> Option<PaneState> {
     let internals = find_pane_internals(pane_widget)?;
     let ts = internals.tab_state.borrow();
     let tabs = ts
@@ -1558,14 +1566,35 @@ pub fn snapshot_pane_state(pane_widget: &gtk::Widget) -> Option<PaneState> {
                     uri: state.uri.borrow().clone(),
                 },
                 TabKind::Keybinds => TabContentState::Keybinds {},
-                TabKind::Editor { state } => TabContentState::Editor {
-                    path: state.path.display().to_string(),
-                    cursor_line: cursor_line(&state.buffer),
-                    cursor_col: cursor_col(&state.buffer),
-                    scroll: state.scrolled.vadjustment().value() as i32,
-                    dirty: state.is_dirty(),
-                    swap_file: None,
-                },
+                TabKind::Editor { state } => {
+                    let swap_file = if state.is_dirty() {
+                        match crate::editor::swap::write(
+                            workspace_id,
+                            &entry.id,
+                            &state.snapshot_text(),
+                        ) {
+                            Ok(p) => {
+                                let s = p.display().to_string();
+                                *state.swap_path.borrow_mut() = Some(p);
+                                Some(s)
+                            }
+                            Err(e) => {
+                                eprintln!("lyrux: swap write failed: {e}");
+                                None
+                            }
+                        }
+                    } else {
+                        None
+                    };
+                    TabContentState::Editor {
+                        path: state.path.display().to_string(),
+                        cursor_line: cursor_line(&state.buffer),
+                        cursor_col: cursor_col(&state.buffer),
+                        scroll: state.scrolled.vadjustment().value() as i32,
+                        dirty: state.is_dirty(),
+                        swap_file,
+                    }
+                }
                 TabKind::ImageViewer { state } => TabContentState::ImageViewer {
                     path: state.path.display().to_string(),
                     zoom: 1.0,

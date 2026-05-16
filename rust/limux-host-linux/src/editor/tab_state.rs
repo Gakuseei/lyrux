@@ -27,6 +27,7 @@ pub struct EditorTabState {
     pub suppress_dirty: Rc<Cell<bool>>,
     pub dirty_marker_cb: DirtyMarkerCb,
     pub css_provider: ViewCssProvider,
+    pub swap_path: Rc<RefCell<Option<PathBuf>>>,
 }
 
 pub enum BuildOutcome {
@@ -84,6 +85,7 @@ pub fn build(path: PathBuf, cfg: &ViewConfig) -> BuildOutcome {
         suppress_dirty: Rc::new(Cell::new(false)),
         dirty_marker_cb: Rc::new(RefCell::new(None)),
         css_provider: Rc::new(RefCell::new(None)),
+        swap_path: Rc::new(RefCell::new(None)),
     };
     view::apply_css(&state.view, cfg, &state.css_provider);
 

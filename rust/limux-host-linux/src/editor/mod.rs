@@ -77,6 +77,7 @@ pub fn spawn_empty(cfg: &ViewConfig) -> EditorTabState {
         suppress_dirty: Rc::new(Cell::new(false)),
         dirty_marker_cb: Rc::new(RefCell::new(None)),
         css_provider: Rc::new(RefCell::new(None)),
+        swap_path: Rc::new(RefCell::new(None)),
     };
     view::apply_css(&state.view, cfg, &state.css_provider);
 

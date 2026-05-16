@@ -47,6 +47,9 @@ pub fn save_tab(state: &EditorTabState, workspace_root: Option<&Path>, on_clean:
     match buffer::save_atomic(&state.path, &text) {
         Ok(etag) => {
             state.mark_clean(etag);
+            if let Some(sp) = state.swap_path.borrow_mut().take() {
+                let _ = crate::editor::swap::discard(&sp);
+            }
             on_clean();
         }
         Err(e) => eprintln!("lyrux: {}{e}", strings::ERROR_WRITE_FAILED_PREFIX),

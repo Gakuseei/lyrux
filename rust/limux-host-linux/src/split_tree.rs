@@ -87,9 +87,13 @@ impl SplitNode {
         }
     }
 
-    pub(crate) fn snapshot(&self, working_directory: Option<&str>) -> LayoutNodeState {
+    pub(crate) fn snapshot(
+        &self,
+        working_directory: Option<&str>,
+        workspace_id: &str,
+    ) -> LayoutNodeState {
         match self {
-            SplitNode::Leaf { pane_widget } => pane::snapshot_pane_state(pane_widget)
+            SplitNode::Leaf { pane_widget } => pane::snapshot_pane_state(pane_widget, workspace_id)
                 .map(LayoutNodeState::Pane)
                 .unwrap_or_else(|| LayoutNodeState::Pane(PaneState::fallback(working_directory))),
             SplitNode::Split {
@@ -104,8 +108,8 @@ impl SplitNode {
                     SplitOrientation::Vertical
                 },
                 ratio: *ratio.borrow(),
-                start: Box::new(left.snapshot(working_directory)),
-                end: Box::new(right.snapshot(working_directory)),
+                start: Box::new(left.snapshot(working_directory, workspace_id)),
+                end: Box::new(right.snapshot(working_directory, workspace_id)),
             }),
         }
     }

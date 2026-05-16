@@ -368,7 +368,7 @@ fn snapshot_session_state(state: &State) -> AppSessionState {
                 layout: workspace
                     .split_container
                     .tree()
-                    .snapshot(working_directory.as_deref()),
+                    .snapshot(working_directory.as_deref(), &workspace.name),
                 file_panel_expanded: Vec::new(),
                 file_panel_selected: None,
                 file_panel_scroll_y: 0.0,
