@@ -554,6 +554,19 @@ strip --strip-debug "$APPDIR/usr/lib/libghostty.so"
 # Ghostty resources required for named themes and shell integration
 cp -r "$GHOSTTY_SHARE_DIR" "$APPDIR/usr/share/lyrux/ghostty"
 
+# GtkSourceView runtime (editor pane)
+SOURCEVIEW_LIB="$(pkg-config --variable=libdir gtksourceview-5 2>/dev/null)/libgtksourceview-5.so.0"
+if [ -f "$SOURCEVIEW_LIB" ]; then
+    cp "$SOURCEVIEW_LIB" "${APPDIR}/usr/lib/"
+fi
+
+SOURCEVIEW_DATA=/usr/share/gtksourceview-5
+if [ -d "$SOURCEVIEW_DATA" ]; then
+    mkdir -p "${APPDIR}/usr/share/gtksourceview-5"
+    cp -r "$SOURCEVIEW_DATA/language-specs" "${APPDIR}/usr/share/gtksourceview-5/" || true
+    cp -r "$SOURCEVIEW_DATA/styles"         "${APPDIR}/usr/share/gtksourceview-5/" || true
+fi
+
 # Desktop file (at AppDir root and in usr/share)
 cp "$DESKTOP_FILE" "$APPDIR/dev.lyrux.linux.desktop"
 cp "$DESKTOP_FILE" "$APPDIR/usr/share/applications/dev.lyrux.linux.desktop"
