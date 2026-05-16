@@ -528,7 +528,6 @@ pub(crate) fn attach_split_position_persistence(state: &State, paned: &gtk::Pane
     });
 }
 
-
 const HOST_ENTRY_CSS_CLASS: &str = "limux-host-entry";
 const WORKSPACE_RENAME_ENTRY_CSS_CLASS: &str = "limux-ws-rename-entry";
 const WORKSPACE_RENAME_ENTRY_CSS_CLASSES: [&str; 2] =
@@ -739,7 +738,6 @@ row:selected .limux-ws-path {
 "#;
 
 const CONTENT_BACKGROUND_RGB: (u8, u8, u8) = (23, 23, 23);
-
 
 pub fn build_window(app: &adw::Application) {
     let display = gtk::gdk::Display::default().expect("display");
@@ -1281,7 +1279,6 @@ fn apply_window_background_class(window: &adw::ApplicationWindow, background_opa
         window.remove_css_class("background");
     }
 }
-
 
 fn register_window_actions(window: &adw::ApplicationWindow, state: &State) {
     let action_defs: Vec<(&'static str, ShortcutCommand)> = {
@@ -2050,7 +2047,6 @@ fn activate_last_workspace_shortcut(state: &State) {
     activate_workspace_shortcut(state, last_idx);
 }
 
-
 fn build_sidebar_row(
     name: &str,
     folder_path: Option<&str>,
@@ -2150,7 +2146,6 @@ fn abbreviate_path(path: &str) -> String {
     }
     path.to_string()
 }
-
 
 fn favorites_prefix_len(flags: &[bool]) -> usize {
     flags.iter().take_while(|is_favorite| **is_favorite).count()
@@ -3767,7 +3762,6 @@ fn toggle_sidebar(state: &State) {
         animation.play();
     }
 }
-
 
 struct SplitPaneOptions {
     initial_state: Option<PaneState>,

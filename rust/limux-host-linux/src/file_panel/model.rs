@@ -3,7 +3,14 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 const FAST_EXCLUDE_NAMES: &[&str] = &[
-    "target", "node_modules", ".git", ".next", "dist", "build", ".cache", "out",
+    "target",
+    "node_modules",
+    ".git",
+    ".next",
+    "dist",
+    "build",
+    ".cache",
+    "out",
 ];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

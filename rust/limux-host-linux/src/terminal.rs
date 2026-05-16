@@ -335,10 +335,7 @@ fn apply_limux_config_overrides(config: ghostty_config_t) {
         "limux-ghostty-overrides-{}.conf",
         std::process::id()
     ));
-    let body = format!(
-        "scrollback-limit = {}\n",
-        LIMUX_SCROLLBACK_LIMIT_BYTES
-    );
+    let body = format!("scrollback-limit = {}\n", LIMUX_SCROLLBACK_LIMIT_BYTES);
     if std::fs::write(&path, body).is_err() {
         return;
     }
