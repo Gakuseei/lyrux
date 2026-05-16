@@ -24,6 +24,7 @@ const POPOVER_WIDTH: i32 = 720;
 const POPOVER_HEIGHT: i32 = 480;
 const RG_MAX_FILESIZE: &str = "10M";
 const RG_MAX_COLUMNS: &str = "500";
+const SNIPPET_MAX_CHARS: usize = 240;
 
 #[derive(Clone)]
 struct Hit {
@@ -454,8 +455,16 @@ fn parse_vimgrep_line(line: &str) -> Option<Hit> {
         path: PathBuf::from(path_str),
         line: line_no,
         col: col_no,
-        snippet: content.to_string(),
+        snippet: truncate_snippet(content),
     })
+}
+
+fn truncate_snippet(input: &str) -> String {
+    if input.chars().count() <= SNIPPET_MAX_CHARS {
+        return input.to_string();
+    }
+    let head: String = input.chars().take(SNIPPET_MAX_CHARS - 1).collect();
+    format!("{head}\u{2026}")
 }
 
 fn is_path_within_root(root: &Path, path: &Path) -> bool {
@@ -509,5 +518,20 @@ mod tests {
     fn rejects_missing_fields() {
         assert!(parse_vimgrep_line("/tmp/f.rs:1:2").is_none());
         assert!(parse_vimgrep_line("/tmp/f.rs:1").is_none());
+    }
+
+    #[test]
+    fn truncates_long_snippet() {
+        let long_line: String = "x".repeat(500);
+        let raw = format!("/tmp/f.rs:1:1:{long_line}");
+        let hit = parse_vimgrep_line(&raw).unwrap();
+        assert_eq!(hit.snippet.chars().count(), SNIPPET_MAX_CHARS);
+        assert!(hit.snippet.ends_with('\u{2026}'));
+    }
+
+    #[test]
+    fn preserves_short_snippet() {
+        let hit = parse_vimgrep_line("/tmp/f.rs:1:1:short content").unwrap();
+        assert_eq!(hit.snippet, "short content");
     }
 }
