@@ -54,35 +54,39 @@ const SCHEMES: &[(&str, &str, &str)] = &[
     ),
 ];
 
+static REGISTERED: std::sync::OnceLock<()> = std::sync::OnceLock::new();
+
 pub fn register_all(manager: &sourceview5::StyleSchemeManager) {
-    let cache_dir = match dirs::cache_dir() {
-        Some(d) => d.join("lyrux/sourceview-styles"),
-        None => return,
-    };
-    if std::fs::create_dir_all(&cache_dir).is_err() {
-        return;
-    }
-    for (id, _label, xml) in SCHEMES {
-        let path = cache_dir.join(format!("{id}.xml"));
-        let needs_write = match std::fs::read_to_string(&path) {
-            Ok(existing) => existing.as_str() != *xml,
-            Err(_) => true,
+    REGISTERED.get_or_init(|| {
+        let cache_dir = match dirs::cache_dir() {
+            Some(d) => d.join("lyrux/sourceview-styles"),
+            None => return,
         };
-        if needs_write {
-            let _ = std::fs::write(&path, xml);
+        if std::fs::create_dir_all(&cache_dir).is_err() {
+            return;
         }
-    }
-    let mut paths: Vec<String> = manager
-        .search_path()
-        .iter()
-        .map(|s| s.to_string())
-        .collect();
-    let cache_str = cache_dir.to_string_lossy().to_string();
-    if !paths.contains(&cache_str) {
-        paths.push(cache_str);
-        let refs: Vec<&str> = paths.iter().map(String::as_str).collect();
-        manager.set_search_path(&refs);
-    }
+        for (id, _label, xml) in SCHEMES {
+            let path = cache_dir.join(format!("{id}.xml"));
+            let needs_write = match std::fs::read_to_string(&path) {
+                Ok(existing) => existing.as_str() != *xml,
+                Err(_) => true,
+            };
+            if needs_write {
+                let _ = std::fs::write(&path, xml);
+            }
+        }
+        let mut paths: Vec<String> = manager
+            .search_path()
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        let cache_str = cache_dir.to_string_lossy().to_string();
+        if !paths.contains(&cache_str) {
+            paths.push(cache_str);
+            let refs: Vec<&str> = paths.iter().map(String::as_str).collect();
+            manager.set_search_path(&refs);
+        }
+    });
 }
 
 pub fn available() -> &'static [(&'static str, &'static str, &'static str)] {

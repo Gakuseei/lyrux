@@ -70,35 +70,39 @@ pub const BUNDLED_LANG_FILES: &[(&str, &str)] = &[
     ("dtd.lang", include_str!("bundled_langs/dtd.lang")),
 ];
 
+static REGISTERED: std::sync::OnceLock<()> = std::sync::OnceLock::new();
+
 pub fn register_bundled(manager: &sourceview5::LanguageManager) {
-    let cache_dir = match dirs::cache_dir() {
-        Some(d) => d.join("lyrux/sourceview-langs"),
-        None => return,
-    };
-    if std::fs::create_dir_all(&cache_dir).is_err() {
-        return;
-    }
-    for (name, contents) in BUNDLED_LANG_FILES {
-        let path = cache_dir.join(name);
-        let needs_write = match std::fs::read_to_string(&path) {
-            Ok(existing) => existing != *contents,
-            Err(_) => true,
+    REGISTERED.get_or_init(|| {
+        let cache_dir = match dirs::cache_dir() {
+            Some(d) => d.join("lyrux/sourceview-langs"),
+            None => return,
         };
-        if needs_write {
-            let _ = std::fs::write(&path, contents);
+        if std::fs::create_dir_all(&cache_dir).is_err() {
+            return;
         }
-    }
-    let cache_str = cache_dir.to_string_lossy().to_string();
-    let mut paths: Vec<String> = manager
-        .search_path()
-        .iter()
-        .map(|s| s.to_string())
-        .collect();
-    if !paths.contains(&cache_str) {
-        paths.insert(0, cache_str);
-        let refs: Vec<&str> = paths.iter().map(String::as_str).collect();
-        manager.set_search_path(&refs);
-    }
+        for (name, contents) in BUNDLED_LANG_FILES {
+            let path = cache_dir.join(name);
+            let needs_write = match std::fs::read_to_string(&path) {
+                Ok(existing) => existing != *contents,
+                Err(_) => true,
+            };
+            if needs_write {
+                let _ = std::fs::write(&path, contents);
+            }
+        }
+        let cache_str = cache_dir.to_string_lossy().to_string();
+        let mut paths: Vec<String> = manager
+            .search_path()
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        if !paths.contains(&cache_str) {
+            paths.insert(0, cache_str);
+            let refs: Vec<&str> = paths.iter().map(String::as_str).collect();
+            manager.set_search_path(&refs);
+        }
+    });
 }
 
 pub fn language_id_for_extension(ext: &str) -> Option<&'static str> {
