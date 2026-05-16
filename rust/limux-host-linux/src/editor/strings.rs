@@ -79,10 +79,11 @@ pub const SHORTCUT_LABEL_EDITOR_QUICK_OPEN: &str = "Quick-open file";
 
 pub const FIF_TITLE: &str = "Find in Files";
 pub const FIF_PLACEHOLDER: &str = "Find in files…";
-pub const FIF_NO_RG: &str = "ripgrep (rg) not installed.";
+pub const FIF_NO_RG: &str =
+    "Find in Files needs ripgrep. Install it via your package manager (pacman -S ripgrep / apt install ripgrep).";
 pub const FIF_NO_MATCHES: &str = "No matches.";
 pub const FIF_NO_ROOT: &str = "No workspace folder is open.";
-pub const FIF_RG_FAILED_PREFIX: &str = "ripgrep failed: ";
+pub const FIF_RG_FAILED_PREFIX: &str = "Search failed: ";
 pub const SHORTCUT_LABEL_EDITOR_FIND_IN_FILES: &str = "Find in files";
 
 pub fn fif_results_label(matches: usize, files: usize) -> String {
