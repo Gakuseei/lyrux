@@ -31,6 +31,9 @@ pub const BANNER_SAVE_AS_NEW: &str = "Save";
 pub const BANNER_CLOSE_TAB: &str = "Close tab";
 pub const BANNER_DISMISS: &str = "Dismiss";
 pub const SAVE_AS_DIALOG_TITLE: &str = "Save As";
+pub const SAVE_AS_BINARY_WARN_BODY: &str =
+    "This filename looks like an image or binary file. Save text content anyway?";
+pub const SAVE_AS_BINARY_WARN_PROCEED: &str = "Save anyway";
 
 pub const TOAST_RELOADED_PREFIX: &str = "Reloaded ";
 

@@ -176,33 +176,78 @@ fn show_save_as_dialog(
                     return;
                 }
             }
-            let text = apply_save_transform(state_for_cb.snapshot_text(), transform);
-            match buffer::save_atomic(&picked, &text) {
-                Ok(etag) => {
-                    *state_for_cb.path.borrow_mut() = picked.clone();
-                    state_for_cb.mark_clean(etag);
-                    if let Some(sp) = state_for_cb.swap_path.borrow_mut().take() {
-                        let _ = crate::editor::swap::discard(&sp);
-                    }
-                    if let Some(cb) = state_for_cb.title_cb.borrow().as_ref() {
-                        let title = picked
-                            .file_name()
-                            .and_then(|n| n.to_str())
-                            .unwrap_or(strings::TAB_TITLE_UNTITLED)
-                            .to_string();
-                        cb(&title);
-                    }
-                    state_for_cb.set_monitor(crate::editor::watcher::install(&state_for_cb));
-                    on_clean_for_cb();
-                }
-                Err(e) => {
-                    let msg = format!("{}{e}", strings::ERROR_WRITE_FAILED_PREFIX);
-                    eprintln!("lyrux: {msg}");
-                    crate::editor::watcher::show_error_banner(&state_for_cb, &msg);
-                }
+            let state_for_save = state_for_cb.clone();
+            let on_clean_for_save = on_clean_for_cb.clone();
+            let do_save: Rc<dyn Fn(PathBuf)> = Rc::new(move |picked: PathBuf| {
+                save_as_finalize(&state_for_save, &on_clean_for_save, transform, picked);
+            });
+
+            if matches!(
+                crate::editor::classify_file(&picked),
+                crate::editor::FileKind::Image
+            ) {
+                let parent_win = state_for_cb
+                    .root
+                    .root()
+                    .and_then(|r| r.downcast::<gtk4::Window>().ok());
+                let warn = gtk4::AlertDialog::builder()
+                    .modal(true)
+                    .message(strings::SAVE_AS_BINARY_WARN_BODY)
+                    .buttons([
+                        strings::DIALOG_BTN_CANCEL,
+                        strings::SAVE_AS_BINARY_WARN_PROCEED,
+                    ])
+                    .cancel_button(0)
+                    .default_button(0)
+                    .build();
+                let do_save_for_warn = do_save.clone();
+                warn.choose(
+                    parent_win.as_ref(),
+                    None::<&gtk4::gio::Cancellable>,
+                    move |result| {
+                        if result.unwrap_or(0) == 1 {
+                            do_save_for_warn(picked);
+                        }
+                    },
+                );
+            } else {
+                do_save(picked);
             }
         },
     );
+}
+
+fn save_as_finalize(
+    state: &EditorTabState,
+    on_clean: &Rc<dyn Fn()>,
+    transform: SaveTransform,
+    picked: PathBuf,
+) {
+    let text = apply_save_transform(state.snapshot_text(), transform);
+    match buffer::save_atomic(&picked, &text) {
+        Ok(etag) => {
+            *state.path.borrow_mut() = picked.clone();
+            state.mark_clean(etag);
+            if let Some(sp) = state.swap_path.borrow_mut().take() {
+                let _ = crate::editor::swap::discard(&sp);
+            }
+            if let Some(cb) = state.title_cb.borrow().as_ref() {
+                let title = picked
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or(strings::TAB_TITLE_UNTITLED)
+                    .to_string();
+                cb(&title);
+            }
+            state.set_monitor(crate::editor::watcher::install(state));
+            on_clean();
+        }
+        Err(e) => {
+            let msg = format!("{}{e}", strings::ERROR_WRITE_FAILED_PREFIX);
+            eprintln!("lyrux: {msg}");
+            crate::editor::watcher::show_error_banner(state, &msg);
+        }
+    }
 }
 
 fn comment_prefix_for(lang_id: &str) -> Option<&'static str> {
