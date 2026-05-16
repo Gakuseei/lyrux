@@ -22,7 +22,7 @@
   <style name="background-pattern"         background="bg"/>
   <style name="cursor"                     foreground="accent"/>
   <style name="current-line"               background="surface0"/>
-  <style name="line-numbers"               foreground="comment" background="bg"/>
+  <style name="line-numbers"               foreground="comment" background="#191926"/>
   <style name="current-line-number"        foreground="fg"      background="bg" bold="true"/>
   <style name="selection"                  background="bg-sel"/>
   <style name="bracket-match"              foreground="accent"  bold="true"/>
