@@ -86,8 +86,12 @@ pub fn install(
                 toggle_line_comment(&state);
                 glib::Propagation::Stop
             }
-            gtk4::gdk::Key::d => {
+            gtk4::gdk::Key::D if shift_held => {
                 duplicate_line(&state);
+                glib::Propagation::Stop
+            }
+            gtk4::gdk::Key::d => {
+                select_next_occurrence(&state);
                 glib::Propagation::Stop
             }
             gtk4::gdk::Key::K if shift_held => {
@@ -395,6 +399,118 @@ fn delete_line(state: &EditorTabState) {
     buffer.begin_user_action();
     buffer.delete(&mut start, &mut end);
     buffer.end_user_action();
+}
+
+fn select_next_occurrence(state: &EditorTabState) {
+    let buffer = &state.buffer;
+    let needle = match buffer.selection_bounds() {
+        Some((s, e)) => buffer.text(&s, &e, false).to_string(),
+        None => {
+            let cursor = buffer.iter_at_mark(&buffer.get_insert());
+            let (ws, we) = word_bounds_at_iter(buffer, cursor);
+            if ws.offset() == we.offset() {
+                return;
+            }
+            buffer.select_range(&ws, &we);
+            scroll_to_insert(state);
+            return;
+        }
+    };
+    if needle.is_empty() {
+        return;
+    }
+    let ctx = ensure_search_context(state);
+    let settings = ctx.settings();
+    settings.set_search_text(Some(&needle));
+    settings.set_wrap_around(true);
+    settings.set_case_sensitive(true);
+    settings.set_at_word_boundaries(false);
+    let from = match buffer.selection_bounds() {
+        Some((_, e)) => e,
+        None => buffer.iter_at_mark(&buffer.get_insert()),
+    };
+    if let Some((s, e, _wrap)) = ctx.forward(&from) {
+        buffer.select_range(&s, &e);
+        scroll_to_insert(state);
+    }
+}
+
+fn scroll_to_insert(state: &EditorTabState) {
+    let mut iter = state.buffer.iter_at_mark(&state.buffer.get_insert());
+    state.view.scroll_to_iter(&mut iter, 0.1, false, 0.0, 0.5);
+}
+
+fn word_bounds_at_iter(
+    buffer: &sourceview5::Buffer,
+    iter: gtk4::TextIter,
+) -> (gtk4::TextIter, gtk4::TextIter) {
+    let text = buffer
+        .text(&buffer.start_iter(), &buffer.end_iter(), true)
+        .to_string();
+    let cursor_byte = byte_offset_from_char_offset(&text, iter.offset() as usize);
+    let (s_byte, e_byte) = word_bounds_at_offset(&text, cursor_byte);
+    let s_char = char_offset_from_byte_offset(&text, s_byte);
+    let e_char = char_offset_from_byte_offset(&text, e_byte);
+    let s_iter = buffer.iter_at_offset(s_char as i32);
+    let e_iter = buffer.iter_at_offset(e_char as i32);
+    (s_iter, e_iter)
+}
+
+fn byte_offset_from_char_offset(text: &str, char_offset: usize) -> usize {
+    text.char_indices()
+        .nth(char_offset)
+        .map(|(b, _)| b)
+        .unwrap_or(text.len())
+}
+
+fn char_offset_from_byte_offset(text: &str, byte_offset: usize) -> usize {
+    text.char_indices()
+        .position(|(b, _)| b >= byte_offset)
+        .unwrap_or_else(|| text.chars().count())
+}
+
+fn is_word_char(c: char) -> bool {
+    c.is_alphanumeric() || c == '_'
+}
+
+pub(crate) fn word_bounds_at_offset(text: &str, offset: usize) -> (usize, usize) {
+    let chars: Vec<(usize, char)> = text.char_indices().collect();
+    let total = text.len();
+    let safe_off = offset.min(total);
+    let here_idx = chars.iter().position(|(i, _)| *i == safe_off);
+    let here_word = here_idx.map(|i| is_word_char(chars[i].1)).unwrap_or(false);
+    let prev_word = here_idx
+        .and_then(|i| i.checked_sub(1))
+        .or_else(|| {
+            if here_idx.is_none() && !chars.is_empty() {
+                Some(chars.len() - 1)
+            } else {
+                None
+            }
+        })
+        .map(|i| is_word_char(chars[i].1))
+        .unwrap_or(false);
+    if !here_word && !prev_word {
+        return (safe_off, safe_off);
+    }
+    let anchor_idx = if here_word {
+        here_idx.unwrap()
+    } else if let Some(i) = here_idx {
+        i - 1
+    } else {
+        chars.len() - 1
+    };
+    let mut s = anchor_idx;
+    while s > 0 && is_word_char(chars[s - 1].1) {
+        s -= 1;
+    }
+    let mut e = anchor_idx;
+    while e < chars.len() && is_word_char(chars[e].1) {
+        e += 1;
+    }
+    let start_byte = chars[s].0;
+    let end_byte = if e < chars.len() { chars[e].0 } else { total };
+    (start_byte, end_byte)
 }
 
 fn move_line_up(state: &EditorTabState) {
@@ -741,7 +857,52 @@ fn strip_trailing_ws(text: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{apply_save_transform, strip_trailing_ws, SaveTransform};
+    use super::{apply_save_transform, strip_trailing_ws, word_bounds_at_offset, SaveTransform};
+
+    #[test]
+    fn word_bounds_inside_word() {
+        assert_eq!(word_bounds_at_offset("foo bar baz", 5), (4, 7));
+    }
+
+    #[test]
+    fn word_bounds_at_word_start() {
+        assert_eq!(word_bounds_at_offset("foo bar", 4), (4, 7));
+    }
+
+    #[test]
+    fn word_bounds_at_word_end_returns_word() {
+        assert_eq!(word_bounds_at_offset("foo bar", 3), (0, 3));
+    }
+
+    #[test]
+    fn word_bounds_in_whitespace() {
+        assert_eq!(word_bounds_at_offset("a  b", 2), (2, 2));
+    }
+
+    #[test]
+    fn word_bounds_with_underscore() {
+        assert_eq!(word_bounds_at_offset("snake_case x", 3), (0, 10));
+    }
+
+    #[test]
+    fn word_bounds_alphanumeric() {
+        assert_eq!(word_bounds_at_offset("abc123 x", 4), (0, 6));
+    }
+
+    #[test]
+    fn word_bounds_empty_string() {
+        assert_eq!(word_bounds_at_offset("", 0), (0, 0));
+    }
+
+    #[test]
+    fn word_bounds_offset_past_end_after_word() {
+        assert_eq!(word_bounds_at_offset("foo", 3), (0, 3));
+    }
+
+    #[test]
+    fn word_bounds_offset_past_end_after_space() {
+        assert_eq!(word_bounds_at_offset("foo ", 4), (4, 4));
+    }
 
     #[test]
     fn strip_trailing_ws_basic() {
