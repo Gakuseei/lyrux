@@ -1098,6 +1098,15 @@ pub fn build_window(app: &adw::Application) {
 
     {
         let state = state.clone();
+        file_panel_handle.set_on_open_file(move |path| {
+            if let Some((_ws_id, pane_widget)) = find_focused_pane(&state) {
+                pane::open_editor_tab_for_pane(&pane_widget, path);
+            }
+        });
+    }
+
+    {
+        let state = state.clone();
         let system_prefers_dark = system_prefers_dark.clone();
         style_manager.connect_dark_notify(move |style_manager| {
             sync_ghostty_color_scheme_for_config(

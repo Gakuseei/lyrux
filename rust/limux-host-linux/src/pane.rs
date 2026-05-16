@@ -1244,6 +1244,85 @@ fn editor_view_config(_internals: &Rc<PaneInternals>) -> editor::ViewConfig {
     editor::ViewConfig::default()
 }
 
+fn add_editor_tab_for_path_inner(internals: &Rc<PaneInternals>, path: &std::path::Path) {
+    let cfg = editor_view_config(internals);
+    let state = match editor::spawn_from_path(path.to_path_buf(), &cfg) {
+        editor::tab_state::BuildOutcome::Ok(state) => state,
+        editor::tab_state::BuildOutcome::TooLarge(_) => {
+            eprintln!("lyrux: {}", editor::strings::ERROR_FILE_TOO_LARGE);
+            return;
+        }
+        editor::tab_state::BuildOutcome::Binary => {
+            match editor::classify_file(path) {
+                editor::FileKind::Image => open_image_viewer_for_inner(internals, path),
+                editor::FileKind::Editable => {
+                    eprintln!("lyrux: {}", editor::strings::ERROR_FILE_BINARY);
+                }
+            }
+            return;
+        }
+        editor::tab_state::BuildOutcome::NotFound => {
+            eprintln!("lyrux: file not found {}", path.display());
+            return;
+        }
+        editor::tab_state::BuildOutcome::Io(e) => {
+            eprintln!("lyrux: open failed: {e}");
+            return;
+        }
+    };
+
+    let tab_id = next_tab_id();
+    let title = path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or(editor::strings::TAB_TITLE_UNTITLED)
+        .to_string();
+    let widget: gtk::Widget = state.root.clone().upcast();
+    let (tab_btn, title_label) = build_tab_button(&title, &tab_id, internals);
+    internals.content_stack.add_named(&widget, Some(&tab_id));
+
+    {
+        let mut ts = internals.tab_state.borrow_mut();
+        ts.tabs.push(TabEntry {
+            id: tab_id.clone(),
+            tab_button: tab_btn,
+            title_label,
+            content: widget,
+            custom_name: None,
+            pinned: false,
+            kind: TabKind::Editor { state },
+        });
+    }
+    internals.tab_strip.append(
+        &internals
+            .tab_state
+            .borrow()
+            .tabs
+            .iter()
+            .find(|entry| entry.id == tab_id)
+            .expect("editor tab inserted")
+            .tab_button,
+    );
+
+    activate_tab(
+        &internals.tab_strip,
+        &internals.content_stack,
+        &internals.tab_state,
+        &tab_id,
+    );
+    (internals.callbacks.on_state_changed)();
+}
+
+fn open_image_viewer_for_inner(_internals: &Rc<PaneInternals>, path: &std::path::Path) {
+    eprintln!("lyrux: image viewer pending for {}", path.display());
+}
+
+pub fn open_editor_tab_for_pane(pane_widget: &gtk::Widget, path: &std::path::Path) {
+    if let Some(internals) = find_pane_internals(pane_widget) {
+        add_editor_tab_for_path_inner(&internals, path);
+    }
+}
+
 fn add_keybind_editor_tab_inner(internals: &Rc<PaneInternals>, input: KeybindsTabInput<'_>) {
     let tab_id = input
         .options

@@ -78,9 +78,12 @@ pub struct PerWorkspace {
     pub git_poll_source: Option<glib::SourceId>,
 }
 
+pub type OpenFileCallback = dyn Fn(&Path);
+
 pub struct Inner {
     pub root_box: gtk::Box,
     pub header: HeaderHandle,
+    pub on_open_file: Option<Rc<OpenFileCallback>>,
     // Kept on Inner so future code (DnD autoscroll, scroll restoration) can reach it.
     #[allow(dead_code)]
     pub scrolled: gtk::ScrolledWindow,
@@ -124,6 +127,7 @@ impl FilePanelHandle {
             inner: Rc::new(RefCell::new(Inner {
                 root_box,
                 header,
+                on_open_file: None,
                 scrolled,
                 view,
                 sticky,
@@ -138,6 +142,10 @@ impl FilePanelHandle {
             })),
             untitled_counter: Rc::new(AtomicU32::new(0)),
         }
+    }
+
+    pub fn set_on_open_file<F: Fn(&Path) + 'static>(&self, callback: F) {
+        self.inner.borrow_mut().on_open_file = Some(Rc::new(callback));
     }
 
     pub fn widget(&self) -> gtk::Widget {
@@ -635,12 +643,24 @@ impl FilePanelHandle {
                 Some(o) => o,
                 None => return,
             };
-            handle.toggle_expand_path(&row_obj.path());
+            let path = row_obj.path();
+            if matches!(row_obj.kind(), crate::file_panel::model::Kind::Dir) {
+                handle.toggle_expand_path(&path);
+            } else {
+                handle.open_file_in_editor(&path);
+            }
             crate::file_panel::perf_log!(
                 "limux-perf: list_view connect_activate (full click) took {:?}",
                 t0.elapsed()
             );
         });
+    }
+
+    fn open_file_in_editor(&self, path: &Path) {
+        let cb = self.inner.borrow().on_open_file.clone();
+        if let Some(cb) = cb {
+            cb(path);
+        }
     }
 
     fn toggle_expand_path(&self, path: &Path) {

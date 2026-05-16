@@ -17,12 +17,29 @@ pub use tab_state::EditorTabState;
 pub use view::ViewConfig;
 
 use std::cell::Cell;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use gtk4::prelude::*;
 
 use crate::editor::tab_state::BuildOutcome;
+
+pub enum FileKind {
+    Editable,
+    Image,
+}
+
+pub fn classify_file(path: &Path) -> FileKind {
+    let ext = path
+        .extension()
+        .and_then(|s| s.to_str())
+        .map(|s| s.to_ascii_lowercase())
+        .unwrap_or_default();
+    match ext.as_str() {
+        "png" | "jpg" | "jpeg" | "webp" | "gif" | "svg" | "bmp" => FileKind::Image,
+        _ => FileKind::Editable,
+    }
+}
 
 pub fn spawn_empty(cfg: &ViewConfig) -> EditorTabState {
     let buffer = sourceview5::Buffer::new(None);
@@ -63,7 +80,6 @@ pub fn spawn_empty(cfg: &ViewConfig) -> EditorTabState {
     state
 }
 
-#[allow(dead_code)]
 pub fn spawn_from_path(path: PathBuf, cfg: &ViewConfig) -> BuildOutcome {
     tab_state::build(path, cfg)
 }
