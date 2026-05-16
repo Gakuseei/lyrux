@@ -1516,6 +1516,12 @@ pub fn add_terminal_tab_to_pane(pane_widget: &gtk::Widget) {
     }
 }
 
+pub fn add_editor_tab_to_pane(pane_widget: &gtk::Widget) {
+    if let Some(internals) = find_pane_internals(pane_widget) {
+        add_editor_tab_inner(&internals);
+    }
+}
+
 #[allow(dead_code)]
 pub fn add_browser_tab_to_pane(pane_widget: &gtk::Widget) {
     add_browser_tab_to_pane_with_uri(pane_widget, None);
@@ -2829,7 +2835,32 @@ fn install_editor_tab_hooks(
     let on_clean: Rc<dyn Fn()> = Rc::new(move || {
         update_tab_dirty_marker(&tab_state_for_clean, &tab_id_for_clean, false);
     });
-    editor::keymap::install(&state.view, state, workspace_root, on_clean);
+
+    let tab_strip = internals.tab_strip.clone();
+    let content_stack = internals.content_stack.clone();
+    let tab_state_for_close = internals.tab_state.clone();
+    let tab_id_for_close = tab_id.to_string();
+    let callbacks_for_close = internals.callbacks.clone();
+    let pane_outer = internals.pane_outer.clone();
+    let on_close_request: Rc<dyn Fn()> = Rc::new(move || {
+        remove_tab(
+            &tab_strip,
+            &content_stack,
+            &tab_state_for_close,
+            &tab_id_for_close,
+            &callbacks_for_close,
+            &pane_outer,
+            PaneEmptyReason::ClosedLastTab,
+        );
+    });
+
+    editor::keymap::install(
+        &state.view,
+        state,
+        workspace_root,
+        on_clean,
+        on_close_request,
+    );
 
     let tab_state_for_dirty = internals.tab_state.clone();
     let tab_id_for_dirty = tab_id.to_string();

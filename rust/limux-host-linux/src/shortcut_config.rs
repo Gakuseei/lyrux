@@ -61,6 +61,7 @@ pub enum ShortcutId {
     TerminalDecreaseFontSize,
     TerminalResetFontSize,
     ToggleFilePanel,
+    EditorToggleCurrentPane,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -112,6 +113,7 @@ pub enum ShortcutCommand {
     TerminalDecreaseFontSize,
     TerminalResetFontSize,
     ToggleFilePanel,
+    EditorToggleCurrentPane,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -310,7 +312,7 @@ struct ShortcutConfigFile {
     shortcuts: HashMap<String, serde_json::Value>,
 }
 
-const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 48] = [
+const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 49] = [
     ShortcutDefinition {
         id: ShortcutId::NewWorkspace,
         config_key: "new_workspace",
@@ -374,6 +376,17 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 48] = [
         label: "Toggle File Panel",
         registers_gtk_accel: true,
         command: ShortcutCommand::ToggleFilePanel,
+        scope: ShortcutScope::Window,
+        editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+    },
+    ShortcutDefinition {
+        id: ShortcutId::EditorToggleCurrentPane,
+        config_key: "editor_toggle_current_pane",
+        action_name: "win.editor-toggle-current-pane",
+        default_accel: "<Ctrl><Shift>e",
+        label: "Open editor in focused pane",
+        registers_gtk_accel: false,
+        command: ShortcutCommand::EditorToggleCurrentPane,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
     },
@@ -1607,7 +1620,7 @@ mod tests {
 
     #[test]
     fn definitions_cover_current_host_shortcuts() {
-        assert_eq!(definitions().len(), 48);
+        assert_eq!(definitions().len(), 49);
     }
 
     #[test]

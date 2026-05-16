@@ -1537,6 +1537,12 @@ fn dispatch_shortcut_command(state: &State, command: ShortcutCommand) -> bool {
             }
             true
         }
+        ShortcutCommand::EditorToggleCurrentPane => {
+            if let Some((_ws_id, pane_widget)) = find_focused_pane(state) {
+                pane::add_editor_tab_to_pane(&pane_widget);
+            }
+            true
+        }
         ShortcutCommand::ToggleTopBar => {
             toggle_top_bar(state);
             true

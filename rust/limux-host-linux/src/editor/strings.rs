@@ -51,3 +51,13 @@ pub const TAB_TITLE_UNTITLED: &str = "untitled";
 pub const RECOVER_PROMPT_PREFIX: &str = "Recover unsaved changes in ";
 pub const RECOVER_BTN_RECOVER: &str = "Recover";
 pub const RECOVER_BTN_DISCARD: &str = "Discard";
+
+pub const FIND_PLACEHOLDER: &str = "Find";
+pub const REPLACE_PLACEHOLDER: &str = "Replace";
+pub const GOTO_LINE_TITLE: &str = "Go to line";
+pub const GOTO_LINE_PROMPT: &str = "Line number";
+pub const REPLACE_BTN: &str = "Replace";
+pub const REPLACE_ALL_BTN: &str = "Replace all";
+pub const GOTO_BTN: &str = "Go";
+
+pub const SHORTCUT_LABEL_EDITOR_TOGGLE_PANE: &str = "Open editor in focused pane";
