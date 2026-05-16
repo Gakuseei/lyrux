@@ -33,7 +33,7 @@ impl Default for ViewConfig {
             insert_spaces: true,
             show_line_numbers: true,
             show_whitespace: false,
-            wrap_lines: false,
+            wrap_lines: true,
             auto_indent: true,
             highlight_current_line: true,
             highlight_matching_brackets: true,

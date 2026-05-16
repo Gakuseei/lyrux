@@ -18,7 +18,7 @@ pub struct EditorSettings {
     pub show_line_numbers: bool,
     #[serde(default)]
     pub show_whitespace: bool,
-    #[serde(default)]
+    #[serde(default = "default_true")]
     pub wrap_lines: bool,
     #[serde(default = "default_true")]
     pub auto_indent: bool,
@@ -56,7 +56,7 @@ impl Default for EditorSettings {
             insert_spaces: true,
             show_line_numbers: true,
             show_whitespace: false,
-            wrap_lines: false,
+            wrap_lines: true,
             auto_indent: true,
             highlight_current_line: true,
             highlight_matching_brackets: true,
