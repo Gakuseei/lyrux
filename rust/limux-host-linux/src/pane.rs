@@ -433,6 +433,10 @@ pub fn create_pane(
         "limux-globe-symbolic",
         &pane_action_tooltip(&shortcuts, "New browser tab", None),
     );
+    let new_editor_btn = icon_button(
+        "accessories-text-editor-symbolic",
+        editor::strings::ICON_EDITOR_TOOLTIP,
+    );
     let split_h_btn = icon_button(
         "limux-split-horizontal-symbolic",
         &pane_action_tooltip(&shortcuts, "Split right", Some(ShortcutId::SplitRight)),
@@ -449,6 +453,7 @@ pub fn create_pane(
 
     actions.append(&new_term_btn);
     actions.append(&new_browser_btn);
+    actions.append(&new_editor_btn);
     actions.append(&split_h_btn);
     actions.append(&split_v_btn);
     actions.append(&settings_btn);
@@ -504,6 +509,12 @@ pub fn create_pane(
         let internals = internals.clone();
         new_browser_btn.connect_clicked(move |_| {
             add_browser_tab_inner(&internals, None);
+        });
+    }
+    {
+        let internals = internals.clone();
+        new_editor_btn.connect_clicked(move |_| {
+            add_editor_tab_inner(&internals);
         });
     }
     {
@@ -668,8 +679,8 @@ enum TabKind {
         state: BrowserTabState,
     },
     Keybinds,
-    #[allow(dead_code)]
     Editor {
+        #[allow(dead_code)]
         state: editor::EditorTabState,
     },
     #[allow(dead_code)]
@@ -1184,6 +1195,53 @@ fn add_browser_tab_inner(internals: &Rc<PaneInternals>, options: Option<BrowserT
     if options.is_none() {
         (internals.callbacks.on_state_changed)();
     }
+}
+
+fn add_editor_tab_inner(internals: &Rc<PaneInternals>) {
+    let tab_id = next_tab_id();
+    let cfg = editor_view_config(internals);
+    let state = editor::spawn_empty(&cfg);
+    let widget: gtk::Widget = state.root.clone().upcast();
+
+    let (tab_btn, title_label) =
+        build_tab_button(editor::strings::TAB_TITLE_UNTITLED, &tab_id, internals);
+
+    internals.content_stack.add_named(&widget, Some(&tab_id));
+
+    {
+        let mut ts = internals.tab_state.borrow_mut();
+        ts.tabs.push(TabEntry {
+            id: tab_id.clone(),
+            tab_button: tab_btn,
+            title_label,
+            content: widget,
+            custom_name: None,
+            pinned: false,
+            kind: TabKind::Editor { state },
+        });
+    }
+    internals.tab_strip.append(
+        &internals
+            .tab_state
+            .borrow()
+            .tabs
+            .iter()
+            .find(|entry| entry.id == tab_id)
+            .expect("editor tab inserted")
+            .tab_button,
+    );
+
+    activate_tab(
+        &internals.tab_strip,
+        &internals.content_stack,
+        &internals.tab_state,
+        &tab_id,
+    );
+    (internals.callbacks.on_state_changed)();
+}
+
+fn editor_view_config(_internals: &Rc<PaneInternals>) -> editor::ViewConfig {
+    editor::ViewConfig::default()
 }
 
 fn add_keybind_editor_tab_inner(internals: &Rc<PaneInternals>, input: KeybindsTabInput<'_>) {

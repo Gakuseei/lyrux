@@ -47,6 +47,7 @@ pub const THEME_ONE_DARK: &str = "One Dark";
 pub const THEME_ONE_LIGHT: &str = "One Light";
 
 pub const ICON_EDITOR_TOOLTIP: &str = "New editor tab";
+pub const TAB_TITLE_UNTITLED: &str = "untitled";
 pub const RECOVER_PROMPT_PREFIX: &str = "Recover unsaved changes in ";
 pub const RECOVER_BTN_RECOVER: &str = "Recover";
 pub const RECOVER_BTN_DISCARD: &str = "Discard";

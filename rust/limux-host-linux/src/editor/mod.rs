@@ -13,5 +13,57 @@ pub mod watcher;
 
 #[allow(unused_imports)]
 pub use image_viewer::ImageViewerTabState;
-#[allow(unused_imports)]
 pub use tab_state::EditorTabState;
+pub use view::ViewConfig;
+
+use std::cell::Cell;
+use std::path::PathBuf;
+use std::rc::Rc;
+
+use gtk4::prelude::*;
+
+use crate::editor::tab_state::BuildOutcome;
+
+pub fn spawn_empty(cfg: &ViewConfig) -> EditorTabState {
+    let buffer = sourceview5::Buffer::new(None);
+    let view = view::build(&buffer, cfg);
+    let scrolled = gtk4::ScrolledWindow::builder()
+        .hscrollbar_policy(gtk4::PolicyType::Automatic)
+        .vscrollbar_policy(gtk4::PolicyType::Automatic)
+        .child(&view)
+        .hexpand(true)
+        .vexpand(true)
+        .build();
+    let banner = gtk4::Revealer::builder()
+        .reveal_child(false)
+        .transition_type(gtk4::RevealerTransitionType::SlideDown)
+        .build();
+    let root = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
+    root.append(&banner);
+    root.append(&scrolled);
+    root.set_hexpand(true);
+    root.set_vexpand(true);
+
+    let state = EditorTabState {
+        path: PathBuf::new(),
+        scrolled,
+        view,
+        buffer: buffer.clone(),
+        dirty: Rc::new(Cell::new(false)),
+        saved_etag: Rc::new(Cell::new(None)),
+        banner,
+        root,
+    };
+
+    let dirty = state.dirty.clone();
+    buffer.connect_changed(move |_| {
+        dirty.set(true);
+    });
+
+    state
+}
+
+#[allow(dead_code)]
+pub fn spawn_from_path(path: PathBuf, cfg: &ViewConfig) -> BuildOutcome {
+    tab_state::build(path, cfg)
+}
