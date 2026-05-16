@@ -375,6 +375,16 @@ pub const PANE_CSS: &str = r#"
 .limux-drop-preview-center {
     background: alpha(@accent_bg_color, 0.14);
 }
+.lyrux-editor-statusbar {
+    background-color: alpha(@window_fg_color, 0.04);
+    color: alpha(@window_fg_color, 0.6);
+    font-size: 11px;
+    padding: 2px 8px;
+    border-top: 1px solid alpha(@window_fg_color, 0.06);
+}
+.lyrux-editor-statusbar label {
+    font-size: 11px;
+}
 "#;
 
 pub fn create_pane(

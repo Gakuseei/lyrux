@@ -7,6 +7,7 @@ pub mod pair;
 pub mod session;
 pub mod settings;
 pub mod settings_panel;
+pub mod status_bar;
 pub mod strings;
 pub mod swap;
 pub mod tab_state;
@@ -62,9 +63,12 @@ pub fn spawn_empty(cfg: &ViewConfig) -> EditorTabState {
         .reveal_child(false)
         .transition_type(gtk4::RevealerTransitionType::SlideDown)
         .build();
+    let status = status_bar::build(&buffer, cfg);
+
     let root = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
     root.append(&banner);
     root.append(&scrolled);
+    root.append(&status);
     root.set_hexpand(true);
     root.set_vexpand(true);
 

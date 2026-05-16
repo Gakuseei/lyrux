@@ -10,6 +10,7 @@ use crate::editor::buffer::{self, FileEtag, LoadResult};
 use crate::editor::indent;
 use crate::editor::langs;
 use crate::editor::pair;
+use crate::editor::status_bar;
 use crate::editor::view::{self, ViewConfig};
 
 pub type DirtyMarkerCb = Rc<RefCell<Option<Rc<dyn Fn(bool)>>>>;
@@ -72,9 +73,12 @@ pub fn build(path: PathBuf, cfg: &ViewConfig) -> BuildOutcome {
         .transition_type(gtk4::RevealerTransitionType::SlideDown)
         .build();
 
+    let status = status_bar::build(&buffer, cfg);
+
     let root = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
     root.append(&banner);
     root.append(&scrolled);
+    root.append(&status);
     root.set_hexpand(true);
     root.set_vexpand(true);
 

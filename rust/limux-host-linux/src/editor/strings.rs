@@ -68,3 +68,11 @@ pub const REPLACE_ALL_BTN: &str = "Replace all";
 pub const GOTO_BTN: &str = "Go";
 
 pub const SHORTCUT_LABEL_EDITOR_TOGGLE_PANE: &str = "Open editor in focused pane";
+
+pub const STATUS_LINE_PREFIX: &str = "Ln ";
+pub const STATUS_COL_PREFIX: &str = "Col ";
+pub const STATUS_SPACES: &str = "Spaces:";
+pub const STATUS_TAB_WIDTH: &str = "Tab Width:";
+pub const STATUS_ENCODING_UTF8: &str = "UTF-8";
+pub const STATUS_EOL_LF: &str = "LF";
+pub const STATUS_LANG_PLAIN_TEXT: &str = "Plain Text";
