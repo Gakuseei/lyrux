@@ -62,6 +62,7 @@ pub enum ShortcutId {
     TerminalResetFontSize,
     ToggleFilePanel,
     EditorToggleCurrentPane,
+    EditorQuickOpen,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -114,6 +115,7 @@ pub enum ShortcutCommand {
     TerminalResetFontSize,
     ToggleFilePanel,
     EditorToggleCurrentPane,
+    EditorQuickOpen,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -312,7 +314,7 @@ struct ShortcutConfigFile {
     shortcuts: HashMap<String, serde_json::Value>,
 }
 
-const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 49] = [
+const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 50] = [
     ShortcutDefinition {
         id: ShortcutId::NewWorkspace,
         config_key: "new_workspace",
@@ -851,6 +853,17 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 49] = [
         command: ShortcutCommand::TerminalResetFontSize,
         scope: ShortcutScope::FocusedTerminal,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+    },
+    ShortcutDefinition {
+        id: ShortcutId::EditorQuickOpen,
+        config_key: "editor_quick_open",
+        action_name: "win.editor-quick-open",
+        default_accel: "<Ctrl>p",
+        label: "Quick-open file",
+        registers_gtk_accel: false,
+        command: ShortcutCommand::EditorQuickOpen,
+        scope: ShortcutScope::Window,
+        editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
     },
 ];
 
@@ -1620,7 +1633,7 @@ mod tests {
 
     #[test]
     fn definitions_cover_current_host_shortcuts() {
-        assert_eq!(definitions().len(), 49);
+        assert_eq!(definitions().len(), 50);
     }
 
     #[test]

@@ -1543,6 +1543,18 @@ fn dispatch_shortcut_command(state: &State, command: ShortcutCommand) -> bool {
             }
             true
         }
+        ShortcutCommand::EditorQuickOpen => {
+            if let Some((_ws_id, pane_widget)) = find_focused_pane(state) {
+                let root = quick_open_root_for(state, &pane_widget);
+                let pane_for_cb = pane_widget.clone();
+                let on_open: crate::editor::quick_open::OpenFileCallback =
+                    std::rc::Rc::new(move |path: &std::path::Path| {
+                        pane::open_editor_tab_for_pane(&pane_for_cb, path);
+                    });
+                crate::editor::quick_open::show(&pane_widget, root.as_deref(), on_open);
+            }
+            true
+        }
         ShortcutCommand::ToggleTopBar => {
             toggle_top_bar(state);
             true
@@ -3936,6 +3948,22 @@ fn find_focused_pane(state: &State) -> Option<(String, gtk::Widget)> {
     };
 
     Some((ws_id, first_leaf_pane(&root)))
+}
+
+fn quick_open_root_for(state: &State, pane_widget: &gtk::Widget) -> Option<std::path::PathBuf> {
+    let s = state.borrow();
+    let workspace = s
+        .workspace_for_widget(pane_widget)
+        .or_else(|| s.active_workspace())?;
+    let raw = workspace
+        .folder_path
+        .clone()
+        .or_else(|| workspace.cwd.borrow().clone())?;
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    Some(std::path::PathBuf::from(trimmed))
 }
 
 fn focused_shortcut_target(state: &State) -> pane::FocusedShortcutTarget {

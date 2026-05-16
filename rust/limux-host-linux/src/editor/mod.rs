@@ -5,6 +5,7 @@ pub mod indent;
 pub mod keymap;
 pub mod langs;
 pub mod pair;
+pub mod quick_open;
 pub mod session;
 pub mod settings;
 pub mod settings_panel;

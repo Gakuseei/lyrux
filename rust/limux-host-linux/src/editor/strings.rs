@@ -71,6 +71,11 @@ pub const GOTO_BTN: &str = "Go";
 
 pub const SHORTCUT_LABEL_EDITOR_TOGGLE_PANE: &str = "Open editor in focused pane";
 
+pub const QUICK_OPEN_TITLE: &str = "Open File";
+pub const QUICK_OPEN_PLACEHOLDER: &str = "Search workspace files…";
+pub const QUICK_OPEN_EMPTY: &str = "No matches.";
+pub const SHORTCUT_LABEL_EDITOR_QUICK_OPEN: &str = "Quick-open file";
+
 pub const STATUS_LINE_PREFIX: &str = "Ln ";
 pub const STATUS_COL_PREFIX: &str = "Col ";
 pub const STATUS_SPACES: &str = "Spaces:";
