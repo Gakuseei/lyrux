@@ -14,6 +14,7 @@ pub const SETTING_HIGHLIGHT_LINE: &str = "Highlight current line";
 pub const SETTING_HIGHLIGHT_BRACKETS: &str = "Highlight matching brackets";
 pub const SETTING_STRIP_WS: &str = "Strip trailing whitespace on save";
 pub const SETTING_FINAL_NEWLINE: &str = "Ensure final newline on save";
+pub const SETTING_INDENT_GUIDES: &str = "Show indent guides";
 pub const SETTING_VIM: &str = "Vim mode (coming soon)";
 
 pub const DIALOG_UNSAVED_TITLE: &str = "Unsaved changes";

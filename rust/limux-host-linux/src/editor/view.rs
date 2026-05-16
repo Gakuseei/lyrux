@@ -21,6 +21,7 @@ pub struct ViewConfig {
     pub auto_indent: bool,
     pub highlight_current_line: bool,
     pub highlight_matching_brackets: bool,
+    pub show_indent_guides: bool,
 }
 
 impl Default for ViewConfig {
@@ -37,6 +38,7 @@ impl Default for ViewConfig {
             auto_indent: true,
             highlight_current_line: true,
             highlight_matching_brackets: true,
+            show_indent_guides: true,
         }
     }
 }
@@ -71,6 +73,12 @@ pub fn apply_to_view(view: &sourceview5::View, cfg: &ViewConfig) {
     let drawer = view.space_drawer();
     drawer.set_types_for_locations(sourceview5::SpaceLocationFlags::ALL, whitespace);
     drawer.set_enable_matrix(cfg.show_whitespace);
+    let pattern = if cfg.show_indent_guides {
+        sourceview5::BackgroundPatternType::Grid
+    } else {
+        sourceview5::BackgroundPatternType::None
+    };
+    view.set_background_pattern(pattern);
     view.add_css_class("sourceview");
 }
 

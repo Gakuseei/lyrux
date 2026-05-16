@@ -141,6 +141,19 @@ pub fn build(current: &EditorSettings, cb: SettingsCallbacks) -> gtk4::Widget {
             }
         },
     ));
+    root.append(&bool_row(
+        strings::SETTING_INDENT_GUIDES,
+        current.show_indent_guides,
+        {
+            let cb = cb.on_change.clone();
+            let snapshot = current.clone();
+            move |v| {
+                let mut next = snapshot.clone();
+                next.show_indent_guides = v;
+                cb(&next);
+            }
+        },
+    ));
     root.append(&vim_row());
 
     let scroller = gtk4::ScrolledWindow::builder()
