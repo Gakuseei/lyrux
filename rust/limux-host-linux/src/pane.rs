@@ -699,7 +699,6 @@ enum TabKind {
         #[allow(dead_code)]
         state: editor::EditorTabState,
     },
-    #[allow(dead_code)]
     ImageViewer {
         state: editor::ImageViewerTabState,
     },
@@ -929,9 +928,16 @@ fn restore_tabs_from_state(
                     }
                 }
             }
-            TabContentState::ImageViewer { path, zoom: _ } => {
+            TabContentState::ImageViewer { path, zoom } => {
                 let p = std::path::PathBuf::from(path);
                 open_image_viewer_for_inner(internals, &p);
+                let tabs = internals.tab_state.borrow();
+                if let Some(entry) = tabs.tabs.last() {
+                    if let TabKind::ImageViewer { state } = &entry.kind {
+                        state.zoom.set(*zoom);
+                        state.apply_zoom();
+                    }
+                }
             }
         }
     }
@@ -1372,8 +1378,55 @@ fn add_editor_tab_for_path_inner(internals: &Rc<PaneInternals>, path: &std::path
     (internals.callbacks.on_state_changed)();
 }
 
-fn open_image_viewer_for_inner(_internals: &Rc<PaneInternals>, path: &std::path::Path) {
-    eprintln!("lyrux: image viewer pending for {}", path.display());
+fn open_image_viewer_for_inner(internals: &Rc<PaneInternals>, path: &std::path::Path) {
+    let state = match editor::image_viewer::build(path.to_path_buf()) {
+        Some(s) => s,
+        None => {
+            eprintln!("lyrux: failed to load image {}", path.display());
+            return;
+        }
+    };
+
+    let tab_id = next_tab_id();
+    let title = path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or(editor::strings::TAB_TITLE_UNTITLED)
+        .to_string();
+    let widget: gtk::Widget = state.root.clone();
+    let (tab_btn, title_label) = build_tab_button(&title, &tab_id, internals);
+    internals.content_stack.add_named(&widget, Some(&tab_id));
+
+    {
+        let mut ts = internals.tab_state.borrow_mut();
+        ts.tabs.push(TabEntry {
+            id: tab_id.clone(),
+            tab_button: tab_btn,
+            title_label,
+            content: widget,
+            custom_name: None,
+            pinned: false,
+            kind: TabKind::ImageViewer { state },
+        });
+    }
+    internals.tab_strip.append(
+        &internals
+            .tab_state
+            .borrow()
+            .tabs
+            .iter()
+            .find(|entry| entry.id == tab_id)
+            .expect("image viewer tab inserted")
+            .tab_button,
+    );
+
+    activate_tab(
+        &internals.tab_strip,
+        &internals.content_stack,
+        &internals.tab_state,
+        &tab_id,
+    );
+    (internals.callbacks.on_state_changed)();
 }
 
 pub fn open_editor_tab_for_pane(pane_widget: &gtk::Widget, path: &std::path::Path) {
@@ -1600,7 +1653,7 @@ pub fn snapshot_pane_state(pane_widget: &gtk::Widget, workspace_id: &str) -> Opt
                 }
                 TabKind::ImageViewer { state } => TabContentState::ImageViewer {
                     path: state.path.display().to_string(),
-                    zoom: 1.0,
+                    zoom: state.zoom.get(),
                 },
             };
             SavedTabState {
