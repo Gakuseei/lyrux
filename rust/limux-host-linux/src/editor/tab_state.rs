@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use crate::editor::buffer::{self, FileEtag, LoadResult};
+use crate::editor::indent;
 use crate::editor::langs;
 use crate::editor::pair;
 use crate::editor::view::{self, ViewConfig};
@@ -57,6 +58,7 @@ pub fn build(path: PathBuf, cfg: &ViewConfig) -> BuildOutcome {
     }
     let view = view::build(&buffer, cfg);
     pair::install(&view, &buffer);
+    indent::install(&view, &buffer);
     let scrolled = gtk4::ScrolledWindow::builder()
         .hscrollbar_policy(gtk4::PolicyType::Automatic)
         .vscrollbar_policy(gtk4::PolicyType::Automatic)

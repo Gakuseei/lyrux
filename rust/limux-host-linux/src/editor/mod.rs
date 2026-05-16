@@ -1,5 +1,6 @@
 pub mod buffer;
 pub mod image_viewer;
+pub mod indent;
 pub mod keymap;
 pub mod langs;
 pub mod pair;
@@ -49,6 +50,7 @@ pub fn spawn_empty(cfg: &ViewConfig) -> EditorTabState {
     let buffer = sourceview5::Buffer::new(None);
     let view = view::build(&buffer, cfg);
     pair::install(&view, &buffer);
+    indent::install(&view, &buffer);
     let scrolled = gtk4::ScrolledWindow::builder()
         .hscrollbar_policy(gtk4::PolicyType::Automatic)
         .vscrollbar_policy(gtk4::PolicyType::Automatic)
