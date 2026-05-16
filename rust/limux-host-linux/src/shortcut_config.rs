@@ -63,6 +63,7 @@ pub enum ShortcutId {
     ToggleFilePanel,
     EditorToggleCurrentPane,
     EditorQuickOpen,
+    EditorCommandPalette,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -116,6 +117,7 @@ pub enum ShortcutCommand {
     ToggleFilePanel,
     EditorToggleCurrentPane,
     EditorQuickOpen,
+    EditorCommandPalette,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -314,7 +316,7 @@ struct ShortcutConfigFile {
     shortcuts: HashMap<String, serde_json::Value>,
 }
 
-const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 50] = [
+const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 51] = [
     ShortcutDefinition {
         id: ShortcutId::NewWorkspace,
         config_key: "new_workspace",
@@ -862,6 +864,17 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 50] = [
         label: "Quick-open file",
         registers_gtk_accel: false,
         command: ShortcutCommand::EditorQuickOpen,
+        scope: ShortcutScope::Window,
+        editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
+    },
+    ShortcutDefinition {
+        id: ShortcutId::EditorCommandPalette,
+        config_key: "editor_command_palette",
+        action_name: "win.editor-command-palette",
+        default_accel: "<Ctrl><Shift>p",
+        label: "Command palette",
+        registers_gtk_accel: false,
+        command: ShortcutCommand::EditorCommandPalette,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
     },
@@ -1633,7 +1646,7 @@ mod tests {
 
     #[test]
     fn definitions_cover_current_host_shortcuts() {
-        assert_eq!(definitions().len(), 50);
+        assert_eq!(definitions().len(), 51);
     }
 
     #[test]

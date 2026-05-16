@@ -1,4 +1,5 @@
 pub mod buffer;
+pub mod command_palette;
 pub mod highlight;
 pub mod image_viewer;
 pub mod indent;

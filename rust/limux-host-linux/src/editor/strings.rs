@@ -76,6 +76,35 @@ pub const QUICK_OPEN_PLACEHOLDER: &str = "Search workspace files…";
 pub const QUICK_OPEN_EMPTY: &str = "No matches.";
 pub const SHORTCUT_LABEL_EDITOR_QUICK_OPEN: &str = "Quick-open file";
 
+pub const CMD_PALETTE_TITLE: &str = "Command Palette";
+pub const CMD_PALETTE_PLACEHOLDER: &str = "Search commands…";
+pub const CMD_PALETTE_EMPTY: &str = "No matching commands.";
+pub const SHORTCUT_LABEL_EDITOR_COMMAND_PALETTE: &str = "Command palette";
+
+pub const CMD_NEW_WORKSPACE: &str = "Workspace: New";
+pub const CMD_CLOSE_WORKSPACE: &str = "Workspace: Close";
+pub const CMD_NEXT_WORKSPACE: &str = "Workspace: Next";
+pub const CMD_PREV_WORKSPACE: &str = "Workspace: Previous";
+pub const CMD_SPLIT_RIGHT: &str = "Pane: Split Right";
+pub const CMD_SPLIT_DOWN: &str = "Pane: Split Down";
+pub const CMD_CLOSE_FOCUSED_PANE: &str = "Pane: Close Focused";
+pub const CMD_FOCUS_LEFT: &str = "Pane: Focus Left";
+pub const CMD_FOCUS_RIGHT: &str = "Pane: Focus Right";
+pub const CMD_FOCUS_UP: &str = "Pane: Focus Up";
+pub const CMD_FOCUS_DOWN: &str = "Pane: Focus Down";
+pub const CMD_CYCLE_TAB_NEXT: &str = "Tab: Next";
+pub const CMD_CYCLE_TAB_PREV: &str = "Tab: Previous";
+pub const CMD_TOGGLE_SIDEBAR: &str = "View: Toggle Sidebar";
+pub const CMD_TOGGLE_FILE_PANEL: &str = "View: Toggle File Panel";
+pub const CMD_TOGGLE_TOP_BAR: &str = "View: Toggle Top Bar";
+pub const CMD_TOGGLE_FULLSCREEN: &str = "View: Toggle Fullscreen";
+pub const CMD_EDITOR_TOGGLE_CURRENT_PANE: &str = "Editor: Open in Focused Pane";
+pub const CMD_EDITOR_QUICK_OPEN: &str = "Editor: Quick Open File";
+pub const CMD_NEW_TERMINAL: &str = "Terminal: New";
+pub const CMD_NEW_TERMINAL_IN_PANE: &str = "Terminal: New in Focused Pane";
+pub const CMD_OPEN_BROWSER_IN_SPLIT: &str = "Browser: Open in Split";
+pub const CMD_QUIT_APP: &str = "Application: Quit";
+
 pub const STATUS_LINE_PREFIX: &str = "Ln ";
 pub const STATUS_COL_PREFIX: &str = "Col ";
 pub const STATUS_SPACES: &str = "Spaces:";

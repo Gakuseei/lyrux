@@ -1555,6 +1555,12 @@ fn dispatch_shortcut_command(state: &State, command: ShortcutCommand) -> bool {
             }
             true
         }
+        ShortcutCommand::EditorCommandPalette => {
+            if let Some((_ws_id, pane_widget)) = find_focused_pane(state) {
+                crate::editor::command_palette::show(&pane_widget);
+            }
+            true
+        }
         ShortcutCommand::ToggleTopBar => {
             toggle_top_bar(state);
             true
