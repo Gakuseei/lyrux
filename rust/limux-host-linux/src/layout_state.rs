@@ -119,6 +119,24 @@ pub enum TabContentState {
     },
     Keybinds {},
     Settings {},
+    Editor {
+        path: String,
+        #[serde(default)]
+        cursor_line: i32,
+        #[serde(default)]
+        cursor_col: i32,
+        #[serde(default)]
+        scroll: i32,
+        #[serde(default)]
+        dirty: bool,
+        #[serde(default)]
+        swap_file: Option<String>,
+    },
+    ImageViewer {
+        path: String,
+        #[serde(default = "default_image_zoom")]
+        zoom: f64,
+    },
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]
@@ -404,6 +422,10 @@ fn default_sidebar_width() -> i32 {
 
 fn default_split_ratio() -> f64 {
     DEFAULT_SPLIT_RATIO
+}
+
+fn default_image_zoom() -> f64 {
+    1.0
 }
 
 fn default_tab_id(prefix: &str) -> String {

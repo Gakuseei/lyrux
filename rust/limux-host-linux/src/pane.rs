@@ -898,8 +898,33 @@ fn restore_tabs_from_state(
                     }),
                 },
             ),
-            // Settings now open in a transient dialog rather than a persisted tab.
             TabContentState::Settings {} => {}
+            TabContentState::Editor {
+                path,
+                cursor_line: saved_line,
+                cursor_col: saved_col,
+                scroll,
+                dirty: _,
+                swap_file: _,
+            } => {
+                let p = std::path::PathBuf::from(path);
+                add_editor_tab_for_path_inner(internals, &p);
+                let tabs = internals.tab_state.borrow();
+                if let Some(entry) = tabs.tabs.last() {
+                    if let TabKind::Editor { state } = &entry.kind {
+                        if let Some(iter) =
+                            state.buffer.iter_at_line_offset(*saved_line, *saved_col)
+                        {
+                            state.buffer.place_cursor(&iter);
+                        }
+                        state.scrolled.vadjustment().set_value(*scroll as f64);
+                    }
+                }
+            }
+            TabContentState::ImageViewer { path, zoom: _ } => {
+                let p = std::path::PathBuf::from(path);
+                open_image_viewer_for_inner(internals, &p);
+            }
         }
     }
 
@@ -1532,9 +1557,19 @@ pub fn snapshot_pane_state(pane_widget: &gtk::Widget) -> Option<PaneState> {
                 TabKind::Browser { state } => TabContentState::Browser {
                     uri: state.uri.borrow().clone(),
                 },
-                TabKind::Keybinds | TabKind::Editor { .. } | TabKind::ImageViewer { .. } => {
-                    TabContentState::Keybinds {}
-                }
+                TabKind::Keybinds => TabContentState::Keybinds {},
+                TabKind::Editor { state } => TabContentState::Editor {
+                    path: state.path.display().to_string(),
+                    cursor_line: cursor_line(&state.buffer),
+                    cursor_col: cursor_col(&state.buffer),
+                    scroll: state.scrolled.vadjustment().value() as i32,
+                    dirty: state.is_dirty(),
+                    swap_file: None,
+                },
+                TabKind::ImageViewer { state } => TabContentState::ImageViewer {
+                    path: state.path.display().to_string(),
+                    zoom: 1.0,
+                },
             };
             SavedTabState {
                 id: entry.id.clone(),
@@ -1548,6 +1583,18 @@ pub fn snapshot_pane_state(pane_widget: &gtk::Widget) -> Option<PaneState> {
         active_tab_id: ts.active_tab.clone(),
         tabs,
     })
+}
+
+fn cursor_line(buf: &sourceview5::Buffer) -> i32 {
+    let mark = buf.get_insert();
+    let iter = buf.iter_at_mark(&mark);
+    iter.line()
+}
+
+fn cursor_col(buf: &sourceview5::Buffer) -> i32 {
+    let mark = buf.get_insert();
+    let iter = buf.iter_at_mark(&mark);
+    iter.line_offset()
 }
 
 fn find_pane_internals(pane_widget: &gtk::Widget) -> Option<Rc<PaneInternals>> {
