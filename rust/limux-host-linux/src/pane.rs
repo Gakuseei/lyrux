@@ -751,6 +751,26 @@ struct TabEntry {
     kind: TabKind,
 }
 
+fn icon_name_for_kind(kind: &TabKind) -> &'static str {
+    match kind {
+        TabKind::Terminal { .. } => "utilities-terminal-symbolic",
+        TabKind::Browser { .. } => "web-browser-symbolic",
+        TabKind::Editor { .. } => "text-x-generic-symbolic",
+        TabKind::ImageViewer { .. } => "image-x-generic-symbolic",
+        TabKind::Keybinds => "input-keyboard-symbolic",
+    }
+}
+
+fn css_class_for_kind(kind: &TabKind) -> &'static str {
+    match kind {
+        TabKind::Terminal { .. } => "tab-kind-terminal",
+        TabKind::Browser { .. } => "tab-kind-browser",
+        TabKind::Editor { .. } => "tab-kind-editor",
+        TabKind::ImageViewer { .. } => "tab-kind-image",
+        TabKind::Keybinds => "tab-kind-keybinds",
+    }
+}
+
 struct TabState {
     tabs: Vec<TabEntry>,
     active_tab: Option<String>,
@@ -1090,7 +1110,13 @@ fn add_terminal_tab_inner(
         .as_ref()
         .and_then(|value| value.id.map(|id| id.to_string()))
         .unwrap_or_else(next_tab_id);
-    let (tab_btn, title_label) = build_tab_button("Terminal", &tab_id, internals);
+    let (tab_btn, title_label) = build_tab_button(
+        "Terminal",
+        &tab_id,
+        internals,
+        "utilities-terminal-symbolic",
+        "tab-kind-terminal",
+    );
 
     let term_cwd = Rc::new(RefCell::new(
         options
@@ -1192,7 +1218,13 @@ fn add_browser_tab_inner(internals: &Rc<PaneInternals>, options: Option<BrowserT
         internals.callbacks.clone(),
     );
 
-    let (tab_btn, title_label) = build_tab_button(&title, &tab_id, internals);
+    let (tab_btn, title_label) = build_tab_button(
+        &title,
+        &tab_id,
+        internals,
+        "web-browser-symbolic",
+        "tab-kind-browser",
+    );
 
     internals.content_stack.add_named(&widget, Some(&tab_id));
 
@@ -1258,8 +1290,13 @@ fn add_editor_tab_inner(internals: &Rc<PaneInternals>) {
     let state = editor::spawn_empty(&cfg);
     let widget: gtk::Widget = state.root.clone().upcast();
 
-    let (tab_btn, title_label) =
-        build_tab_button(editor::strings::TAB_TITLE_UNTITLED, &tab_id, internals);
+    let (tab_btn, title_label) = build_tab_button(
+        editor::strings::TAB_TITLE_UNTITLED,
+        &tab_id,
+        internals,
+        "text-x-generic-symbolic",
+        "tab-kind-editor",
+    );
 
     internals.content_stack.add_named(&widget, Some(&tab_id));
 
@@ -1338,7 +1375,13 @@ fn add_editor_tab_for_path_inner(internals: &Rc<PaneInternals>, path: &std::path
         .unwrap_or(editor::strings::TAB_TITLE_UNTITLED)
         .to_string();
     let widget: gtk::Widget = state.root.clone().upcast();
-    let (tab_btn, title_label) = build_tab_button(&title, &tab_id, internals);
+    let (tab_btn, title_label) = build_tab_button(
+        &title,
+        &tab_id,
+        internals,
+        "text-x-generic-symbolic",
+        "tab-kind-editor",
+    );
     internals.content_stack.add_named(&widget, Some(&tab_id));
 
     let state_for_hooks = state.clone();
@@ -1394,7 +1437,13 @@ fn open_image_viewer_for_inner(internals: &Rc<PaneInternals>, path: &std::path::
         .unwrap_or(editor::strings::TAB_TITLE_UNTITLED)
         .to_string();
     let widget: gtk::Widget = state.root.clone();
-    let (tab_btn, title_label) = build_tab_button(&title, &tab_id, internals);
+    let (tab_btn, title_label) = build_tab_button(
+        &title,
+        &tab_id,
+        internals,
+        "image-x-generic-symbolic",
+        "tab-kind-image",
+    );
     internals.content_stack.add_named(&widget, Some(&tab_id));
 
     {
@@ -1442,7 +1491,13 @@ fn add_keybind_editor_tab_inner(internals: &Rc<PaneInternals>, input: KeybindsTa
         .and_then(|value| value.id.map(|id| id.to_string()))
         .unwrap_or_else(next_tab_id);
 
-    let (tab_btn, title_label) = build_tab_button("Keybinds", &tab_id, internals);
+    let (tab_btn, title_label) = build_tab_button(
+        "Keybinds",
+        &tab_id,
+        internals,
+        "input-keyboard-symbolic",
+        "tab-kind-keybinds",
+    );
 
     let widget = keybind_editor::build_keybind_editor(&input.shortcuts, input.on_capture);
     internals.content_stack.add_named(&widget, Some(&tab_id));
@@ -1823,9 +1878,11 @@ fn build_tab_button(
     title: &str,
     tab_id: &str,
     internals: &Rc<PaneInternals>,
+    kind_icon: &'static str,
+    kind_class: &'static str,
 ) -> (gtk::Box, gtk::Label) {
     let label = new_tab_title_label(title);
-    let tab_button = build_tab_button_from_label(&label, tab_id, internals);
+    let tab_button = build_tab_button_from_label(&label, tab_id, internals, kind_icon, kind_class);
     (tab_button, label)
 }
 
@@ -1833,6 +1890,8 @@ fn build_tab_button_from_label(
     label: &gtk::Label,
     tab_id: &str,
     internals: &Rc<PaneInternals>,
+    kind_icon: &'static str,
+    kind_class: &'static str,
 ) -> gtk::Box {
     if let Some(parent) = label
         .parent()
@@ -1846,6 +1905,10 @@ fn build_tab_button_from_label(
     pin_icon.set_visible(false);
     pin_icon.set_can_target(false);
 
+    let kind_image = gtk::Image::from_icon_name(kind_icon);
+    kind_image.add_css_class("tab-kind-icon");
+    kind_image.set_can_target(false);
+
     let close_btn = gtk::Button::builder()
         .icon_name("window-close-symbolic")
         .has_frame(false)
@@ -1855,10 +1918,12 @@ fn build_tab_button_from_label(
     let inner_box = gtk::Box::new(gtk::Orientation::Horizontal, 2);
     inner_box.set_can_target(false);
     inner_box.append(&pin_icon);
+    inner_box.append(&kind_image);
     inner_box.append(label);
 
     let tab_btn = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     tab_btn.add_css_class("limux-tab");
+    tab_btn.add_css_class(kind_class);
     tab_btn.append(&inner_box);
     tab_btn.append(&close_btn);
 
@@ -2317,7 +2382,10 @@ fn rebind_moved_tab_entry(entry: &mut TabEntry, target: &Rc<PaneInternals>) {
             &state.cwd,
         ));
     }
-    entry.tab_button = build_tab_button_from_label(&entry.title_label, &entry.id, target);
+    let kind_icon = icon_name_for_kind(&entry.kind);
+    let kind_class = css_class_for_kind(&entry.kind);
+    entry.tab_button =
+        build_tab_button_from_label(&entry.title_label, &entry.id, target, kind_icon, kind_class);
     if entry.pinned {
         apply_pin_visuals(&entry.tab_button, true);
     }
