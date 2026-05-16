@@ -97,6 +97,7 @@ pub fn spawn_empty(cfg: &ViewConfig) -> EditorTabState {
         swap_path: Rc::new(RefCell::new(None)),
         highlight: highlight_ctrl,
         sticky,
+        save_action: Rc::new(RefCell::new(None)),
     };
     view::apply_css(&state.view, cfg, &state.css_provider);
 

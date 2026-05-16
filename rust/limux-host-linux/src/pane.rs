@@ -162,6 +162,18 @@ pub fn for_each_editor_tab<F: FnMut(&editor::EditorTabState)>(mut f: F) {
     });
 }
 
+pub fn active_editor_tab_state(pane_widget: &gtk::Widget) -> Option<editor::EditorTabState> {
+    let internals = find_pane_internals(pane_widget)?;
+    let tab_state = internals.tab_state.borrow();
+    let active_id = tab_state.active_tab.as_deref()?;
+    let entry = tab_state.tabs.iter().find(|e| e.id == active_id)?;
+    if let TabKind::Editor { state } = &entry.kind {
+        Some(state.clone())
+    } else {
+        None
+    }
+}
+
 type PaneSplitCallback = dyn Fn(&gtk::Widget, gtk::Orientation);
 type PaneWidgetCallback = dyn Fn(&gtk::Widget);
 type PaneSignalCallback = dyn Fn();
@@ -698,20 +710,11 @@ pub fn terminal_handle_for_surface(
 
 #[derive(Clone)]
 enum TabKind {
-    Terminal {
-        state: TerminalTabState,
-    },
-    Browser {
-        state: BrowserTabState,
-    },
+    Terminal { state: TerminalTabState },
+    Browser { state: BrowserTabState },
     Keybinds,
-    Editor {
-        #[allow(dead_code)]
-        state: editor::EditorTabState,
-    },
-    ImageViewer {
-        state: editor::ImageViewerTabState,
-    },
+    Editor { state: editor::EditorTabState },
+    ImageViewer { state: editor::ImageViewerTabState },
 }
 
 enum TabFocusTarget {
@@ -2986,6 +2989,20 @@ fn install_editor_tab_hooks(
         }
         transform
     });
+
+    let save_state = state.clone();
+    let save_workspace_root = workspace_root.clone();
+    let save_on_clean = on_clean.clone();
+    let save_transform_for_action = save_transform.clone();
+    let save_action: Rc<dyn Fn()> = Rc::new(move || {
+        editor::keymap::save_tab(
+            &save_state,
+            save_workspace_root.as_deref(),
+            &save_on_clean,
+            save_transform_for_action(),
+        );
+    });
+    *state.save_action.borrow_mut() = Some(save_action);
 
     editor::keymap::install(
         &state.view,

@@ -1168,6 +1168,7 @@ pub fn build_window(app: &adw::Application) {
 
     register_app_actions(app, &state);
     register_window_actions(&window, &state);
+    register_editor_actions(&window, &state);
     install_key_capture(&window, &state);
 
     // Any click anywhere in the window commits an active sidebar rename,
@@ -1313,6 +1314,66 @@ fn register_window_actions(window: &adw::ApplicationWindow, state: &State) {
         });
         window.add_action(&action);
     }
+}
+
+fn register_editor_actions(window: &adw::ApplicationWindow, state: &State) {
+    add_editor_action(window, state, "editor-save-active", |tab, _w| {
+        if let Some(action) = tab.save_action.borrow().clone() {
+            action();
+        }
+    });
+    add_editor_action(window, state, "editor-find", |tab, _w| {
+        crate::editor::keymap::show_find_bar(tab, false);
+    });
+    add_editor_action(window, state, "editor-replace", |tab, _w| {
+        crate::editor::keymap::show_find_bar(tab, true);
+    });
+    add_editor_action(window, state, "editor-find-next", |tab, _w| {
+        crate::editor::keymap::find_next(tab);
+    });
+    add_editor_action(window, state, "editor-goto-line", |tab, _w| {
+        crate::editor::keymap::show_goto_line(tab);
+    });
+    add_editor_action(window, state, "editor-toggle-comment", |tab, _w| {
+        crate::editor::keymap::toggle_line_comment(tab);
+    });
+    add_editor_action(window, state, "editor-duplicate-line", |tab, _w| {
+        crate::editor::keymap::duplicate_line(tab);
+    });
+    add_editor_action(window, state, "editor-delete-line", |tab, _w| {
+        crate::editor::keymap::delete_line(tab);
+    });
+    add_editor_action(window, state, "editor-move-line-up", |tab, _w| {
+        crate::editor::keymap::move_line_up(tab);
+    });
+    add_editor_action(window, state, "editor-move-line-down", |tab, _w| {
+        crate::editor::keymap::move_line_down(tab);
+    });
+    add_editor_action(window, state, "editor-select-next-occurrence", |tab, _w| {
+        crate::editor::keymap::select_next_occurrence(tab);
+    });
+}
+
+fn add_editor_action(
+    window: &adw::ApplicationWindow,
+    state: &State,
+    name: &str,
+    exec: impl Fn(&crate::editor::EditorTabState, &adw::ApplicationWindow) + 'static,
+) {
+    let action = gtk::gio::SimpleAction::new(name, None);
+    let state_w = state.clone();
+    let window_w = window.clone();
+    action.connect_activate(move |_, _| {
+        if let Some(tab) = active_editor_tab(&state_w) {
+            exec(&tab, &window_w);
+        }
+    });
+    window.add_action(&action);
+}
+
+fn active_editor_tab(state: &State) -> Option<crate::editor::EditorTabState> {
+    let (_ws_id, pane_widget) = find_focused_pane(state)?;
+    pane::active_editor_tab_state(&pane_widget)
 }
 
 fn register_app_actions(app: &adw::Application, state: &State) {

@@ -16,6 +16,7 @@ use crate::editor::view::{self, ViewConfig};
 pub type DirtyMarkerCb = Rc<RefCell<Option<Rc<dyn Fn(bool)>>>>;
 pub type TitleCb = Rc<RefCell<Option<Rc<dyn Fn(&str)>>>>;
 pub type ViewCssProvider = Rc<RefCell<Option<gtk4::CssProvider>>>;
+pub type ActionCb = Rc<RefCell<Option<Rc<dyn Fn()>>>>;
 
 #[derive(Clone)]
 pub struct EditorTabState {
@@ -35,6 +36,7 @@ pub struct EditorTabState {
     pub swap_path: Rc<RefCell<Option<PathBuf>>>,
     pub highlight: HighlightController,
     pub sticky: StickyController,
+    pub save_action: ActionCb,
 }
 
 pub enum BuildOutcome {
@@ -103,6 +105,7 @@ pub fn build(path: PathBuf, cfg: &ViewConfig) -> BuildOutcome {
         swap_path: Rc::new(RefCell::new(None)),
         highlight: highlight_ctrl,
         sticky,
+        save_action: Rc::new(RefCell::new(None)),
     };
     view::apply_css(&state.view, cfg, &state.css_provider);
 

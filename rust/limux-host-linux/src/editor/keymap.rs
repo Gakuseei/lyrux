@@ -264,7 +264,7 @@ fn comment_prefix_for(lang_id: &str) -> Option<&'static str> {
     }
 }
 
-fn toggle_line_comment(state: &EditorTabState) {
+pub(crate) fn toggle_line_comment(state: &EditorTabState) {
     let lang = match state.buffer.language() {
         Some(l) => l,
         None => return,
@@ -362,7 +362,7 @@ fn uncomment_line(buffer: &sourceview5::Buffer, line: i32, prefix: &str, trimmed
     buffer.delete(&mut s, &mut e);
 }
 
-fn duplicate_line(state: &EditorTabState) {
+pub(crate) fn duplicate_line(state: &EditorTabState) {
     let buffer = &state.buffer;
     let mark = buffer.get_insert();
     let cursor = buffer.iter_at_mark(&mark);
@@ -382,7 +382,7 @@ fn duplicate_line(state: &EditorTabState) {
     buffer.end_user_action();
 }
 
-fn delete_line(state: &EditorTabState) {
+pub(crate) fn delete_line(state: &EditorTabState) {
     let buffer = &state.buffer;
     let mark = buffer.get_insert();
     let cursor = buffer.iter_at_mark(&mark);
@@ -401,7 +401,7 @@ fn delete_line(state: &EditorTabState) {
     buffer.end_user_action();
 }
 
-fn select_next_occurrence(state: &EditorTabState) {
+pub(crate) fn select_next_occurrence(state: &EditorTabState) {
     let buffer = &state.buffer;
     let needle = match buffer.selection_bounds() {
         Some((s, e)) => buffer.text(&s, &e, false).to_string(),
@@ -513,7 +513,7 @@ pub(crate) fn word_bounds_at_offset(text: &str, offset: usize) -> (usize, usize)
     (start_byte, end_byte)
 }
 
-fn move_line_up(state: &EditorTabState) {
+pub(crate) fn move_line_up(state: &EditorTabState) {
     let buffer = &state.buffer;
     let mark = buffer.get_insert();
     let cursor = buffer.iter_at_mark(&mark);
@@ -525,7 +525,7 @@ fn move_line_up(state: &EditorTabState) {
     place_cursor_on_line(buffer, line - 1);
 }
 
-fn move_line_down(state: &EditorTabState) {
+pub(crate) fn move_line_down(state: &EditorTabState) {
     let buffer = &state.buffer;
     let mark = buffer.get_insert();
     let cursor = buffer.iter_at_mark(&mark);
@@ -605,7 +605,7 @@ fn ensure_search_context(state: &EditorTabState) -> sourceview5::SearchContext {
     ctx
 }
 
-fn show_find_bar(state: &EditorTabState, with_replace: bool) {
+pub(crate) fn show_find_bar(state: &EditorTabState, with_replace: bool) {
     let ctx = ensure_search_context(state);
     let bar = ensure_find_bar(state, &ctx, with_replace);
     bar.set_search_mode(true);
@@ -735,12 +735,12 @@ fn advance_search(ctx: &sourceview5::SearchContext) {
     }
 }
 
-fn find_next(state: &EditorTabState) {
+pub(crate) fn find_next(state: &EditorTabState) {
     let ctx = ensure_search_context(state);
     advance_search(&ctx);
 }
 
-fn show_goto_line(state: &EditorTabState) {
+pub(crate) fn show_goto_line(state: &EditorTabState) {
     let buffer = state.buffer.clone();
     let last_line = buffer.end_iter().line();
     let max_line = (last_line + 1).max(1) as f64;

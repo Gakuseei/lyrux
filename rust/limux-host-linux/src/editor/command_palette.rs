@@ -115,6 +115,61 @@ const COMMANDS: &[CommandEntry] = &[
         accel: Some("Ctrl+P"),
     },
     CommandEntry {
+        label: strings::CMD_EDITOR_SAVE,
+        action_name: "win.editor-save-active",
+        accel: Some("Ctrl+S"),
+    },
+    CommandEntry {
+        label: strings::CMD_EDITOR_FIND,
+        action_name: "win.editor-find",
+        accel: Some("Ctrl+F"),
+    },
+    CommandEntry {
+        label: strings::CMD_EDITOR_REPLACE,
+        action_name: "win.editor-replace",
+        accel: Some("Ctrl+H"),
+    },
+    CommandEntry {
+        label: strings::CMD_EDITOR_FIND_NEXT,
+        action_name: "win.editor-find-next",
+        accel: Some("Ctrl+G"),
+    },
+    CommandEntry {
+        label: strings::CMD_EDITOR_GOTO_LINE,
+        action_name: "win.editor-goto-line",
+        accel: Some("Ctrl+L"),
+    },
+    CommandEntry {
+        label: strings::CMD_EDITOR_TOGGLE_COMMENT,
+        action_name: "win.editor-toggle-comment",
+        accel: Some("Ctrl+/"),
+    },
+    CommandEntry {
+        label: strings::CMD_EDITOR_DUPLICATE_LINE,
+        action_name: "win.editor-duplicate-line",
+        accel: Some("Ctrl+Shift+D"),
+    },
+    CommandEntry {
+        label: strings::CMD_EDITOR_DELETE_LINE,
+        action_name: "win.editor-delete-line",
+        accel: Some("Ctrl+Shift+K"),
+    },
+    CommandEntry {
+        label: strings::CMD_EDITOR_MOVE_LINE_UP,
+        action_name: "win.editor-move-line-up",
+        accel: Some("Alt+Up"),
+    },
+    CommandEntry {
+        label: strings::CMD_EDITOR_MOVE_LINE_DOWN,
+        action_name: "win.editor-move-line-down",
+        accel: Some("Alt+Down"),
+    },
+    CommandEntry {
+        label: strings::CMD_EDITOR_SELECT_NEXT_OCCURRENCE,
+        action_name: "win.editor-select-next-occurrence",
+        accel: Some("Ctrl+D"),
+    },
+    CommandEntry {
         label: strings::CMD_NEW_TERMINAL,
         action_name: "win.new-terminal",
         accel: None,
