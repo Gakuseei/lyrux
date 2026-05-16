@@ -24,7 +24,7 @@ pub const DIALOG_BTN_CANCEL: &str = "Cancel";
 pub const BANNER_FILE_CHANGED_PREFIX: &str = "File changed on disk: ";
 pub const BANNER_FILE_DELETED_PREFIX: &str = "File deleted on disk: ";
 pub const BANNER_RELOAD: &str = "Reload";
-pub const BANNER_KEEP_MINE: &str = "Keep mine";
+pub const BANNER_KEEP_MINE: &str = "Keep my version";
 pub const BANNER_SAVE_AS_NEW: &str = "Save";
 pub const BANNER_CLOSE_TAB: &str = "Close tab";
 pub const BANNER_DISMISS: &str = "Dismiss";
@@ -32,9 +32,9 @@ pub const SAVE_AS_DIALOG_TITLE: &str = "Save As";
 
 pub const TOAST_RELOADED_PREFIX: &str = "Reloaded ";
 
-pub const ERROR_FILE_TOO_LARGE: &str = "File is larger than 10 MB; refusing to open.";
+pub const ERROR_FILE_TOO_LARGE: &str = "File too large to open (over 10 MB).";
 pub const ERROR_FILE_BINARY: &str = "Binary file; use the image viewer or a hex tool.";
-pub const ERROR_OUTSIDE_WORKSPACE: &str = "Refusing to save outside the workspace root.";
+pub const ERROR_OUTSIDE_WORKSPACE: &str = "Can't save here — file is outside the workspace.";
 pub const ERROR_WRITE_FAILED_PREFIX: &str = "Save failed: ";
 
 pub const THEME_LYRUX_DARK: &str = "Lyrux Dark";
@@ -49,7 +49,7 @@ pub const THEME_ONE_DARK: &str = "One Dark";
 pub const THEME_ONE_LIGHT: &str = "One Light";
 
 pub const ICON_EDITOR_TOOLTIP: &str = "New editor tab";
-pub const TAB_TITLE_UNTITLED: &str = "untitled";
+pub const TAB_TITLE_UNTITLED: &str = "Untitled";
 pub const RECOVER_PROMPT_PREFIX: &str = "Recover unsaved changes in ";
 pub const RECOVER_BTN_RECOVER: &str = "Recover";
 pub const RECOVER_BTN_DISCARD: &str = "Discard";
