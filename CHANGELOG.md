@@ -5,6 +5,57 @@ All notable changes to Lyrux are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-05-17
+
+Skipped 0.3 — editor polish and productivity sprints both landed in one cycle.
+
+### Added
+- Quick-open file picker via Ctrl+P — fuzzy workspace search.
+- Command Palette via Ctrl+Shift+P.
+- Find in Files via Ctrl+Shift+F — ripgrep-backed.
+- Per-tab status bar: line:col, language, indent, encoding, EOL.
+- Match-highlight on cursor word across the visible buffer.
+- Sticky scroll for function/class/section headers (Rust, TS, JS, Python, Markdown, Go).
+- Indent guides (BackgroundPattern Grid).
+- `.editorconfig` support: `indent_style`, `indent_size`, `tab_width`, `insert_final_newline`, `trim_trailing_whitespace`.
+- Auto-pair brackets and quotes (`""`, `''`, `` `` ``, `()`, `[]`, `{}`, `<>` in markup) with smart-skip and smart-delete.
+- Comment + list continuation on Enter (`//`, `#`, `-`, `*`, numbered `1.` auto-increment, JSDoc `*`).
+- Strip trailing whitespace + ensure final newline on save (configurable).
+- Save-As dialog for untitled tabs on Ctrl+S.
+- Save-As warns before saving text into an image filename.
+- In-tab error banner on save failure.
+- Per-TabKind icon in tab strip (editor / terminal / browser / image / keybinds visually distinct).
+- FontDialogButton replaces freetext font entry — monospace-filtered.
+- Bundled JetBrains Mono as default editor font (OFL-1.1, shipped inside the AppImage).
+- New shortcuts: Ctrl+P (Quick-open), Ctrl+Shift+P (Command palette), Ctrl+Shift+F (Find in Files), Ctrl+Shift+D (duplicate line).
+
+### Changed
+- Soft-wrap default is now ON (was OFF).
+- Ctrl+D rebound to select-next-occurrence (was duplicate-line); duplicate-line moved to Ctrl+Shift+D.
+- Default font: `JetBrains Mono` (was `monospace`) with a multi-font fallback chain.
+- Current-line color in Lyrux Dark bumped for visibility (`#15151A` → `#1A1B22`).
+- Gutter background distinguished from buffer background across all bundled schemes.
+- Buffer rendering: 6 px / 12 px padding + line-height 1.5.
+- Scheme `def:*` style coverage expanded — Markdown headings, bold, italic, links, lists, and code fences now render with color across all 10 bundled schemes.
+- Watcher auto-reload preserves cursor + scroll position.
+- File-change banner clears stale tab marker on auto-reload (suppress flag).
+- Scheme + language registration gated by `OnceLock` — no disk thrash per editor open or settings change.
+- Surface-find-hide shortcut moved from Ctrl+Shift+F to Ctrl+Shift+Alt+F (freed Ctrl+Shift+F for Find-in-Files).
+
+### Fixed
+- Swap-file leak in workspace-switch — previous swap file is discarded before writing the new one.
+- Untitled tab Ctrl+S no longer silent no-op (opens FileDialog).
+- External file-change race that left dirty-marker stale after auto-reload.
+- Documented shortcut for editor-toggle-current-pane is now Ctrl+Shift+E (CHANGELOG previously said Ctrl+E).
+
+### Performance
+- Editor pane idle: ~70 MB target with 10 open tabs (heaptrack-measured separately).
+
+### Notes
+- Full multi-cursor (Alt+click add-cursor, Ctrl+Shift+L select-all-occurrences) deferred — sourceview5 0.11 has no native multi-cursor API. Ctrl+D wraps to the next single occurrence for now.
+- HTML / XML block-comment toggle (Ctrl+/) not yet — only `//` and `#` languages currently.
+- Heaptrack measurement of the polish sprint still TODO post-build.
+
 ## [0.2.0] — 2026-05-16
 
 ### Added
