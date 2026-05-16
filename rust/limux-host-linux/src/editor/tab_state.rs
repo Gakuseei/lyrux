@@ -8,6 +8,7 @@ use std::rc::Rc;
 
 use crate::editor::buffer::{self, FileEtag, LoadResult};
 use crate::editor::langs;
+use crate::editor::pair;
 use crate::editor::view::{self, ViewConfig};
 
 pub type DirtyMarkerCb = Rc<RefCell<Option<Rc<dyn Fn(bool)>>>>;
@@ -55,6 +56,7 @@ pub fn build(path: PathBuf, cfg: &ViewConfig) -> BuildOutcome {
         buffer.set_language(Some(&lang));
     }
     let view = view::build(&buffer, cfg);
+    pair::install(&view, &buffer);
     let scrolled = gtk4::ScrolledWindow::builder()
         .hscrollbar_policy(gtk4::PolicyType::Automatic)
         .vscrollbar_policy(gtk4::PolicyType::Automatic)
