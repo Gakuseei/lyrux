@@ -1,7 +1,84 @@
-use std::path::PathBuf;
+#![allow(dead_code)]
 
-#[allow(dead_code)]
+use gtk4::prelude::*;
+use sourceview5::prelude::*;
+use std::cell::Cell;
+use std::path::PathBuf;
+use std::rc::Rc;
+
+use crate::editor::buffer::{self, FileEtag, LoadResult};
+use crate::editor::langs;
+use crate::editor::view::{self, ViewConfig};
+
 #[derive(Clone)]
 pub struct EditorTabState {
     pub path: PathBuf,
+    pub scrolled: gtk4::ScrolledWindow,
+    pub view: sourceview5::View,
+    pub buffer: sourceview5::Buffer,
+    pub dirty: Rc<Cell<bool>>,
+    pub saved_etag: Rc<Cell<Option<FileEtag>>>,
+    pub banner: gtk4::Revealer,
+    pub root: gtk4::Box,
+}
+
+pub enum BuildOutcome {
+    Ok(EditorTabState),
+    TooLarge(u64),
+    Binary,
+    NotFound,
+    Io(String),
+}
+
+pub fn build(path: PathBuf, cfg: &ViewConfig) -> BuildOutcome {
+    let load = buffer::load(&path);
+    let (text, etag) = match load {
+        LoadResult::Text { contents, etag } => (contents, etag),
+        LoadResult::Binary { .. } => return BuildOutcome::Binary,
+        LoadResult::TooLarge { size } => return BuildOutcome::TooLarge(size),
+        LoadResult::NotFound => return BuildOutcome::NotFound,
+        LoadResult::Io(e) => return BuildOutcome::Io(e),
+    };
+    let buffer = sourceview5::Buffer::new(None);
+    buffer.set_text(&text);
+    if let Some(lang) = langs::language_for_path(&path) {
+        buffer.set_language(Some(&lang));
+    }
+    let view = view::build(&buffer, cfg);
+    let scrolled = gtk4::ScrolledWindow::builder()
+        .hscrollbar_policy(gtk4::PolicyType::Automatic)
+        .vscrollbar_policy(gtk4::PolicyType::Automatic)
+        .child(&view)
+        .hexpand(true)
+        .vexpand(true)
+        .build();
+
+    let banner = gtk4::Revealer::builder()
+        .reveal_child(false)
+        .transition_type(gtk4::RevealerTransitionType::SlideDown)
+        .build();
+
+    let root = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
+    root.append(&banner);
+    root.append(&scrolled);
+    root.set_hexpand(true);
+    root.set_vexpand(true);
+
+    let state = EditorTabState {
+        path,
+        scrolled,
+        view,
+        buffer: buffer.clone(),
+        dirty: Rc::new(Cell::new(false)),
+        saved_etag: Rc::new(Cell::new(Some(etag))),
+        banner,
+        root,
+    };
+
+    let dirty = state.dirty.clone();
+    buffer.connect_changed(move |_| {
+        dirty.set(true);
+    });
+
+    BuildOutcome::Ok(state)
 }
