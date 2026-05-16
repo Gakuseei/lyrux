@@ -146,6 +146,22 @@ pub fn set_workspace_dragging_all(active: bool) {
     });
 }
 
+pub fn for_each_editor_tab<F: FnMut(&editor::EditorTabState)>(mut f: F) {
+    PANE_REGISTRY.with(|registry| {
+        for weak in registry.borrow().values() {
+            let Some(internals) = weak.upgrade() else {
+                continue;
+            };
+            let tab_state = internals.tab_state.borrow();
+            for entry in &tab_state.tabs {
+                if let TabKind::Editor { state } = &entry.kind {
+                    f(state);
+                }
+            }
+        }
+    });
+}
+
 type PaneSplitCallback = dyn Fn(&gtk::Widget, gtk::Orientation);
 type PaneWidgetCallback = dyn Fn(&gtk::Widget);
 type PaneSignalCallback = dyn Fn();
@@ -1243,8 +1259,10 @@ fn add_editor_tab_inner(internals: &Rc<PaneInternals>) {
     (internals.callbacks.on_state_changed)();
 }
 
-fn editor_view_config(_internals: &Rc<PaneInternals>) -> editor::ViewConfig {
-    editor::ViewConfig::default()
+fn editor_view_config(internals: &Rc<PaneInternals>) -> editor::ViewConfig {
+    let config_rc = (internals.callbacks.current_config)();
+    let cfg = config_rc.borrow();
+    cfg.editor.to_view_config()
 }
 
 fn add_editor_tab_for_path_inner(internals: &Rc<PaneInternals>, path: &std::path::Path) {

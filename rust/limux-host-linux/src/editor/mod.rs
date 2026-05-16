@@ -3,6 +3,7 @@ pub mod image_viewer;
 pub mod keymap;
 pub mod langs;
 pub mod session;
+pub mod settings;
 pub mod settings_panel;
 pub mod strings;
 pub mod swap;
@@ -10,6 +11,8 @@ pub mod tab_state;
 pub mod themes;
 pub mod view;
 pub mod watcher;
+
+pub use settings::EditorSettings;
 
 #[allow(unused_imports)]
 pub use image_viewer::ImageViewerTabState;
@@ -73,7 +76,9 @@ pub fn spawn_empty(cfg: &ViewConfig) -> EditorTabState {
         monitor: Rc::new(RefCell::new(None)),
         suppress_dirty: Rc::new(Cell::new(false)),
         dirty_marker_cb: Rc::new(RefCell::new(None)),
+        css_provider: Rc::new(RefCell::new(None)),
     };
+    view::apply_css(&state.view, cfg, &state.css_provider);
 
     let dirty = state.dirty.clone();
     let suppress = state.suppress_dirty.clone();

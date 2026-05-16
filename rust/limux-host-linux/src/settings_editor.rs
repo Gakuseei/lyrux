@@ -5,8 +5,11 @@ use adw::prelude::*;
 use gtk4 as gtk;
 use libadwaita as adw;
 
-use crate::app_config::{AppConfig, ColorScheme};
+use crate::app_config::{AppConfig, ColorScheme, EditorSettings};
+use crate::editor::settings_panel as editor_settings_panel;
+use crate::editor::view as editor_view;
 use crate::keybind_editor;
+use crate::pane;
 use crate::shortcut_config::{NormalizedShortcut, ResolvedShortcutConfig, ShortcutId};
 
 pub const SETTINGS_CSS: &str = r#"
@@ -192,6 +195,10 @@ fn build_settings_window_content(window: &adw::Window, input: SettingsEditorInpu
     let general_stack_page = stack.add_titled(&general_page, Some("general"), "General");
     general_stack_page.set_icon_name(Some("preferences-system-symbolic"));
 
+    let editor_page = build_editor_page(&input);
+    let editor_stack_page = stack.add_titled(&editor_page, Some("editor"), "Editor");
+    editor_stack_page.set_icon_name(Some("accessories-text-editor-symbolic"));
+
     let keybinds_page = keybind_editor::build_keybind_editor(&input.shortcuts, input.on_capture);
     let keybinds_stack_page = stack.add_titled(&keybinds_page, Some("keybindings"), "Keybindings");
     keybinds_stack_page.set_icon_name(Some("input-keyboard-symbolic"));
@@ -342,6 +349,32 @@ fn build_general_page(input: &SettingsEditorInput) -> gtk::Widget {
     scroller.set_vexpand(true);
 
     scroller.upcast()
+}
+
+fn build_editor_page(input: &SettingsEditorInput) -> gtk::Widget {
+    let current = input.config.borrow().editor.clone();
+    let config = input.config.clone();
+    let on_changed = input.on_config_changed.clone();
+    let cb: Rc<dyn Fn(&EditorSettings)> = Rc::new(move |next: &EditorSettings| {
+        let next_clone = next.clone();
+        apply_config_change(&config, &*on_changed, move |c| {
+            c.editor = next_clone;
+        });
+        broadcast_editor_settings(next);
+    });
+    editor_settings_panel::build(
+        &current,
+        editor_settings_panel::SettingsCallbacks { on_change: cb },
+    )
+}
+
+fn broadcast_editor_settings(settings: &EditorSettings) {
+    let view_cfg = settings.to_view_config();
+    pane::for_each_editor_tab(|state| {
+        editor_view::apply_to_view(&state.view, &view_cfg);
+        editor_view::apply_to_buffer(&state.buffer, &view_cfg);
+        editor_view::apply_css(&state.view, &view_cfg, &state.css_provider);
+    });
 }
 
 #[cfg(test)]

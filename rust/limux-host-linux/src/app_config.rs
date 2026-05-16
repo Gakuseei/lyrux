@@ -5,6 +5,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::Deserialize;
 use serde_json::{json, Value};
 
+pub use crate::editor::EditorSettings;
 use crate::shortcut_config;
 
 pub const SETTINGS_FILE_NAME: &str = "settings.json";
@@ -50,6 +51,8 @@ pub struct AppConfig {
     pub file_panel_width: u32,
     #[serde(default)]
     pub file_panel_hidden_visible: bool,
+    #[serde(default)]
+    pub editor: EditorSettings,
 }
 
 fn default_file_panel_width() -> u32 {
@@ -181,6 +184,11 @@ fn parse_app_config_value(root: &Value) -> AppConfig {
         .and_then(Value::as_bool)
         .unwrap_or(false);
 
+    let editor = root
+        .get("editor")
+        .and_then(|value| serde_json::from_value::<EditorSettings>(value.clone()).ok())
+        .unwrap_or_default();
+
     AppConfig {
         focus: FocusConfig {
             hover_terminal_focus,
@@ -193,6 +201,7 @@ fn parse_app_config_value(root: &Value) -> AppConfig {
         file_panel_visible,
         file_panel_width,
         file_panel_hidden_visible,
+        editor,
     }
 }
 
@@ -224,6 +233,15 @@ fn save_to_path(path: &Path, config: &AppConfig) -> Result<(), String> {
         root.insert("font_size".to_string(), json!(size));
     } else {
         root.remove("font_size");
+    }
+
+    match serde_json::to_value(&config.editor) {
+        Ok(value) => {
+            root.insert("editor".to_string(), value);
+        }
+        Err(err) => {
+            return Err(format!("failed to serialize editor settings: {err}"));
+        }
     }
 
     let serialized =

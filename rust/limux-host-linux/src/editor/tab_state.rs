@@ -11,6 +11,7 @@ use crate::editor::langs;
 use crate::editor::view::{self, ViewConfig};
 
 pub type DirtyMarkerCb = Rc<RefCell<Option<Rc<dyn Fn(bool)>>>>;
+pub type ViewCssProvider = Rc<RefCell<Option<gtk4::CssProvider>>>;
 
 #[derive(Clone)]
 pub struct EditorTabState {
@@ -25,6 +26,7 @@ pub struct EditorTabState {
     pub monitor: Rc<RefCell<Option<gtk4::gio::FileMonitor>>>,
     pub suppress_dirty: Rc<Cell<bool>>,
     pub dirty_marker_cb: DirtyMarkerCb,
+    pub css_provider: ViewCssProvider,
 }
 
 pub enum BuildOutcome {
@@ -81,7 +83,9 @@ pub fn build(path: PathBuf, cfg: &ViewConfig) -> BuildOutcome {
         monitor: Rc::new(RefCell::new(None)),
         suppress_dirty: Rc::new(Cell::new(false)),
         dirty_marker_cb: Rc::new(RefCell::new(None)),
+        css_provider: Rc::new(RefCell::new(None)),
     };
+    view::apply_css(&state.view, cfg, &state.css_provider);
 
     let dirty = state.dirty.clone();
     let suppress = state.suppress_dirty.clone();

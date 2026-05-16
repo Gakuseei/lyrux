@@ -1,5 +1,8 @@
 #![allow(dead_code)]
 
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use gtk4 as gtk;
 use sourceview5::prelude::*;
 
@@ -68,14 +71,26 @@ pub fn apply_to_view(view: &sourceview5::View, cfg: &ViewConfig) {
     let drawer = view.space_drawer();
     drawer.set_types_for_locations(sourceview5::SpaceLocationFlags::ALL, whitespace);
     drawer.set_enable_matrix(cfg.show_whitespace);
+    view.add_css_class("sourceview");
+}
+
+pub fn apply_css(
+    view: &sourceview5::View,
+    cfg: &ViewConfig,
+    slot: &Rc<RefCell<Option<gtk::CssProvider>>>,
+) {
     let css = format!(
         ".sourceview, .sourceview text {{ font-family: \"{}\", monospace; font-size: {}pt; }}",
         cfg.font_family.replace('"', ""),
         cfg.font_size
     );
+    let mut slot_ref = slot.borrow_mut();
+    if let Some(provider) = slot_ref.as_ref() {
+        provider.load_from_data(&css);
+        return;
+    }
     let provider = gtk::CssProvider::new();
     provider.load_from_data(&css);
-    view.add_css_class("sourceview");
     if let Some(display) = gtk::gdk::Display::default() {
         gtk::style_context_add_provider_for_display(
             &display,
@@ -83,6 +98,8 @@ pub fn apply_to_view(view: &sourceview5::View, cfg: &ViewConfig) {
             gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
         );
     }
+    view.add_css_class("sourceview");
+    *slot_ref = Some(provider);
 }
 
 pub fn apply_to_buffer(buffer: &sourceview5::Buffer, cfg: &ViewConfig) {
