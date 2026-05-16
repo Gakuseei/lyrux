@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.0] — 2026-05-16
 
 ### Added
-- Code editor pane via GtkSourceView 5. Open via editor icon in pane header (Ctrl+E), via file-panel double-click on text files, or by DnD onto a pane.
+- Code editor pane via GtkSourceView 5. Open via editor icon in pane header (Ctrl+Shift+E), via file-panel double-click on text files, or by DnD onto a pane.
 - Image viewer pane for PNG/JPG/WebP/GIF/SVG/BMP with Ctrl+scroll zoom and Ctrl+0 fit-to-window.
 - 10 bundled style schemes (Lyrux Dark/Light, Catppuccin Latte/Frappé/Macchiato/Mocha, Tokyo Night / Storm, One Dark/Light).
 - Editor settings panel: theme, font, font size, tab width, line-numbers, whitespace, wrap, auto-indent, current-line, bracket-match.
