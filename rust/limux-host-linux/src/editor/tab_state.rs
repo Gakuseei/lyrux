@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use gtk4::prelude::*;
 use sourceview5::prelude::*;
 use std::cell::{Cell, RefCell};
@@ -41,7 +39,7 @@ pub struct EditorTabState {
 
 pub enum BuildOutcome {
     Ok(EditorTabState),
-    TooLarge(u64),
+    TooLarge(#[allow(dead_code)] u64),
     Binary,
     NotFound,
     Io(String),
