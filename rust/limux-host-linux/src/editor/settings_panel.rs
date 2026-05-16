@@ -116,6 +116,32 @@ pub fn build(current: &EditorSettings, cb: SettingsCallbacks) -> gtk4::Widget {
             }
         },
     ));
+    root.append(&bool_row(
+        strings::SETTING_STRIP_WS,
+        current.strip_trailing_whitespace,
+        {
+            let cb = cb.on_change.clone();
+            let snapshot = current.clone();
+            move |v| {
+                let mut next = snapshot.clone();
+                next.strip_trailing_whitespace = v;
+                cb(&next);
+            }
+        },
+    ));
+    root.append(&bool_row(
+        strings::SETTING_FINAL_NEWLINE,
+        current.ensure_final_newline,
+        {
+            let cb = cb.on_change.clone();
+            let snapshot = current.clone();
+            move |v| {
+                let mut next = snapshot.clone();
+                next.ensure_final_newline = v;
+                cb(&next);
+            }
+        },
+    ));
     root.append(&vim_row());
 
     let scroller = gtk4::ScrolledWindow::builder()

@@ -2769,6 +2769,7 @@ fn confirm_dirty_close(
         .and_then(|root| root.downcast::<gtk::Window>().ok());
     let tab_id_for_marker = tab_id.clone();
     let tab_state_for_marker = tab_state.clone();
+    let callbacks_for_save = callbacks.clone();
     let proceed: Rc<dyn Fn()> = Rc::new(move || {
         remove_tab_force(
             &tab_strip,
@@ -2792,7 +2793,20 @@ fn confirm_dirty_close(
                 let on_clean: Rc<dyn Fn()> = Rc::new(move || {
                     update_tab_dirty_marker(&tab_state_inner, &tab_id_inner, false);
                 });
-                editor::keymap::save_tab(&state_for_dialog, workspace_root.as_deref(), &on_clean);
+                let transform = {
+                    let cfg_rc = (callbacks_for_save.current_config)();
+                    let cfg = cfg_rc.borrow();
+                    editor::keymap::SaveTransform {
+                        strip_trailing_whitespace: cfg.editor.strip_trailing_whitespace,
+                        ensure_final_newline: cfg.editor.ensure_final_newline,
+                    }
+                };
+                editor::keymap::save_tab(
+                    &state_for_dialog,
+                    workspace_root.as_deref(),
+                    &on_clean,
+                    transform,
+                );
                 if !state_for_dialog.is_dirty() {
                     proceed_for_dialog();
                 }
@@ -2869,12 +2883,23 @@ fn install_editor_tab_hooks(
         );
     });
 
+    let callbacks_for_transform = internals.callbacks.clone();
+    let save_transform: Rc<dyn Fn() -> editor::keymap::SaveTransform> = Rc::new(move || {
+        let cfg_rc = (callbacks_for_transform.current_config)();
+        let cfg = cfg_rc.borrow();
+        editor::keymap::SaveTransform {
+            strip_trailing_whitespace: cfg.editor.strip_trailing_whitespace,
+            ensure_final_newline: cfg.editor.ensure_final_newline,
+        }
+    });
+
     editor::keymap::install(
         &state.view,
         state,
         workspace_root,
         on_clean,
         on_close_request,
+        save_transform,
     );
 
     let tab_state_for_dirty = internals.tab_state.clone();

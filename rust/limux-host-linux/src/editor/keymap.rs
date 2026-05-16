@@ -10,6 +10,14 @@ use crate::editor::strings;
 use crate::editor::tab_state::EditorTabState;
 use crate::file_panel::model::is_within_root;
 
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
+pub struct SaveTransform {
+    pub strip_trailing_whitespace: bool,
+    pub ensure_final_newline: bool,
+}
+
+pub type SaveTransformFn = Rc<dyn Fn() -> SaveTransform>;
+
 const FIND_BAR_KEY: &str = "lyrux-find-bar";
 const SEARCH_ENTRY_KEY: &str = "lyrux-search-entry";
 const REPLACE_ENTRY_KEY: &str = "lyrux-replace-entry";
@@ -21,6 +29,7 @@ pub fn install(
     workspace_root: Option<PathBuf>,
     on_clean: Rc<dyn Fn()>,
     on_close_request: Rc<dyn Fn()>,
+    save_transform: SaveTransformFn,
 ) {
     let ctrl = gtk4::EventControllerKey::new();
     let state = state.clone();
@@ -49,7 +58,12 @@ pub fn install(
 
         match key {
             gtk4::gdk::Key::s => {
-                save_tab(&state, workspace_root.as_deref(), &on_clean);
+                save_tab(
+                    &state,
+                    workspace_root.as_deref(),
+                    &on_clean,
+                    save_transform(),
+                );
                 glib::Propagation::Stop
             }
             gtk4::gdk::Key::f => {
@@ -90,10 +104,15 @@ pub fn install(
     view.add_controller(ctrl);
 }
 
-pub fn save_tab(state: &EditorTabState, workspace_root: Option<&Path>, on_clean: &Rc<dyn Fn()>) {
+pub fn save_tab(
+    state: &EditorTabState,
+    workspace_root: Option<&Path>,
+    on_clean: &Rc<dyn Fn()>,
+    transform: SaveTransform,
+) {
     let current = state.path.borrow().clone();
     if current.as_os_str().is_empty() {
-        show_save_as_dialog(state, workspace_root, on_clean);
+        show_save_as_dialog(state, workspace_root, on_clean, transform);
         return;
     }
     if let Some(root) = workspace_root {
@@ -102,7 +121,7 @@ pub fn save_tab(state: &EditorTabState, workspace_root: Option<&Path>, on_clean:
             return;
         }
     }
-    let text = state.snapshot_text();
+    let text = apply_save_transform(state.snapshot_text(), transform);
     match buffer::save_atomic(&current, &text) {
         Ok(etag) => {
             state.mark_clean(etag);
@@ -123,6 +142,7 @@ fn show_save_as_dialog(
     state: &EditorTabState,
     workspace_root: Option<&Path>,
     on_clean: &Rc<dyn Fn()>,
+    transform: SaveTransform,
 ) {
     let dialog = gtk4::FileDialog::builder()
         .title(strings::SAVE_AS_DIALOG_TITLE)
@@ -156,7 +176,7 @@ fn show_save_as_dialog(
                     return;
                 }
             }
-            let text = state_for_cb.snapshot_text();
+            let text = apply_save_transform(state_for_cb.snapshot_text(), transform);
             match buffer::save_atomic(&picked, &text) {
                 Ok(etag) => {
                     *state_for_cb.path.borrow_mut() = picked.clone();
@@ -649,4 +669,96 @@ fn goto_line_apply(buffer: &sourceview5::Buffer, view: &sourceview5::View, line:
     let mut scroll_iter = iter;
     view.scroll_to_iter(&mut scroll_iter, 0.1, true, 0.0, 0.5);
     view.grab_focus();
+}
+
+fn apply_save_transform(mut text: String, transform: SaveTransform) -> String {
+    if transform.strip_trailing_whitespace {
+        text = strip_trailing_ws(&text);
+    }
+    if transform.ensure_final_newline && !text.is_empty() && !text.ends_with('\n') {
+        text.push('\n');
+    }
+    text
+}
+
+fn strip_trailing_ws(text: &str) -> String {
+    let had_trailing_nl = text.ends_with('\n');
+    let mut out = text
+        .split('\n')
+        .map(|line| line.trim_end())
+        .collect::<Vec<_>>()
+        .join("\n");
+    if had_trailing_nl && !out.ends_with('\n') {
+        out.push('\n');
+    }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{apply_save_transform, strip_trailing_ws, SaveTransform};
+
+    #[test]
+    fn strip_trailing_ws_basic() {
+        assert_eq!(strip_trailing_ws("hello \nworld  \n"), "hello\nworld\n");
+    }
+
+    #[test]
+    fn strip_trailing_ws_single_word() {
+        assert_eq!(strip_trailing_ws("x"), "x");
+    }
+
+    #[test]
+    fn strip_trailing_ws_empty() {
+        assert_eq!(strip_trailing_ws(""), "");
+    }
+
+    #[test]
+    fn strip_trailing_ws_only_newlines() {
+        assert_eq!(strip_trailing_ws("\n\n"), "\n\n");
+    }
+
+    #[test]
+    fn strip_trailing_ws_no_newline() {
+        assert_eq!(strip_trailing_ws("hello"), "hello");
+    }
+
+    #[test]
+    fn apply_save_transform_adds_final_newline() {
+        let t = SaveTransform {
+            strip_trailing_whitespace: false,
+            ensure_final_newline: true,
+        };
+        assert_eq!(apply_save_transform("hello".to_string(), t), "hello\n");
+    }
+
+    #[test]
+    fn apply_save_transform_skips_final_newline_on_empty() {
+        let t = SaveTransform {
+            strip_trailing_whitespace: false,
+            ensure_final_newline: true,
+        };
+        assert_eq!(apply_save_transform(String::new(), t), "");
+    }
+
+    #[test]
+    fn apply_save_transform_both() {
+        let t = SaveTransform {
+            strip_trailing_whitespace: true,
+            ensure_final_newline: true,
+        };
+        assert_eq!(
+            apply_save_transform("foo  \nbar".to_string(), t),
+            "foo\nbar\n"
+        );
+    }
+
+    #[test]
+    fn apply_save_transform_disabled() {
+        let t = SaveTransform::default();
+        assert_eq!(
+            apply_save_transform("foo  \nbar".to_string(), t),
+            "foo  \nbar"
+        );
+    }
 }

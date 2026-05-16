@@ -26,6 +26,10 @@ pub struct EditorSettings {
     pub highlight_current_line: bool,
     #[serde(default = "default_true")]
     pub highlight_matching_brackets: bool,
+    #[serde(default = "default_true")]
+    pub strip_trailing_whitespace: bool,
+    #[serde(default = "default_true")]
+    pub ensure_final_newline: bool,
     #[serde(default)]
     pub vim_mode: bool,
 }
@@ -60,6 +64,8 @@ impl Default for EditorSettings {
             auto_indent: true,
             highlight_current_line: true,
             highlight_matching_brackets: true,
+            strip_trailing_whitespace: true,
+            ensure_final_newline: true,
             vim_mode: false,
         }
     }
