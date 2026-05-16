@@ -80,7 +80,7 @@ pub fn apply_css(
     slot: &Rc<RefCell<Option<gtk::CssProvider>>>,
 ) {
     let css = format!(
-        ".sourceview, .sourceview text {{ font-family: \"{}\", monospace; font-size: {}pt; }}",
+        ".sourceview, .sourceview text {{ font-family: \"{}\", monospace; font-size: {}pt; padding: 6px 12px; line-height: 1.5; }}",
         cfg.font_family.replace('"', ""),
         cfg.font_size
     );
