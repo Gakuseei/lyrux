@@ -111,7 +111,11 @@ pub fn save_tab(state: &EditorTabState, workspace_root: Option<&Path>, on_clean:
             }
             on_clean();
         }
-        Err(e) => eprintln!("lyrux: {}{e}", strings::ERROR_WRITE_FAILED_PREFIX),
+        Err(e) => {
+            let msg = format!("{}{e}", strings::ERROR_WRITE_FAILED_PREFIX);
+            eprintln!("lyrux: {msg}");
+            crate::editor::watcher::show_error_banner(state, &msg);
+        }
     }
 }
 
@@ -171,7 +175,11 @@ fn show_save_as_dialog(
                     state_for_cb.set_monitor(crate::editor::watcher::install(&state_for_cb));
                     on_clean_for_cb();
                 }
-                Err(e) => eprintln!("lyrux: {}{e}", strings::ERROR_WRITE_FAILED_PREFIX),
+                Err(e) => {
+                    let msg = format!("{}{e}", strings::ERROR_WRITE_FAILED_PREFIX);
+                    eprintln!("lyrux: {msg}");
+                    crate::editor::watcher::show_error_banner(&state_for_cb, &msg);
+                }
             }
         },
     );

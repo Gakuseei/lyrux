@@ -127,3 +127,28 @@ fn build_banner_widget(
 pub fn dismiss(state: &EditorTabState) {
     state.banner.set_reveal_child(false);
 }
+
+pub fn show_error_banner(state: &EditorTabState, message: &str) {
+    let bar = gtk4::Box::new(gtk4::Orientation::Horizontal, 8);
+    bar.set_margin_top(6);
+    bar.set_margin_bottom(6);
+    bar.set_margin_start(12);
+    bar.set_margin_end(12);
+    let label = gtk4::Label::new(Some(message));
+    label.set_hexpand(true);
+    label.set_halign(gtk4::Align::Start);
+    label.set_wrap(true);
+    bar.append(&label);
+
+    let dismiss_btn = gtk4::Button::with_label(strings::BANNER_DISMISS);
+    let banner_weak = state.banner.downgrade();
+    dismiss_btn.connect_clicked(move |_| {
+        if let Some(b) = banner_weak.upgrade() {
+            b.set_reveal_child(false);
+        }
+    });
+    bar.append(&dismiss_btn);
+
+    state.banner.set_child(Some(&bar));
+    state.banner.set_reveal_child(true);
+}

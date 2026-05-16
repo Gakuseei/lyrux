@@ -27,6 +27,7 @@ pub const BANNER_RELOAD: &str = "Reload";
 pub const BANNER_KEEP_MINE: &str = "Keep mine";
 pub const BANNER_SAVE_AS_NEW: &str = "Save";
 pub const BANNER_CLOSE_TAB: &str = "Close tab";
+pub const BANNER_DISMISS: &str = "Dismiss";
 pub const SAVE_AS_DIALOG_TITLE: &str = "Save As";
 
 pub const TOAST_RELOADED_PREFIX: &str = "Reloaded ";
