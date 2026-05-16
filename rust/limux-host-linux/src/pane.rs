@@ -10,6 +10,7 @@ use gtk4 as gtk;
 use webkit6::prelude::*;
 
 use crate::app_config::AppConfig;
+use crate::editor;
 use crate::keybind_editor;
 use crate::layout_state::{PaneState, TabContentState, TabState as SavedTabState};
 use crate::settings_editor;
@@ -660,9 +661,21 @@ pub fn terminal_handle_for_surface(
 
 #[derive(Clone)]
 enum TabKind {
-    Terminal { state: TerminalTabState },
-    Browser { state: BrowserTabState },
+    Terminal {
+        state: TerminalTabState,
+    },
+    Browser {
+        state: BrowserTabState,
+    },
     Keybinds,
+    #[allow(dead_code)]
+    Editor {
+        state: editor::EditorTabState,
+    },
+    #[allow(dead_code)]
+    ImageViewer {
+        state: editor::ImageViewerTabState,
+    },
 }
 
 enum TabFocusTarget {
@@ -677,6 +690,9 @@ impl TabFocusTarget {
             TabKind::Terminal { state } => Self::Terminal(state.handle.clone()),
             TabKind::Browser { state } => Self::Browser(state.handles.clone()),
             TabKind::Keybinds => Self::Widget(entry.content.clone()),
+            TabKind::Editor { .. } | TabKind::ImageViewer { .. } => {
+                Self::Widget(entry.content.clone())
+            }
         }
     }
 
@@ -1353,7 +1369,9 @@ pub fn snapshot_pane_state(pane_widget: &gtk::Widget) -> Option<PaneState> {
                 TabKind::Browser { state } => TabContentState::Browser {
                     uri: state.uri.borrow().clone(),
                 },
-                TabKind::Keybinds => TabContentState::Keybinds {},
+                TabKind::Keybinds | TabKind::Editor { .. } | TabKind::ImageViewer { .. } => {
+                    TabContentState::Keybinds {}
+                }
             };
             SavedTabState {
                 id: entry.id.clone(),
@@ -1407,7 +1425,10 @@ pub fn tab_working_directory(pane_widget: &gtk::Widget, tab_id: &str) -> Option<
     let entry = tab_state.tabs.iter().find(|entry| entry.id == tab_id)?;
     match &entry.kind {
         TabKind::Terminal { state } => state.cwd.borrow().clone(),
-        TabKind::Browser { .. } | TabKind::Keybinds => None,
+        TabKind::Browser { .. }
+        | TabKind::Keybinds
+        | TabKind::Editor { .. }
+        | TabKind::ImageViewer { .. } => None,
     }
 }
 
@@ -1452,6 +1473,14 @@ pub fn focused_shortcut_target(pane_widget: &gtk::Widget) -> FocusedShortcutTarg
             }),
             Some(TabEntry {
                 kind: TabKind::Keybinds,
+                ..
+            })
+            | Some(TabEntry {
+                kind: TabKind::Editor { .. },
+                ..
+            })
+            | Some(TabEntry {
+                kind: TabKind::ImageViewer { .. },
                 ..
             }) => FocusedShortcutTarget::Keybinds,
             None => FocusedShortcutTarget::None,

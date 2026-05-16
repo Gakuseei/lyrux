@@ -1,5 +1,6 @@
 mod app_config;
 mod control_bridge;
+mod editor;
 mod file_panel;
 mod ghostty_config;
 mod keybind_editor;
