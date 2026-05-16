@@ -1352,7 +1352,8 @@ fn editor_view_config(internals: &Rc<PaneInternals>) -> editor::ViewConfig {
 }
 
 fn add_editor_tab_for_path_inner(internals: &Rc<PaneInternals>, path: &std::path::Path) {
-    let cfg = editor_view_config(internals);
+    let mut cfg = editor_view_config(internals);
+    editor::editorconfig::apply_view_overrides(path, &mut cfg);
     let state = match editor::spawn_from_path(path.to_path_buf(), &cfg) {
         editor::tab_state::BuildOutcome::Ok(state) => state,
         editor::tab_state::BuildOutcome::TooLarge(_) => {
@@ -2872,12 +2873,19 @@ fn confirm_dirty_close(
                     update_tab_dirty_marker(&tab_state_inner, &tab_id_inner, false);
                 });
                 let transform = {
-                    let cfg_rc = (callbacks_for_save.current_config)();
-                    let cfg = cfg_rc.borrow();
-                    editor::keymap::SaveTransform {
-                        strip_trailing_whitespace: cfg.editor.strip_trailing_whitespace,
-                        ensure_final_newline: cfg.editor.ensure_final_newline,
+                    let mut t = {
+                        let cfg_rc = (callbacks_for_save.current_config)();
+                        let cfg = cfg_rc.borrow();
+                        editor::keymap::SaveTransform {
+                            strip_trailing_whitespace: cfg.editor.strip_trailing_whitespace,
+                            ensure_final_newline: cfg.editor.ensure_final_newline,
+                        }
+                    };
+                    let path = state_for_dialog.path.borrow().clone();
+                    if !path.as_os_str().is_empty() {
+                        editor::editorconfig::apply_save_overrides(&path, &mut t);
                     }
+                    t
                 };
                 editor::keymap::save_tab(
                     &state_for_dialog,
@@ -2962,13 +2970,21 @@ fn install_editor_tab_hooks(
     });
 
     let callbacks_for_transform = internals.callbacks.clone();
+    let path_for_transform = state.path.clone();
     let save_transform: Rc<dyn Fn() -> editor::keymap::SaveTransform> = Rc::new(move || {
-        let cfg_rc = (callbacks_for_transform.current_config)();
-        let cfg = cfg_rc.borrow();
-        editor::keymap::SaveTransform {
-            strip_trailing_whitespace: cfg.editor.strip_trailing_whitespace,
-            ensure_final_newline: cfg.editor.ensure_final_newline,
+        let mut transform = {
+            let cfg_rc = (callbacks_for_transform.current_config)();
+            let cfg = cfg_rc.borrow();
+            editor::keymap::SaveTransform {
+                strip_trailing_whitespace: cfg.editor.strip_trailing_whitespace,
+                ensure_final_newline: cfg.editor.ensure_final_newline,
+            }
+        };
+        let path = path_for_transform.borrow().clone();
+        if !path.as_os_str().is_empty() {
+            editor::editorconfig::apply_save_overrides(&path, &mut transform);
         }
+        transform
     });
 
     editor::keymap::install(

@@ -275,6 +275,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "ec4rs"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3b31a881d38439026e3d5dd938ab20328d36e23caca8fd5981c42e4b677f5842"
+
+[[package]]
 name = "equivalent"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -964,6 +970,7 @@ name = "limux-host-linux"
 version = "0.2.0"
 dependencies = [
  "dirs",
+ "ec4rs",
  "gdk4-wayland",
  "gtk4",
  "ignore",
