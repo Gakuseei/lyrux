@@ -10,6 +10,8 @@ use crate::editor::buffer::{self, FileEtag, LoadResult};
 use crate::editor::langs;
 use crate::editor::view::{self, ViewConfig};
 
+pub type DirtyMarkerCb = Rc<RefCell<Option<Rc<dyn Fn(bool)>>>>;
+
 #[derive(Clone)]
 pub struct EditorTabState {
     pub path: PathBuf,
@@ -21,6 +23,8 @@ pub struct EditorTabState {
     pub banner: gtk4::Revealer,
     pub root: gtk4::Box,
     pub monitor: Rc<RefCell<Option<gtk4::gio::FileMonitor>>>,
+    pub suppress_dirty: Rc<Cell<bool>>,
+    pub dirty_marker_cb: DirtyMarkerCb,
 }
 
 pub enum BuildOutcome {
@@ -75,10 +79,16 @@ pub fn build(path: PathBuf, cfg: &ViewConfig) -> BuildOutcome {
         banner,
         root,
         monitor: Rc::new(RefCell::new(None)),
+        suppress_dirty: Rc::new(Cell::new(false)),
+        dirty_marker_cb: Rc::new(RefCell::new(None)),
     };
 
     let dirty = state.dirty.clone();
+    let suppress = state.suppress_dirty.clone();
     buffer.connect_changed(move |_| {
+        if suppress.get() {
+            return;
+        }
         dirty.set(true);
     });
 
@@ -94,6 +104,9 @@ impl EditorTabState {
     pub fn mark_clean(&self, etag: FileEtag) {
         self.dirty.set(false);
         self.saved_etag.set(Some(etag));
+        if let Some(cb) = self.dirty_marker_cb.borrow().as_ref() {
+            cb(false);
+        }
     }
 
     pub fn set_monitor(&self, m: Option<gtk4::gio::FileMonitor>) {
@@ -105,8 +118,14 @@ impl EditorTabState {
     }
 
     pub fn on_dirty_changed<F: Fn(bool) + 'static>(&self, f: F) {
+        let cb: Rc<dyn Fn(bool)> = Rc::new(f);
+        *self.dirty_marker_cb.borrow_mut() = Some(cb.clone());
+        let suppress = self.suppress_dirty.clone();
         self.buffer.connect_changed(move |_| {
-            f(true);
+            if suppress.get() {
+                return;
+            }
+            cb(true);
         });
     }
 }

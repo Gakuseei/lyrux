@@ -71,10 +71,16 @@ pub fn spawn_empty(cfg: &ViewConfig) -> EditorTabState {
         banner,
         root,
         monitor: Rc::new(RefCell::new(None)),
+        suppress_dirty: Rc::new(Cell::new(false)),
+        dirty_marker_cb: Rc::new(RefCell::new(None)),
     };
 
     let dirty = state.dirty.clone();
+    let suppress = state.suppress_dirty.clone();
     buffer.connect_changed(move |_| {
+        if suppress.get() {
+            return;
+        }
         dirty.set(true);
     });
 

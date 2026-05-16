@@ -31,7 +31,7 @@ pub fn install(state: &EditorTabState) -> Option<gtk4::gio::FileMonitor> {
         }
         match (current, state.is_dirty()) {
             (Some(_), false) => reload_clean(&state),
-            (Some(etag), true) => show_banner(&state, etag, false),
+            (Some(_), true) => show_banner(&state, false),
             (None, _) => show_banner_deleted(&state),
         }
     });
@@ -40,12 +40,14 @@ pub fn install(state: &EditorTabState) -> Option<gtk4::gio::FileMonitor> {
 
 fn reload_clean(state: &EditorTabState) {
     if let buffer::LoadResult::Text { contents, etag } = buffer::load(&state.path) {
+        state.suppress_dirty.set(true);
         state.buffer.set_text(&contents);
+        state.suppress_dirty.set(false);
         state.mark_clean(etag);
     }
 }
 
-fn show_banner(state: &EditorTabState, _etag: FileEtag, deleted: bool) {
+fn show_banner(state: &EditorTabState, deleted: bool) {
     let banner = build_banner_widget(
         if deleted {
             strings::BANNER_FILE_DELETED_PREFIX
@@ -61,7 +63,7 @@ fn show_banner(state: &EditorTabState, _etag: FileEtag, deleted: bool) {
 }
 
 fn show_banner_deleted(state: &EditorTabState) {
-    show_banner(state, FileEtag { mtime: 0, size: 0 }, true);
+    show_banner(state, true);
 }
 
 fn build_banner_widget(
