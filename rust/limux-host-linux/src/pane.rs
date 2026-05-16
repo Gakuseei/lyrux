@@ -1568,6 +1568,9 @@ pub fn snapshot_pane_state(pane_widget: &gtk::Widget, workspace_id: &str) -> Opt
                 TabKind::Keybinds => TabContentState::Keybinds {},
                 TabKind::Editor { state } => {
                     let swap_file = if state.is_dirty() {
+                        if let Some(old) = state.swap_path.borrow_mut().take() {
+                            let _ = crate::editor::swap::discard(&old);
+                        }
                         match crate::editor::swap::write(
                             workspace_id,
                             &entry.id,
