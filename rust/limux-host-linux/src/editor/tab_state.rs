@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use crate::editor::buffer::{self, FileEtag, LoadResult};
+use crate::editor::highlight::{self, HighlightController};
 use crate::editor::indent;
 use crate::editor::langs;
 use crate::editor::pair;
@@ -33,6 +34,7 @@ pub struct EditorTabState {
     pub title_cb: TitleCb,
     pub css_provider: ViewCssProvider,
     pub swap_path: Rc<RefCell<Option<PathBuf>>>,
+    pub highlight: HighlightController,
 }
 
 pub enum BuildOutcome {
@@ -60,6 +62,7 @@ pub fn build(path: PathBuf, cfg: &ViewConfig) -> BuildOutcome {
     let view = view::build(&buffer, cfg);
     pair::install(&view, &buffer);
     indent::install(&view, &buffer);
+    let highlight_ctrl = highlight::install(&buffer, cfg.highlight_word_at_cursor);
     let scrolled = gtk4::ScrolledWindow::builder()
         .hscrollbar_policy(gtk4::PolicyType::Automatic)
         .vscrollbar_policy(gtk4::PolicyType::Automatic)
@@ -97,6 +100,7 @@ pub fn build(path: PathBuf, cfg: &ViewConfig) -> BuildOutcome {
         title_cb: Rc::new(RefCell::new(None)),
         css_provider: Rc::new(RefCell::new(None)),
         swap_path: Rc::new(RefCell::new(None)),
+        highlight: highlight_ctrl,
     };
     view::apply_css(&state.view, cfg, &state.css_provider);
 

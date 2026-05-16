@@ -374,6 +374,9 @@ fn broadcast_editor_settings(settings: &EditorSettings) {
         editor_view::apply_to_view(&state.view, &view_cfg);
         editor_view::apply_to_buffer(&state.buffer, &view_cfg);
         editor_view::apply_css(&state.view, &view_cfg, &state.css_provider);
+        state
+            .highlight
+            .set_enabled(view_cfg.highlight_word_at_cursor);
     });
 }
 

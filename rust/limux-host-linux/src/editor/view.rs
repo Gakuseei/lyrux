@@ -22,6 +22,7 @@ pub struct ViewConfig {
     pub highlight_current_line: bool,
     pub highlight_matching_brackets: bool,
     pub show_indent_guides: bool,
+    pub highlight_word_at_cursor: bool,
 }
 
 impl Default for ViewConfig {
@@ -39,6 +40,7 @@ impl Default for ViewConfig {
             highlight_current_line: true,
             highlight_matching_brackets: true,
             show_indent_guides: true,
+            highlight_word_at_cursor: true,
         }
     }
 }

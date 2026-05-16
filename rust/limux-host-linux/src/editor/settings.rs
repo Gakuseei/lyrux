@@ -32,6 +32,8 @@ pub struct EditorSettings {
     pub ensure_final_newline: bool,
     #[serde(default = "default_true")]
     pub show_indent_guides: bool,
+    #[serde(default = "default_true")]
+    pub highlight_word_at_cursor: bool,
     #[serde(default)]
     pub vim_mode: bool,
 }
@@ -69,6 +71,7 @@ impl Default for EditorSettings {
             strip_trailing_whitespace: true,
             ensure_final_newline: true,
             show_indent_guides: true,
+            highlight_word_at_cursor: true,
             vim_mode: false,
         }
     }
@@ -89,6 +92,7 @@ impl EditorSettings {
             highlight_current_line: self.highlight_current_line,
             highlight_matching_brackets: self.highlight_matching_brackets,
             show_indent_guides: self.show_indent_guides,
+            highlight_word_at_cursor: self.highlight_word_at_cursor,
         }
     }
 }
