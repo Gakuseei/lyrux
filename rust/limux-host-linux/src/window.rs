@@ -1561,6 +1561,18 @@ fn dispatch_shortcut_command(state: &State, command: ShortcutCommand) -> bool {
             }
             true
         }
+        ShortcutCommand::EditorFindInFiles => {
+            if let Some((_ws_id, pane_widget)) = find_focused_pane(state) {
+                let root = quick_open_root_for(state, &pane_widget);
+                let pane_for_cb = pane_widget.clone();
+                let on_open: crate::editor::find_in_files::OpenFileAtCallback =
+                    std::rc::Rc::new(move |path: &std::path::Path, line: usize, col: usize| {
+                        open_editor_at_position(&pane_for_cb, path, line, col);
+                    });
+                crate::editor::find_in_files::show(&pane_widget, root.as_deref(), on_open);
+            }
+            true
+        }
         ShortcutCommand::ToggleTopBar => {
             toggle_top_bar(state);
             true
@@ -3954,6 +3966,30 @@ fn find_focused_pane(state: &State) -> Option<(String, gtk::Widget)> {
     };
 
     Some((ws_id, first_leaf_pane(&root)))
+}
+
+fn open_editor_at_position(
+    pane_widget: &gtk::Widget,
+    path: &std::path::Path,
+    line: usize,
+    col: usize,
+) {
+    pane::open_editor_tab_for_pane(pane_widget, path);
+    let target_path = path.to_path_buf();
+    glib::idle_add_local_once(move || {
+        let canon_target = target_path
+            .canonicalize()
+            .unwrap_or_else(|_| target_path.clone());
+        pane::for_each_editor_tab(|state| {
+            let state_path = state.path.borrow().clone();
+            let canon_state = state_path
+                .canonicalize()
+                .unwrap_or_else(|_| state_path.clone());
+            if canon_state == canon_target {
+                crate::editor::find_in_files::jump_to_position(state, line, col);
+            }
+        });
+    });
 }
 
 fn quick_open_root_for(state: &State, pane_widget: &gtk::Widget) -> Option<std::path::PathBuf> {

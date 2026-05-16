@@ -76,6 +76,18 @@ pub const QUICK_OPEN_PLACEHOLDER: &str = "Search workspace files…";
 pub const QUICK_OPEN_EMPTY: &str = "No matches.";
 pub const SHORTCUT_LABEL_EDITOR_QUICK_OPEN: &str = "Quick-open file";
 
+pub const FIF_TITLE: &str = "Find in Files";
+pub const FIF_PLACEHOLDER: &str = "Find in files…";
+pub const FIF_NO_RG: &str = "ripgrep (rg) not installed.";
+pub const FIF_NO_MATCHES: &str = "No matches.";
+pub const FIF_NO_ROOT: &str = "No workspace folder is open.";
+pub const FIF_RG_FAILED_PREFIX: &str = "ripgrep failed: ";
+pub const SHORTCUT_LABEL_EDITOR_FIND_IN_FILES: &str = "Find in files";
+
+pub fn fif_results_label(matches: usize, files: usize) -> String {
+    format!("{matches} matches in {files} files")
+}
+
 pub const CMD_PALETTE_TITLE: &str = "Command Palette";
 pub const CMD_PALETTE_PLACEHOLDER: &str = "Search commands…";
 pub const CMD_PALETTE_EMPTY: &str = "No matching commands.";

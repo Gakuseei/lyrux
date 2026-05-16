@@ -64,6 +64,7 @@ pub enum ShortcutId {
     EditorToggleCurrentPane,
     EditorQuickOpen,
     EditorCommandPalette,
+    EditorFindInFiles,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -118,6 +119,7 @@ pub enum ShortcutCommand {
     EditorToggleCurrentPane,
     EditorQuickOpen,
     EditorCommandPalette,
+    EditorFindInFiles,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -316,7 +318,7 @@ struct ShortcutConfigFile {
     shortcuts: HashMap<String, serde_json::Value>,
 }
 
-const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 51] = [
+const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 52] = [
     ShortcutDefinition {
         id: ShortcutId::NewWorkspace,
         config_key: "new_workspace",
@@ -772,7 +774,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 51] = [
         id: ShortcutId::SurfaceFindHide,
         config_key: "surface_find_hide",
         action_name: "win.surface-find-hide",
-        default_accel: "<Ctrl><Shift>f",
+        default_accel: "<Ctrl><Shift><Alt>f",
         label: "Hide Find",
         registers_gtk_accel: false,
         command: ShortcutCommand::SurfaceFindHide,
@@ -875,6 +877,17 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 51] = [
         label: "Command palette",
         registers_gtk_accel: false,
         command: ShortcutCommand::EditorCommandPalette,
+        scope: ShortcutScope::Window,
+        editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
+    },
+    ShortcutDefinition {
+        id: ShortcutId::EditorFindInFiles,
+        config_key: "editor_find_in_files",
+        action_name: "win.editor-find-in-files",
+        default_accel: "<Ctrl><Shift>f",
+        label: "Find in files",
+        registers_gtk_accel: false,
+        command: ShortcutCommand::EditorFindInFiles,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
     },
@@ -1646,7 +1659,7 @@ mod tests {
 
     #[test]
     fn definitions_cover_current_host_shortcuts() {
-        assert_eq!(definitions().len(), 51);
+        assert_eq!(definitions().len(), 52);
     }
 
     #[test]
