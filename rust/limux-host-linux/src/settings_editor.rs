@@ -1,8 +1,10 @@
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::time::Duration;
 
 use adw::prelude::*;
 use gtk4 as gtk;
+use gtk4::glib;
 use libadwaita as adw;
 
 use crate::app_config::{AppConfig, ColorScheme, EditorSettings};
@@ -11,6 +13,13 @@ use crate::editor::view as editor_view;
 use crate::keybind_editor;
 use crate::pane;
 use crate::shortcut_config::{NormalizedShortcut, ResolvedShortcutConfig, ShortcutId};
+
+const EDITOR_BROADCAST_DEBOUNCE_MS: u64 = 50;
+
+thread_local! {
+    static EDITOR_BROADCAST_DEBOUNCE: RefCell<Option<glib::SourceId>> =
+        const { RefCell::new(None) };
+}
 
 pub const SETTINGS_CSS: &str = r#"
 .limux-settings-window {
@@ -369,6 +378,23 @@ fn build_editor_page(input: &SettingsEditorInput) -> gtk::Widget {
 }
 
 fn broadcast_editor_settings(settings: &EditorSettings) {
+    let pending = settings.clone();
+    EDITOR_BROADCAST_DEBOUNCE.with(|slot| {
+        if let Some(id) = slot.borrow_mut().take() {
+            id.remove();
+        }
+        let source_id = glib::timeout_add_local_once(
+            Duration::from_millis(EDITOR_BROADCAST_DEBOUNCE_MS),
+            move || {
+                EDITOR_BROADCAST_DEBOUNCE.with(|slot| slot.borrow_mut().take());
+                apply_editor_settings_now(&pending);
+            },
+        );
+        *slot.borrow_mut() = Some(source_id);
+    });
+}
+
+fn apply_editor_settings_now(settings: &EditorSettings) {
     let view_cfg = settings.to_view_config();
     pane::for_each_editor_tab(|state| {
         editor_view::apply_to_view(&state.view, &view_cfg);
