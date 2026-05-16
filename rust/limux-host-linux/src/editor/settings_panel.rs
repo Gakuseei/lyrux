@@ -21,22 +21,9 @@ pub fn build(current: &EditorSettings, cb: SettingsCallbacks) -> gtk4::Widget {
     title.add_css_class("title-2");
     root.append(&title);
 
+    root.append(&section_header(strings::SETTINGS_SECTION_DISPLAY, false));
     root.append(&theme_row(current, cb.on_change.clone()));
     root.append(&font_row(current, cb.on_change.clone()));
-    root.append(&tab_width_row(current, cb.on_change.clone()));
-    root.append(&bool_row(
-        strings::SETTING_INSERT_SPACES,
-        current.insert_spaces,
-        {
-            let cb = cb.on_change.clone();
-            let snapshot = current.clone();
-            move |v| {
-                let mut next = snapshot.clone();
-                next.insert_spaces = v;
-                cb(&next);
-            }
-        },
-    ));
     root.append(&bool_row(
         strings::SETTING_LINE_NUMBERS,
         current.show_line_numbers,
@@ -77,19 +64,6 @@ pub fn build(current: &EditorSettings, cb: SettingsCallbacks) -> gtk4::Widget {
         },
     ));
     root.append(&bool_row(
-        strings::SETTING_AUTO_INDENT,
-        current.auto_indent,
-        {
-            let cb = cb.on_change.clone();
-            let snapshot = current.clone();
-            move |v| {
-                let mut next = snapshot.clone();
-                next.auto_indent = v;
-                cb(&next);
-            }
-        },
-    ));
-    root.append(&bool_row(
         strings::SETTING_HIGHLIGHT_LINE,
         current.highlight_current_line,
         {
@@ -116,6 +90,76 @@ pub fn build(current: &EditorSettings, cb: SettingsCallbacks) -> gtk4::Widget {
         },
     ));
     root.append(&bool_row(
+        strings::SETTING_INDENT_GUIDES,
+        current.show_indent_guides,
+        {
+            let cb = cb.on_change.clone();
+            let snapshot = current.clone();
+            move |v| {
+                let mut next = snapshot.clone();
+                next.show_indent_guides = v;
+                cb(&next);
+            }
+        },
+    ));
+    root.append(&bool_row(
+        strings::SETTING_STICKY_SCROLL,
+        current.show_sticky_scroll,
+        {
+            let cb = cb.on_change.clone();
+            let snapshot = current.clone();
+            move |v| {
+                let mut next = snapshot.clone();
+                next.show_sticky_scroll = v;
+                cb(&next);
+            }
+        },
+    ));
+    root.append(&bool_row(
+        strings::SETTING_HIGHLIGHT_WORD,
+        current.highlight_word_at_cursor,
+        {
+            let cb = cb.on_change.clone();
+            let snapshot = current.clone();
+            move |v| {
+                let mut next = snapshot.clone();
+                next.highlight_word_at_cursor = v;
+                cb(&next);
+            }
+        },
+    ));
+
+    root.append(&section_header(strings::SETTINGS_SECTION_EDITING, true));
+    root.append(&tab_width_row(current, cb.on_change.clone()));
+    root.append(&bool_row(
+        strings::SETTING_INSERT_SPACES,
+        current.insert_spaces,
+        {
+            let cb = cb.on_change.clone();
+            let snapshot = current.clone();
+            move |v| {
+                let mut next = snapshot.clone();
+                next.insert_spaces = v;
+                cb(&next);
+            }
+        },
+    ));
+    root.append(&bool_row(
+        strings::SETTING_AUTO_INDENT,
+        current.auto_indent,
+        {
+            let cb = cb.on_change.clone();
+            let snapshot = current.clone();
+            move |v| {
+                let mut next = snapshot.clone();
+                next.auto_indent = v;
+                cb(&next);
+            }
+        },
+    ));
+
+    root.append(&section_header(strings::SETTINGS_SECTION_ON_SAVE, true));
+    root.append(&bool_row(
         strings::SETTING_STRIP_WS,
         current.strip_trailing_whitespace,
         {
@@ -141,45 +185,7 @@ pub fn build(current: &EditorSettings, cb: SettingsCallbacks) -> gtk4::Widget {
             }
         },
     ));
-    root.append(&bool_row(
-        strings::SETTING_INDENT_GUIDES,
-        current.show_indent_guides,
-        {
-            let cb = cb.on_change.clone();
-            let snapshot = current.clone();
-            move |v| {
-                let mut next = snapshot.clone();
-                next.show_indent_guides = v;
-                cb(&next);
-            }
-        },
-    ));
-    root.append(&bool_row(
-        strings::SETTING_HIGHLIGHT_WORD,
-        current.highlight_word_at_cursor,
-        {
-            let cb = cb.on_change.clone();
-            let snapshot = current.clone();
-            move |v| {
-                let mut next = snapshot.clone();
-                next.highlight_word_at_cursor = v;
-                cb(&next);
-            }
-        },
-    ));
-    root.append(&bool_row(
-        strings::SETTING_STICKY_SCROLL,
-        current.show_sticky_scroll,
-        {
-            let cb = cb.on_change.clone();
-            let snapshot = current.clone();
-            move |v| {
-                let mut next = snapshot.clone();
-                next.show_sticky_scroll = v;
-                cb(&next);
-            }
-        },
-    ));
+
     root.append(&vim_row());
 
     let scroller = gtk4::ScrolledWindow::builder()
@@ -190,6 +196,16 @@ pub fn build(current: &EditorSettings, cb: SettingsCallbacks) -> gtk4::Widget {
         .vexpand(true)
         .build();
     scroller.upcast()
+}
+
+fn section_header(label: &str, top_margin: bool) -> gtk4::Label {
+    let header = gtk4::Label::new(Some(label));
+    header.set_xalign(0.0);
+    header.add_css_class("title-3");
+    if top_margin {
+        header.set_margin_top(8);
+    }
+    header
 }
 
 fn theme_row(current: &EditorSettings, on_change: Rc<dyn Fn(&EditorSettings)>) -> gtk4::Box {

@@ -19,6 +19,10 @@ pub const SETTING_HIGHLIGHT_WORD: &str = "Highlight matching word at cursor";
 pub const SETTING_STICKY_SCROLL: &str = "Sticky scroll (pin function/class headers)";
 pub const SETTING_VIM: &str = "Vim mode (coming soon)";
 
+pub const SETTINGS_SECTION_DISPLAY: &str = "Display";
+pub const SETTINGS_SECTION_EDITING: &str = "Editing";
+pub const SETTINGS_SECTION_ON_SAVE: &str = "On Save";
+
 pub const DIALOG_UNSAVED_TITLE: &str = "Unsaved changes";
 pub const DIALOG_UNSAVED_BODY_PREFIX: &str = "Save changes to ";
 pub const DIALOG_UNSAVED_BODY_SUFFIX: &str = " before closing?";
