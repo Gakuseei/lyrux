@@ -27,7 +27,7 @@ impl Default for ViewConfig {
     fn default() -> Self {
         Self {
             theme_id: themes::default_id().to_string(),
-            font_family: "monospace".into(),
+            font_family: "JetBrains Mono".into(),
             font_size: 13,
             tab_width: 4,
             insert_spaces: true,
@@ -80,7 +80,7 @@ pub fn apply_css(
     slot: &Rc<RefCell<Option<gtk::CssProvider>>>,
 ) {
     let css = format!(
-        ".sourceview, .sourceview text {{ font-family: \"{}\", monospace; font-size: {}pt; padding: 6px 12px; line-height: 1.5; }}",
+        ".sourceview, .sourceview text {{ font-family: \"{}\", \"JetBrains Mono\", \"JetBrainsMono Nerd Font\", \"Cascadia Code\", \"Cascadia Mono\", \"Fira Code\", \"Iosevka\", \"DejaVu Sans Mono\", monospace; font-size: {}pt; padding: 6px 12px; line-height: 1.5; }}",
         cfg.font_family.replace('"', ""),
         cfg.font_size
     );

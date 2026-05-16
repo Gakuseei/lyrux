@@ -34,7 +34,7 @@ fn default_theme() -> String {
     "lyrux-dark".to_string()
 }
 fn default_font_family() -> String {
-    "monospace".to_string()
+    "JetBrains Mono".to_string()
 }
 fn default_font_size() -> i32 {
     13

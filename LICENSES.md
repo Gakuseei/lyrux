@@ -11,3 +11,7 @@
 - **One Dark / One Light** — Palette derived from Atom One (MIT License, GitHub Inc.). GtkSourceView XML hand-rolled by Lyrux using the documented palette values.
 
 - **Lyrux Dark / Lyrux Light** — Original work, copyright (c) Lyrux contributors. MIT License.
+
+## Bundled Fonts
+
+- **JetBrains Mono** — Copyright 2020 The JetBrains Mono Project Authors, SIL Open Font License 1.1. Source: https://github.com/JetBrains/JetBrainsMono. Bundled as default editor font in AppImage. License text: `rust/limux-host-linux/assets/fonts/JetBrainsMono-LICENSE.txt`.

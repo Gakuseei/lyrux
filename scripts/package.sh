@@ -567,6 +567,15 @@ if [ -d "$SOURCEVIEW_DATA" ]; then
     cp -r "$SOURCEVIEW_DATA/styles"         "${APPDIR}/usr/share/gtksourceview-5/" || true
 fi
 
+# Bundled editor fonts (JetBrains Mono, SIL OFL 1.1)
+LYRUX_FONTS_SRC="${ROOT_DIR}/rust/limux-host-linux/assets/fonts"
+LYRUX_FONTS_DEST="${APPDIR}/usr/share/fonts/lyrux"
+if [ -d "$LYRUX_FONTS_SRC" ]; then
+    mkdir -p "$LYRUX_FONTS_DEST"
+    cp -f "$LYRUX_FONTS_SRC"/JetBrainsMono-*.ttf "$LYRUX_FONTS_DEST/"
+    cp -f "$LYRUX_FONTS_SRC"/JetBrainsMono-LICENSE.txt "$LYRUX_FONTS_DEST/" || true
+fi
+
 # Desktop file (at AppDir root and in usr/share)
 cp "$DESKTOP_FILE" "$APPDIR/dev.lyrux.linux.desktop"
 cp "$DESKTOP_FILE" "$APPDIR/usr/share/applications/dev.lyrux.linux.desktop"
