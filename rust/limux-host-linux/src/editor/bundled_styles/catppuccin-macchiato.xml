@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<style-scheme id="catppuccin-macchiato" _name="Catppuccin Macchiato" version="1.0">
+  <author>Lyrux (palette: Catppuccin Org, MIT)</author>
+  <_description>Catppuccin Macchiato — dark blue-tinted theme.</_description>
+
+  <color name="bg"        value="#24273a"/>
+  <color name="bg-sel"    value="#494d64"/>
+  <color name="fg"        value="#cad3f5"/>
+  <color name="fg-muted"  value="#8087a2"/>
+  <color name="accent"    value="#8aadf4"/>
+  <color name="keyword"   value="#c6a0f6"/>
+  <color name="string"    value="#a6da95"/>
+  <color name="number"    value="#f5a97f"/>
+  <color name="comment"   value="#8087a2"/>
+  <color name="type"      value="#eed49f"/>
+  <color name="function"  value="#8aadf4"/>
+  <color name="error"     value="#ed8796"/>
+  <color name="warning"   value="#f5a97f"/>
+  <color name="surface0"  value="#363a4f"/>
+
+  <style name="text"                       foreground="fg"      background="bg"/>
+  <style name="background-pattern"         background="bg"/>
+  <style name="cursor"                     foreground="accent"/>
+  <style name="current-line"               background="surface0"/>
+  <style name="line-numbers"               foreground="comment" background="bg"/>
+  <style name="current-line-number"        foreground="fg"      background="bg" bold="true"/>
+  <style name="selection"                  background="bg-sel"/>
+  <style name="bracket-match"              foreground="accent"  bold="true"/>
+  <style name="bracket-mismatch"           foreground="error"   bold="true"/>
+  <style name="right-margin"               foreground="surface0" background="surface0"/>
+  <style name="search-match"               background="#3d4159" foreground="fg"/>
+  <style name="def:keyword"                foreground="keyword" bold="true"/>
+  <style name="def:builtin"                foreground="type"/>
+  <style name="def:type"                   foreground="type"/>
+  <style name="def:string"                 foreground="string"/>
+  <style name="def:number"                 foreground="number"/>
+  <style name="def:comment"                foreground="comment" italic="true"/>
+  <style name="def:doc-comment"            foreground="comment" italic="true"/>
+  <style name="def:doc-comment-element"    foreground="comment" italic="true"/>
+  <style name="def:identifier"             foreground="fg"/>
+  <style name="def:function"               foreground="function"/>
+  <style name="def:constant"               foreground="number"/>
+  <style name="def:operator"               foreground="fg-muted"/>
+  <style name="def:special-char"           foreground="number"/>
+  <style name="def:preprocessor"           foreground="keyword"/>
+  <style name="def:error"                  foreground="error"   underline="single"/>
+  <style name="def:warning"                foreground="warning" underline="single"/>
+</style-scheme>

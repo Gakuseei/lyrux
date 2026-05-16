@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<style-scheme id="tokyo-night" _name="Tokyo Night" version="1.0">
+  <author>Lyrux (palette: Enkia/tokyonight.nvim, MIT)</author>
+  <_description>Tokyo Night — deep navy dark theme.</_description>
+
+  <color name="bg"        value="#1a1b26"/>
+  <color name="bg-sel"    value="#283457"/>
+  <color name="fg"        value="#c0caf5"/>
+  <color name="fg-muted"  value="#565f89"/>
+  <color name="accent"    value="#7aa2f7"/>
+  <color name="keyword"   value="#bb9af7"/>
+  <color name="string"    value="#9ece6a"/>
+  <color name="number"    value="#ff9e64"/>
+  <color name="comment"   value="#565f89"/>
+  <color name="type"      value="#2ac3de"/>
+  <color name="function"  value="#7aa2f7"/>
+  <color name="error"     value="#f7768e"/>
+  <color name="warning"   value="#e0af68"/>
+  <color name="surface0"  value="#24283b"/>
+
+  <style name="text"                       foreground="fg"      background="bg"/>
+  <style name="background-pattern"         background="bg"/>
+  <style name="cursor"                     foreground="accent"/>
+  <style name="current-line"               background="surface0"/>
+  <style name="line-numbers"               foreground="comment" background="bg"/>
+  <style name="current-line-number"        foreground="fg"      background="bg" bold="true"/>
+  <style name="selection"                  background="bg-sel"/>
+  <style name="bracket-match"              foreground="accent"  bold="true"/>
+  <style name="bracket-mismatch"           foreground="error"   bold="true"/>
+  <style name="right-margin"               foreground="surface0" background="surface0"/>
+  <style name="search-match"               background="#3d4166" foreground="fg"/>
+  <style name="def:keyword"                foreground="keyword" bold="true"/>
+  <style name="def:builtin"                foreground="type"/>
+  <style name="def:type"                   foreground="type"/>
+  <style name="def:string"                 foreground="string"/>
+  <style name="def:number"                 foreground="number"/>
+  <style name="def:comment"                foreground="comment" italic="true"/>
+  <style name="def:doc-comment"            foreground="comment" italic="true"/>
+  <style name="def:doc-comment-element"    foreground="comment" italic="true"/>
+  <style name="def:identifier"             foreground="fg"/>
+  <style name="def:function"               foreground="function"/>
+  <style name="def:constant"               foreground="number"/>
+  <style name="def:operator"               foreground="fg-muted"/>
+  <style name="def:special-char"           foreground="number"/>
+  <style name="def:preprocessor"           foreground="keyword"/>
+  <style name="def:error"                  foreground="error"   underline="single"/>
+  <style name="def:warning"                foreground="warning" underline="single"/>
+</style-scheme>

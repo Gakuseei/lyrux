@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<style-scheme id="lyrux-dark" _name="Lyrux Dark" version="1.0">
+  <author>Lyrux</author>
+  <_description>Lyrux dark — matches the chrome palette.</_description>
+
+  <color name="bg"          value="#0E0E10"/>
+  <color name="bg-sel"      value="#1F2433"/>
+  <color name="fg"          value="#E6E6E9"/>
+  <color name="fg-muted"    value="#8C8C95"/>
+  <color name="accent"      value="#0091FF"/>
+  <color name="keyword"     value="#C792EA"/>
+  <color name="string"      value="#B6DC8E"/>
+  <color name="number"      value="#F4B860"/>
+  <color name="comment"     value="#6B6B73"/>
+  <color name="type"        value="#82AAFF"/>
+  <color name="function"    value="#9CCFFF"/>
+  <color name="error"       value="#FF6B6B"/>
+  <color name="warning"     value="#F4B860"/>
+
+  <style name="text"                       foreground="fg"      background="bg"/>
+  <style name="background-pattern"         background="bg"/>
+  <style name="cursor"                     foreground="accent"/>
+  <style name="current-line"               background="#15151A"/>
+  <style name="line-numbers"               foreground="#3F3F47" background="bg"/>
+  <style name="current-line-number"        foreground="fg"      background="bg" bold="true"/>
+  <style name="selection"                  background="bg-sel"/>
+  <style name="bracket-match"              foreground="accent"  bold="true"/>
+  <style name="bracket-mismatch"           foreground="error"   bold="true"/>
+  <style name="right-margin"               foreground="#202028" background="#202028"/>
+  <style name="search-match"               background="#3A3A2A" foreground="fg"/>
+  <style name="def:keyword"                foreground="keyword" bold="true"/>
+  <style name="def:builtin"                foreground="type"/>
+  <style name="def:type"                   foreground="type"/>
+  <style name="def:string"                 foreground="string"/>
+  <style name="def:number"                 foreground="number"/>
+  <style name="def:comment"                foreground="comment" italic="true"/>
+  <style name="def:doc-comment"            foreground="comment" italic="true"/>
+  <style name="def:doc-comment-element"    foreground="comment" italic="true"/>
+  <style name="def:identifier"             foreground="fg"/>
+  <style name="def:function"               foreground="function"/>
+  <style name="def:constant"               foreground="number"/>
+  <style name="def:operator"               foreground="fg-muted"/>
+  <style name="def:special-char"           foreground="number"/>
+  <style name="def:preprocessor"           foreground="keyword"/>
+  <style name="def:error"                  foreground="error"   underline="single"/>
+  <style name="def:warning"                foreground="warning" underline="single"/>
+</style-scheme>

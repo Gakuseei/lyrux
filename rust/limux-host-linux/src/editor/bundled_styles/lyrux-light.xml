@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<style-scheme id="lyrux-light" _name="Lyrux Light" version="1.0">
+  <author>Lyrux</author>
+  <_description>Lyrux light.</_description>
+
+  <color name="bg"        value="#FAFAFA"/>
+  <color name="bg-sel"    value="#D8E6FF"/>
+  <color name="fg"        value="#1F1F23"/>
+  <color name="fg-muted"  value="#6B6B70"/>
+  <color name="accent"    value="#0066CC"/>
+  <color name="keyword"   value="#7B1FA2"/>
+  <color name="string"    value="#2E7D32"/>
+  <color name="number"    value="#B36500"/>
+  <color name="comment"   value="#7B7B85"/>
+  <color name="type"      value="#1565C0"/>
+  <color name="function"  value="#1B5E9C"/>
+  <color name="error"     value="#C62828"/>
+  <color name="warning"   value="#EF6C00"/>
+
+  <style name="text"                       foreground="fg" background="bg"/>
+  <style name="background-pattern"         background="bg"/>
+  <style name="cursor"                     foreground="accent"/>
+  <style name="current-line"               background="#EEEEEE"/>
+  <style name="line-numbers"               foreground="#B0B0B5" background="bg"/>
+  <style name="current-line-number"        foreground="fg" background="bg" bold="true"/>
+  <style name="selection"                  background="bg-sel"/>
+  <style name="bracket-match"              foreground="accent" bold="true"/>
+  <style name="bracket-mismatch"           foreground="error"  bold="true"/>
+  <style name="search-match"               background="#FFF59D"/>
+  <style name="def:keyword"                foreground="keyword" bold="true"/>
+  <style name="def:builtin"                foreground="type"/>
+  <style name="def:type"                   foreground="type"/>
+  <style name="def:string"                 foreground="string"/>
+  <style name="def:number"                 foreground="number"/>
+  <style name="def:comment"                foreground="comment" italic="true"/>
+  <style name="def:doc-comment"            foreground="comment" italic="true"/>
+  <style name="def:identifier"             foreground="fg"/>
+  <style name="def:function"               foreground="function"/>
+  <style name="def:constant"               foreground="number"/>
+  <style name="def:operator"               foreground="fg-muted"/>
+  <style name="def:special-char"           foreground="number"/>
+  <style name="def:preprocessor"           foreground="keyword"/>
+  <style name="def:error"                  foreground="error"   underline="single"/>
+  <style name="def:warning"                foreground="warning" underline="single"/>
+</style-scheme>
