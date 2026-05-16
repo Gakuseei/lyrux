@@ -1208,6 +1208,7 @@ fn add_editor_tab_inner(internals: &Rc<PaneInternals>) {
 
     internals.content_stack.add_named(&widget, Some(&tab_id));
 
+    let state_for_hooks = state.clone();
     {
         let mut ts = internals.tab_state.borrow_mut();
         ts.tabs.push(TabEntry {
@@ -1230,6 +1231,8 @@ fn add_editor_tab_inner(internals: &Rc<PaneInternals>) {
             .expect("editor tab inserted")
             .tab_button,
     );
+
+    install_editor_tab_hooks(internals, &tab_id, &state_for_hooks);
 
     activate_tab(
         &internals.tab_strip,
@@ -1281,6 +1284,7 @@ fn add_editor_tab_for_path_inner(internals: &Rc<PaneInternals>, path: &std::path
     let (tab_btn, title_label) = build_tab_button(&title, &tab_id, internals);
     internals.content_stack.add_named(&widget, Some(&tab_id));
 
+    let state_for_hooks = state.clone();
     {
         let mut ts = internals.tab_state.borrow_mut();
         ts.tabs.push(TabEntry {
@@ -1303,6 +1307,8 @@ fn add_editor_tab_for_path_inner(internals: &Rc<PaneInternals>, path: &std::path
             .expect("editor tab inserted")
             .tab_button,
     );
+
+    install_editor_tab_hooks(internals, &tab_id, &state_for_hooks);
 
     activate_tab(
         &internals.tab_strip,
@@ -2494,6 +2500,56 @@ fn remove_tab(
     pane_outer: &gtk::Box,
     empty_reason: PaneEmptyReason,
 ) {
+    let dirty_editor = {
+        let ts = tab_state.borrow();
+        ts.tabs
+            .iter()
+            .find(|e| e.id == tab_id)
+            .and_then(|entry| match &entry.kind {
+                TabKind::Editor { state } if state.is_dirty() => {
+                    Some((state.clone(), entry.content.clone()))
+                }
+                _ => None,
+            })
+    };
+    if let Some((editor_state, content_widget)) = dirty_editor {
+        let workspace_root = find_pane_internals(&pane_outer.clone().upcast())
+            .and_then(|internals| internals.working_directory.borrow().clone())
+            .map(std::path::PathBuf::from);
+        confirm_dirty_close(
+            editor_state,
+            content_widget,
+            tab_strip.clone(),
+            content_stack.clone(),
+            tab_state.clone(),
+            tab_id.to_string(),
+            callbacks.clone(),
+            pane_outer.clone(),
+            empty_reason,
+            workspace_root,
+        );
+        return;
+    }
+    remove_tab_force(
+        tab_strip,
+        content_stack,
+        tab_state,
+        tab_id,
+        callbacks,
+        pane_outer,
+        empty_reason,
+    );
+}
+
+fn remove_tab_force(
+    tab_strip: &gtk::Box,
+    content_stack: &gtk::Stack,
+    tab_state: &Rc<RefCell<TabState>>,
+    tab_id: &str,
+    callbacks: &Rc<PaneCallbacks>,
+    pane_outer: &gtk::Box,
+    empty_reason: PaneEmptyReason,
+) {
     let mut ts = tab_state.borrow_mut();
     let Some(idx) = ts.tabs.iter().position(|e| e.id == tab_id) else {
         return;
@@ -2518,6 +2574,116 @@ fn remove_tab(
         activate_tab(tab_strip, content_stack, tab_state, &new_id);
     }
     (callbacks.on_state_changed)();
+}
+
+#[allow(clippy::too_many_arguments)]
+fn confirm_dirty_close(
+    state: editor::EditorTabState,
+    content_widget: gtk::Widget,
+    tab_strip: gtk::Box,
+    content_stack: gtk::Stack,
+    tab_state: Rc<RefCell<TabState>>,
+    tab_id: String,
+    callbacks: Rc<PaneCallbacks>,
+    pane_outer: gtk::Box,
+    empty_reason: PaneEmptyReason,
+    workspace_root: Option<std::path::PathBuf>,
+) {
+    let path_display = state.path.display().to_string();
+    let dialog = gtk::AlertDialog::builder()
+        .modal(true)
+        .message(format!(
+            "{}{}{}",
+            editor::strings::DIALOG_UNSAVED_BODY_PREFIX,
+            path_display,
+            editor::strings::DIALOG_UNSAVED_BODY_SUFFIX,
+        ))
+        .buttons([
+            editor::strings::DIALOG_BTN_CANCEL,
+            editor::strings::DIALOG_BTN_DISCARD,
+            editor::strings::DIALOG_BTN_SAVE,
+        ])
+        .cancel_button(0)
+        .default_button(2)
+        .build();
+    let window = content_widget
+        .root()
+        .and_then(|root| root.downcast::<gtk::Window>().ok());
+    let tab_id_for_marker = tab_id.clone();
+    let tab_state_for_marker = tab_state.clone();
+    let proceed: Rc<dyn Fn()> = Rc::new(move || {
+        remove_tab_force(
+            &tab_strip,
+            &content_stack,
+            &tab_state,
+            &tab_id,
+            &callbacks,
+            &pane_outer,
+            empty_reason,
+        );
+    });
+    let state_for_dialog = state.clone();
+    let proceed_for_dialog = proceed.clone();
+    dialog.choose(
+        window.as_ref(),
+        None::<&gtk::gio::Cancellable>,
+        move |result| match result.unwrap_or(0) {
+            2 => {
+                let tab_state_inner = tab_state_for_marker.clone();
+                let tab_id_inner = tab_id_for_marker.clone();
+                let on_clean: Rc<dyn Fn()> = Rc::new(move || {
+                    update_tab_dirty_marker(&tab_state_inner, &tab_id_inner, false);
+                });
+                editor::keymap::save_tab(&state_for_dialog, workspace_root.as_deref(), &on_clean);
+                if !state_for_dialog.is_dirty() {
+                    proceed_for_dialog();
+                }
+            }
+            1 => proceed_for_dialog(),
+            _ => {}
+        },
+    );
+}
+
+fn update_tab_dirty_marker(tab_state: &Rc<RefCell<TabState>>, tab_id: &str, dirty: bool) {
+    let ts = tab_state.borrow();
+    let Some(entry) = ts.tabs.iter().find(|e| e.id == tab_id) else {
+        return;
+    };
+    let cur = entry.title_label.label().to_string();
+    let stripped = cur.strip_prefix("● ").unwrap_or(&cur).to_string();
+    let new_label = if dirty {
+        format!("● {stripped}")
+    } else {
+        stripped
+    };
+    if new_label != cur {
+        entry.title_label.set_label(&new_label);
+    }
+}
+
+fn install_editor_tab_hooks(
+    internals: &Rc<PaneInternals>,
+    tab_id: &str,
+    state: &editor::EditorTabState,
+) {
+    let workspace_root = internals
+        .working_directory
+        .borrow()
+        .clone()
+        .map(std::path::PathBuf::from);
+    let tab_state_for_clean = internals.tab_state.clone();
+    let tab_id_for_clean = tab_id.to_string();
+    let on_clean: Rc<dyn Fn()> = Rc::new(move || {
+        update_tab_dirty_marker(&tab_state_for_clean, &tab_id_for_clean, false);
+    });
+    editor::keymap::install(&state.view, state, workspace_root, on_clean);
+
+    let tab_state_for_dirty = internals.tab_state.clone();
+    let tab_id_for_dirty = tab_id.to_string();
+    state.on_dirty_changed(move |dirty| {
+        update_tab_dirty_marker(&tab_state_for_dirty, &tab_id_for_dirty, dirty);
+    });
 }
 
 #[cfg(feature = "webkit")]

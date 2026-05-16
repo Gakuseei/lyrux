@@ -82,3 +82,25 @@ pub fn build(path: PathBuf, cfg: &ViewConfig) -> BuildOutcome {
 
     BuildOutcome::Ok(state)
 }
+
+impl EditorTabState {
+    pub fn snapshot_text(&self) -> String {
+        let (start, end) = self.buffer.bounds();
+        self.buffer.text(&start, &end, false).to_string()
+    }
+
+    pub fn mark_clean(&self, etag: FileEtag) {
+        self.dirty.set(false);
+        self.saved_etag.set(Some(etag));
+    }
+
+    pub fn is_dirty(&self) -> bool {
+        self.dirty.get()
+    }
+
+    pub fn on_dirty_changed<F: Fn(bool) + 'static>(&self, f: F) {
+        self.buffer.connect_changed(move |_| {
+            f(true);
+        });
+    }
+}
