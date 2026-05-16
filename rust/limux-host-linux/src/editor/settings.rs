@@ -34,6 +34,8 @@ pub struct EditorSettings {
     pub show_indent_guides: bool,
     #[serde(default = "default_true")]
     pub highlight_word_at_cursor: bool,
+    #[serde(default = "default_true")]
+    pub show_sticky_scroll: bool,
     #[serde(default)]
     pub vim_mode: bool,
 }
@@ -72,6 +74,7 @@ impl Default for EditorSettings {
             ensure_final_newline: true,
             show_indent_guides: true,
             highlight_word_at_cursor: true,
+            show_sticky_scroll: true,
             vim_mode: false,
         }
     }
@@ -93,6 +96,7 @@ impl EditorSettings {
             highlight_matching_brackets: self.highlight_matching_brackets,
             show_indent_guides: self.show_indent_guides,
             highlight_word_at_cursor: self.highlight_word_at_cursor,
+            show_sticky_scroll: self.show_sticky_scroll,
         }
     }
 }

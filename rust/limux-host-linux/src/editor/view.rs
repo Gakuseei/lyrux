@@ -23,6 +23,7 @@ pub struct ViewConfig {
     pub highlight_matching_brackets: bool,
     pub show_indent_guides: bool,
     pub highlight_word_at_cursor: bool,
+    pub show_sticky_scroll: bool,
 }
 
 impl Default for ViewConfig {
@@ -41,6 +42,7 @@ impl Default for ViewConfig {
             highlight_matching_brackets: true,
             show_indent_guides: true,
             highlight_word_at_cursor: true,
+            show_sticky_scroll: true,
         }
     }
 }
@@ -90,7 +92,7 @@ pub fn apply_css(
     slot: &Rc<RefCell<Option<gtk::CssProvider>>>,
 ) {
     let css = format!(
-        ".sourceview, .sourceview text {{ font-family: \"{}\", \"JetBrains Mono\", \"JetBrainsMono Nerd Font\", \"Cascadia Code\", \"Cascadia Mono\", \"Fira Code\", \"Iosevka\", \"DejaVu Sans Mono\", monospace; font-size: {}pt; padding: 6px 12px; line-height: 1.5; }}",
+        ".sourceview, .sourceview text {{ font-family: \"{0}\", \"JetBrains Mono\", \"JetBrainsMono Nerd Font\", \"Cascadia Code\", \"Cascadia Mono\", \"Fira Code\", \"Iosevka\", \"DejaVu Sans Mono\", monospace; font-size: {1}pt; padding: 6px 12px; line-height: 1.5; }} .lyrux-sticky-header {{ font-family: \"{0}\", \"JetBrains Mono\", monospace; font-size: {1}pt; padding: 2px 12px; background: alpha(@theme_bg_color, 0.92); color: @theme_fg_color; border-bottom: 1px solid alpha(@theme_fg_color, 0.18); font-weight: 600; }}",
         cfg.font_family.replace('"', ""),
         cfg.font_size
     );

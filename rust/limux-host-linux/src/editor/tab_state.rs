@@ -12,6 +12,7 @@ use crate::editor::indent;
 use crate::editor::langs;
 use crate::editor::pair;
 use crate::editor::status_bar;
+use crate::editor::sticky_scroll::{self, StickyController};
 use crate::editor::view::{self, ViewConfig};
 
 pub type DirtyMarkerCb = Rc<RefCell<Option<Rc<dyn Fn(bool)>>>>;
@@ -35,6 +36,7 @@ pub struct EditorTabState {
     pub css_provider: ViewCssProvider,
     pub swap_path: Rc<RefCell<Option<PathBuf>>>,
     pub highlight: HighlightController,
+    pub sticky: StickyController,
 }
 
 pub enum BuildOutcome {
@@ -70,6 +72,7 @@ pub fn build(path: PathBuf, cfg: &ViewConfig) -> BuildOutcome {
         .hexpand(true)
         .vexpand(true)
         .build();
+    let sticky = sticky_scroll::install(&view, &buffer, &scrolled, cfg.show_sticky_scroll);
 
     let banner = gtk4::Revealer::builder()
         .reveal_child(false)
@@ -80,7 +83,7 @@ pub fn build(path: PathBuf, cfg: &ViewConfig) -> BuildOutcome {
 
     let root = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
     root.append(&banner);
-    root.append(&scrolled);
+    root.append(sticky.overlay());
     root.append(&status);
     root.set_hexpand(true);
     root.set_vexpand(true);
@@ -101,6 +104,7 @@ pub fn build(path: PathBuf, cfg: &ViewConfig) -> BuildOutcome {
         css_provider: Rc::new(RefCell::new(None)),
         swap_path: Rc::new(RefCell::new(None)),
         highlight: highlight_ctrl,
+        sticky,
     };
     view::apply_css(&state.view, cfg, &state.css_provider);
 

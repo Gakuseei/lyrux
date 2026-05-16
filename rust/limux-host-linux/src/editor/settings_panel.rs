@@ -167,6 +167,19 @@ pub fn build(current: &EditorSettings, cb: SettingsCallbacks) -> gtk4::Widget {
             }
         },
     ));
+    root.append(&bool_row(
+        strings::SETTING_STICKY_SCROLL,
+        current.show_sticky_scroll,
+        {
+            let cb = cb.on_change.clone();
+            let snapshot = current.clone();
+            move |v| {
+                let mut next = snapshot.clone();
+                next.show_sticky_scroll = v;
+                cb(&next);
+            }
+        },
+    ));
     root.append(&vim_row());
 
     let scroller = gtk4::ScrolledWindow::builder()
