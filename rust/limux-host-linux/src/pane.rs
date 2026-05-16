@@ -1649,7 +1649,7 @@ pub fn snapshot_pane_state(pane_widget: &gtk::Widget, workspace_id: &str) -> Opt
                         None
                     };
                     TabContentState::Editor {
-                        path: state.path.display().to_string(),
+                        path: state.path.borrow().display().to_string(),
                         cursor_line: cursor_line(&state.buffer),
                         cursor_col: cursor_col(&state.buffer),
                         scroll: state.scrolled.vadjustment().value() as i32,
@@ -2747,7 +2747,7 @@ fn confirm_dirty_close(
     empty_reason: PaneEmptyReason,
     workspace_root: Option<std::path::PathBuf>,
 ) {
-    let path_display = state.path.display().to_string();
+    let path_display = state.path.borrow().display().to_string();
     let dialog = gtk::AlertDialog::builder()
         .modal(true)
         .message(format!(
@@ -2820,6 +2820,21 @@ fn update_tab_dirty_marker(tab_state: &Rc<RefCell<TabState>>, tab_id: &str, dirt
     }
 }
 
+fn set_tab_title(tab_state: &Rc<RefCell<TabState>>, tab_id: &str, title: &str) {
+    let ts = tab_state.borrow();
+    let Some(entry) = ts.tabs.iter().find(|e| e.id == tab_id) else {
+        return;
+    };
+    let cur = entry.title_label.label().to_string();
+    let was_dirty = cur.starts_with("● ");
+    let new_label = if was_dirty {
+        format!("● {title}")
+    } else {
+        title.to_string()
+    };
+    entry.title_label.set_label(&new_label);
+}
+
 fn install_editor_tab_hooks(
     internals: &Rc<PaneInternals>,
     tab_id: &str,
@@ -2866,6 +2881,12 @@ fn install_editor_tab_hooks(
     let tab_id_for_dirty = tab_id.to_string();
     state.on_dirty_changed(move |dirty| {
         update_tab_dirty_marker(&tab_state_for_dirty, &tab_id_for_dirty, dirty);
+    });
+
+    let tab_state_for_title = internals.tab_state.clone();
+    let tab_id_for_title = tab_id.to_string();
+    state.on_title_changed(move |title| {
+        set_tab_title(&tab_state_for_title, &tab_id_for_title, title);
     });
 }
 

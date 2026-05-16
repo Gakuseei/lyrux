@@ -7,7 +7,8 @@ use crate::editor::strings;
 use crate::editor::tab_state::EditorTabState;
 
 pub fn install(state: &EditorTabState) -> Option<gtk4::gio::FileMonitor> {
-    let file = gtk4::gio::File::for_path(&state.path);
+    let path = state.path.borrow().clone();
+    let file = gtk4::gio::File::for_path(&path);
     let monitor = file
         .monitor_file(
             gtk4::gio::FileMonitorFlags::WATCH_HARD_LINKS,
@@ -24,7 +25,8 @@ pub fn install(state: &EditorTabState) -> Option<gtk4::gio::FileMonitor> {
         ) {
             return;
         }
-        let current = FileEtag::for_path(&state.path).ok();
+        let path_now = state.path.borrow().clone();
+        let current = FileEtag::for_path(&path_now).ok();
         let saved = state.saved_etag.get();
         if current == saved {
             return;
@@ -39,7 +41,8 @@ pub fn install(state: &EditorTabState) -> Option<gtk4::gio::FileMonitor> {
 }
 
 fn reload_clean(state: &EditorTabState) {
-    if let buffer::LoadResult::Text { contents, etag } = buffer::load(&state.path) {
+    let path = state.path.borrow().clone();
+    if let buffer::LoadResult::Text { contents, etag } = buffer::load(&path) {
         state.suppress_dirty.set(true);
         state.buffer.set_text(&contents);
         state.suppress_dirty.set(false);
@@ -48,13 +51,14 @@ fn reload_clean(state: &EditorTabState) {
 }
 
 fn show_banner(state: &EditorTabState, deleted: bool) {
+    let path_display = state.path.borrow().display().to_string();
     let banner = build_banner_widget(
         if deleted {
             strings::BANNER_FILE_DELETED_PREFIX
         } else {
             strings::BANNER_FILE_CHANGED_PREFIX
         },
-        &state.path.display().to_string(),
+        &path_display,
         deleted,
         state.clone(),
     );
@@ -91,8 +95,9 @@ fn build_banner_widget(
     let s = state.clone();
     action_btn.connect_clicked(move |_| {
         if deleted {
-            let _ = buffer::save_atomic(&s.path, &s.snapshot_text());
-            if let Ok(etag) = FileEtag::for_path(&s.path) {
+            let path = s.path.borrow().clone();
+            let _ = buffer::save_atomic(&path, &s.snapshot_text());
+            if let Ok(etag) = FileEtag::for_path(&path) {
                 s.mark_clean(etag);
             }
             s.banner.set_reveal_child(false);

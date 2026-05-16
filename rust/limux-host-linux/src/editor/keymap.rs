@@ -91,17 +91,19 @@ pub fn install(
 }
 
 pub fn save_tab(state: &EditorTabState, workspace_root: Option<&Path>, on_clean: &Rc<dyn Fn()>) {
-    if state.path.as_os_str().is_empty() {
+    let current = state.path.borrow().clone();
+    if current.as_os_str().is_empty() {
+        show_save_as_dialog(state, workspace_root, on_clean);
         return;
     }
     if let Some(root) = workspace_root {
-        if !is_within_root(&state.path, root) {
+        if !is_within_root(&current, root) {
             eprintln!("lyrux: {}", strings::ERROR_OUTSIDE_WORKSPACE);
             return;
         }
     }
     let text = state.snapshot_text();
-    match buffer::save_atomic(&state.path, &text) {
+    match buffer::save_atomic(&current, &text) {
         Ok(etag) => {
             state.mark_clean(etag);
             if let Some(sp) = state.swap_path.borrow_mut().take() {
@@ -111,6 +113,68 @@ pub fn save_tab(state: &EditorTabState, workspace_root: Option<&Path>, on_clean:
         }
         Err(e) => eprintln!("lyrux: {}{e}", strings::ERROR_WRITE_FAILED_PREFIX),
     }
+}
+
+fn show_save_as_dialog(
+    state: &EditorTabState,
+    workspace_root: Option<&Path>,
+    on_clean: &Rc<dyn Fn()>,
+) {
+    let dialog = gtk4::FileDialog::builder()
+        .title(strings::SAVE_AS_DIALOG_TITLE)
+        .modal(true)
+        .build();
+    if let Some(root) = workspace_root {
+        let initial = gtk4::gio::File::for_path(root);
+        dialog.set_initial_folder(Some(&initial));
+    }
+    let parent = state
+        .root
+        .root()
+        .and_then(|r| r.downcast::<gtk4::Window>().ok());
+    let state_for_cb = state.clone();
+    let workspace_root_owned = workspace_root.map(|p| p.to_path_buf());
+    let on_clean_for_cb = on_clean.clone();
+    dialog.save(
+        parent.as_ref(),
+        None::<&gtk4::gio::Cancellable>,
+        move |result| {
+            let picked = match result {
+                Ok(f) => match f.path() {
+                    Some(p) => p,
+                    None => return,
+                },
+                Err(_) => return,
+            };
+            if let Some(root) = workspace_root_owned.as_deref() {
+                if !is_within_root(&picked, root) {
+                    eprintln!("lyrux: {}", strings::ERROR_OUTSIDE_WORKSPACE);
+                    return;
+                }
+            }
+            let text = state_for_cb.snapshot_text();
+            match buffer::save_atomic(&picked, &text) {
+                Ok(etag) => {
+                    *state_for_cb.path.borrow_mut() = picked.clone();
+                    state_for_cb.mark_clean(etag);
+                    if let Some(sp) = state_for_cb.swap_path.borrow_mut().take() {
+                        let _ = crate::editor::swap::discard(&sp);
+                    }
+                    if let Some(cb) = state_for_cb.title_cb.borrow().as_ref() {
+                        let title = picked
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or(strings::TAB_TITLE_UNTITLED)
+                            .to_string();
+                        cb(&title);
+                    }
+                    state_for_cb.set_monitor(crate::editor::watcher::install(&state_for_cb));
+                    on_clean_for_cb();
+                }
+                Err(e) => eprintln!("lyrux: {}{e}", strings::ERROR_WRITE_FAILED_PREFIX),
+            }
+        },
+    );
 }
 
 fn comment_prefix_for(lang_id: &str) -> Option<&'static str> {

@@ -65,7 +65,7 @@ pub fn spawn_empty(cfg: &ViewConfig) -> EditorTabState {
     root.set_vexpand(true);
 
     let state = EditorTabState {
-        path: PathBuf::new(),
+        path: Rc::new(RefCell::new(PathBuf::new())),
         scrolled,
         view,
         buffer: buffer.clone(),
@@ -76,6 +76,7 @@ pub fn spawn_empty(cfg: &ViewConfig) -> EditorTabState {
         monitor: Rc::new(RefCell::new(None)),
         suppress_dirty: Rc::new(Cell::new(false)),
         dirty_marker_cb: Rc::new(RefCell::new(None)),
+        title_cb: Rc::new(RefCell::new(None)),
         css_provider: Rc::new(RefCell::new(None)),
         swap_path: Rc::new(RefCell::new(None)),
     };

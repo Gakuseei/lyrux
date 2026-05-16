@@ -11,11 +11,12 @@ use crate::editor::langs;
 use crate::editor::view::{self, ViewConfig};
 
 pub type DirtyMarkerCb = Rc<RefCell<Option<Rc<dyn Fn(bool)>>>>;
+pub type TitleCb = Rc<RefCell<Option<Rc<dyn Fn(&str)>>>>;
 pub type ViewCssProvider = Rc<RefCell<Option<gtk4::CssProvider>>>;
 
 #[derive(Clone)]
 pub struct EditorTabState {
-    pub path: PathBuf,
+    pub path: Rc<RefCell<PathBuf>>,
     pub scrolled: gtk4::ScrolledWindow,
     pub view: sourceview5::View,
     pub buffer: sourceview5::Buffer,
@@ -26,6 +27,7 @@ pub struct EditorTabState {
     pub monitor: Rc<RefCell<Option<gtk4::gio::FileMonitor>>>,
     pub suppress_dirty: Rc<Cell<bool>>,
     pub dirty_marker_cb: DirtyMarkerCb,
+    pub title_cb: TitleCb,
     pub css_provider: ViewCssProvider,
     pub swap_path: Rc<RefCell<Option<PathBuf>>>,
 }
@@ -73,7 +75,7 @@ pub fn build(path: PathBuf, cfg: &ViewConfig) -> BuildOutcome {
     root.set_vexpand(true);
 
     let state = EditorTabState {
-        path,
+        path: Rc::new(RefCell::new(path)),
         scrolled,
         view,
         buffer: buffer.clone(),
@@ -84,6 +86,7 @@ pub fn build(path: PathBuf, cfg: &ViewConfig) -> BuildOutcome {
         monitor: Rc::new(RefCell::new(None)),
         suppress_dirty: Rc::new(Cell::new(false)),
         dirty_marker_cb: Rc::new(RefCell::new(None)),
+        title_cb: Rc::new(RefCell::new(None)),
         css_provider: Rc::new(RefCell::new(None)),
         swap_path: Rc::new(RefCell::new(None)),
     };
@@ -133,5 +136,10 @@ impl EditorTabState {
             }
             cb(true);
         });
+    }
+
+    pub fn on_title_changed<F: Fn(&str) + 'static>(&self, f: F) {
+        let cb: Rc<dyn Fn(&str)> = Rc::new(f);
+        *self.title_cb.borrow_mut() = Some(cb);
     }
 }
