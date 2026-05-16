@@ -43,10 +43,25 @@ pub fn install(state: &EditorTabState) -> Option<gtk4::gio::FileMonitor> {
 fn reload_clean(state: &EditorTabState) {
     let path = state.path.borrow().clone();
     if let buffer::LoadResult::Text { contents, etag } = buffer::load(&path) {
+        let cursor_line;
+        let cursor_col;
+        {
+            let mark = state.buffer.get_insert();
+            let iter = state.buffer.iter_at_mark(&mark);
+            cursor_line = iter.line();
+            cursor_col = iter.line_offset();
+        }
+        let scroll = state.scrolled.vadjustment().value();
+
         state.suppress_dirty.set(true);
         state.buffer.set_text(&contents);
         state.suppress_dirty.set(false);
         state.mark_clean(etag);
+
+        if let Some(iter) = state.buffer.iter_at_line_offset(cursor_line, cursor_col) {
+            state.buffer.place_cursor(&iter);
+        }
+        state.scrolled.vadjustment().set_value(scroll);
     }
 }
 
