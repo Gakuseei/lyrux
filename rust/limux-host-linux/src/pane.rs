@@ -3921,13 +3921,15 @@ fn create_browser_widget(
 
 #[cfg(test)]
 mod tests {
+    use super::gtk::glib;
     use super::{
         classify_content_drop_zone, content_drop_preview_rect, effective_drop_target_dimensions,
-        is_localhost_input, next_active_after_tab_removal, normalize_browser_entry_input,
-        normalize_reorder_insert_index, pane_action_tooltip, ContentDropZone, TabDragPayload,
-        BROWSER_SEARCH_ENTRY_CSS_CLASS, BROWSER_SEARCH_ENTRY_CSS_CLASSES,
-        BROWSER_URL_ENTRY_CSS_CLASS, BROWSER_URL_ENTRY_CSS_CLASSES, HOST_ENTRY_CSS_CLASS, PANE_CSS,
-        TAB_RENAME_ENTRY_CSS_CLASS, TAB_RENAME_ENTRY_CSS_CLASSES,
+        extract_file_paths, is_localhost_input, next_active_after_tab_removal,
+        normalize_browser_entry_input, normalize_reorder_insert_index, pane_action_tooltip,
+        ContentDropZone, TabDragPayload, BROWSER_SEARCH_ENTRY_CSS_CLASS,
+        BROWSER_SEARCH_ENTRY_CSS_CLASSES, BROWSER_URL_ENTRY_CSS_CLASS,
+        BROWSER_URL_ENTRY_CSS_CLASSES, DROP_NEW_TAB, DROP_OPEN_HERE, HOST_ENTRY_CSS_CLASS,
+        PANE_CSS, TAB_RENAME_ENTRY_CSS_CLASS, TAB_RENAME_ENTRY_CSS_CLASSES,
     };
     use crate::shortcut_config::{default_shortcuts, resolve_shortcuts_from_str, ShortcutId};
 
@@ -4167,5 +4169,28 @@ mod tests {
         for (input, expected) in cases {
             assert_eq!(normalize_browser_entry_input(input), expected, "{input}");
         }
+    }
+
+    #[test]
+    fn drop_overlay_strings_are_human_readable() {
+        assert_eq!(DROP_OPEN_HERE, "Open here");
+        assert_eq!(DROP_NEW_TAB, "Open as new tab");
+    }
+
+    #[test]
+    fn extract_file_paths_returns_empty_for_unrelated_value() {
+        let value = glib::Value::from(&42i32);
+        assert!(extract_file_paths(&value).is_empty());
+    }
+
+    #[test]
+    fn extract_file_paths_parses_file_uri_string() {
+        let value = glib::Value::from("file:///tmp/lyrux-dnd-test.txt");
+        let paths = extract_file_paths(&value);
+        assert_eq!(paths.len(), 1);
+        assert_eq!(
+            paths[0],
+            std::path::PathBuf::from("/tmp/lyrux-dnd-test.txt")
+        );
     }
 }
