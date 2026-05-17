@@ -57,6 +57,7 @@ jobs:
                 gobject-introspection-devel \
                 gzip \
                 gtk4-devel \
+                gtksourceview5-devel \
                 libadwaita-devel \
                 libepoxy-devel \
                 libxml2-tools \
