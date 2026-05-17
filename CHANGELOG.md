@@ -5,6 +5,57 @@ All notable changes to Lyrux are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-05-17
+
+Editor polish v2 + file manager polish + theme system + snippets. 43 commits.
+
+### Added
+- New "Lyrux Grey" editor theme matching app chrome — now default.
+- Bundled Lilex font as new default — denser typography.
+- Native completion + 16 bundled snippet sets (Rust, Python, JS, TS, C, HTML, CSS, Markdown, etc.).
+- Minimap right-edge code overview (toggleable).
+- Recent Files section in Ctrl+P quick-open.
+- Reopen Closed Tab via Ctrl+Alt+T.
+- Pin/Unpin tab keyboard shortcut Ctrl+Alt+P.
+- Horizontal scroll for tab strip when many tabs.
+- Find/Replace bar full rebuild: match count, prev/next, case/word/regex toggles, regex-error feedback, smart-case, auto-fill from selection, Ctrl+Alt+Enter Replace All.
+- Word-wrap toggle via command palette + status bar click target.
+- File manager: inline-rename popover for new file/folder/rename.
+- File manager: previously-stubbed Open-in-Terminal, Copy Path, Copy Relative Path, Expand All now functional.
+- File manager: keyboard accels (Delete, F2, Ctrl+C/X/V/D/N/Shift+N, F5, Enter, Ctrl+Enter).
+- File manager: per-extension file-type icons (code, image, archive, pdf, audio, video).
+- File manager: four sort modes (name asc/desc, modified date, size).
+- File manager: size + modified-time columns (toggleable).
+- DnD: real drag-source on file_panel rows + cursor file-icon + per-pane drop target + blue-tint hover overlay + "Open here" label.
+- User themes — drop `.xml` into `~/.config/lyrux/themes/`.
+- System color-scheme auto-sync (light/dark theme follows system).
+- Save All Ctrl+Alt+S.
+- Goto-Line moved to Ctrl+G (standard); Ctrl+L freed.
+- F3 / Shift+F3 find-next / prev (standard).
+- Ctrl+` toggles or focuses terminal.
+- Ctrl+, opens Settings; Ctrl+Shift+, opens Keybinds editor.
+- Command palette accels auto-derive from current shortcut config.
+
+### Changed
+- Default editor theme: "Lyrux Grey" (was "Lyrux Dark").
+- Default font: "Lilex" (was "JetBrains Mono"; JBM still bundled as fallback).
+- Default font-size: 12pt (was 13pt) + line-height 1.3 (was 1.5) for denser display.
+- Default `wrap_lines: false` (developer convention; toggleable in Settings).
+- File extension → language ID map fixed (`.jsx/.tsx` finally render with syntax highlighting; `.py` uses python3 schema; `.h` uses chdr).
+- Dirty marker compares full buffer text against saved state (clears on revert).
+- Default `theme_mode: System` for new installs; existing configs preserve their manual choice.
+
+### Fixed
+- 3 critical Rc-cycle leaks (FileMonitor, sticky-scroll, status-bar) — same family as the 2026-05-15 memory-leak hunt.
+- Dirty marker no longer stays after buffer reverts to saved content.
+- Close-tab button on "file deleted on disk" banner actually closes the tab.
+- Find-bar regex-error now shows red border with tooltip.
+
+### Performance
+- Settings broadcast debounced 50ms (was unthrottled).
+- Snippet/scheme/language registration gated by `OnceLock`.
+- Find-in-Files result lines capped at 240 chars.
+
 ## [0.4.0] - 2026-05-17
 
 Skipped 0.3 — editor polish and productivity sprints both landed in one cycle.
