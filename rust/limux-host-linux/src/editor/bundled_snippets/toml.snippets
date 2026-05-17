@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<snippets _group="TOML">
+  <snippet _name="section" trigger="section" _description="Table section">
+    <text languages="toml;"><![CDATA[[${1:section}]
+$0]]></text>
+  </snippet>
+  <snippet _name="array" trigger="array" _description="Array-of-tables section">
+    <text languages="toml;"><![CDATA[[[${1:section}]]
+$0]]></text>
+  </snippet>
+  <snippet _name="dep" trigger="dep" _description="Cargo dependency">
+    <text languages="toml;"><![CDATA[${1:name} = { version = "${2:0.1}", features = [${3:""}] }$0]]></text>
+  </snippet>
+  <snippet _name="pkg" trigger="pkg" _description="Cargo package block">
+    <text languages="toml;"><![CDATA[[package]
+name = "${1:name}"
+version = "${2:0.1.0}"
+edition = "${3:2024}"
+$0]]></text>
+  </snippet>
+</snippets>

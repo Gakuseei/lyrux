@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<snippets _group="Go">
+  <snippet _name="package" trigger="package" _description="Package declaration">
+    <text languages="go;"><![CDATA[package ${1:main}
+
+$0]]></text>
+  </snippet>
+  <snippet _name="import" trigger="import" _description="Import block">
+    <text languages="go;"><![CDATA[import (
+	"${1:fmt}"
+)
+$0]]></text>
+  </snippet>
+  <snippet _name="func" trigger="func" _description="Function">
+    <text languages="go;"><![CDATA[func ${1:name}(${2}) ${3:error} {
+	$0
+}]]></text>
+  </snippet>
+  <snippet _name="main" trigger="main" _description="Main function">
+    <text languages="go;"><![CDATA[func main() {
+	$0
+}]]></text>
+  </snippet>
+  <snippet _name="if" trigger="if" _description="If block">
+    <text languages="go;"><![CDATA[if ${1:condition} {
+	$0
+}]]></text>
+  </snippet>
+  <snippet _name="iferr" trigger="iferr" _description="If error check">
+    <text languages="go;"><![CDATA[if err != nil {
+	return ${1:err}
+}
+$0]]></text>
+  </snippet>
+  <snippet _name="for" trigger="for" _description="For loop">
+    <text languages="go;"><![CDATA[for ${1:i} := ${2:0}; ${1:i} < ${3:n}; ${1:i}++ {
+	$0
+}]]></text>
+  </snippet>
+  <snippet _name="range" trigger="range" _description="For-range">
+    <text languages="go;"><![CDATA[for ${1:k}, ${2:v} := range ${3:items} {
+	$0
+}]]></text>
+  </snippet>
+  <snippet _name="struct" trigger="struct" _description="Struct type">
+    <text languages="go;"><![CDATA[type ${1:Name} struct {
+	$0
+}]]></text>
+  </snippet>
+  <snippet _name="interface" trigger="interface" _description="Interface type">
+    <text languages="go;"><![CDATA[type ${1:Name} interface {
+	$0
+}]]></text>
+  </snippet>
+</snippets>

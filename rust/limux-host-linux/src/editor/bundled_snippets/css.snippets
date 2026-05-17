@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<snippets _group="CSS">
+  <snippet _name="rule" trigger="rule" _description="Selector rule">
+    <text languages="css;"><![CDATA[${1:selector} {
+	$0
+}]]></text>
+  </snippet>
+  <snippet _name="media" trigger="media" _description="Media query">
+    <text languages="css;"><![CDATA[@media (${1:min-width: 768px}) {
+	$0
+}]]></text>
+  </snippet>
+  <snippet _name="keyframes" trigger="keyframes" _description="Keyframes block">
+    <text languages="css;"><![CDATA[@keyframes ${1:name} {
+	from { $2 }
+	to { $0 }
+}]]></text>
+  </snippet>
+  <snippet _name="import" trigger="import" _description="@import rule">
+    <text languages="css;"><![CDATA[@import url("${1:path}");$0]]></text>
+  </snippet>
+  <snippet _name="flex" trigger="flex" _description="Flex container">
+    <text languages="css;"><![CDATA[display: flex;
+align-items: ${1:center};
+justify-content: ${2:center};$0]]></text>
+  </snippet>
+  <snippet _name="grid" trigger="grid" _description="Grid container">
+    <text languages="css;"><![CDATA[display: grid;
+grid-template-columns: ${1:repeat(3, 1fr)};
+gap: ${2:1rem};$0]]></text>
+  </snippet>
+  <snippet _name="var" trigger="var" _description="CSS variable reference">
+    <text languages="css;"><![CDATA[var(--${1:name})$0]]></text>
+  </snippet>
+</snippets>

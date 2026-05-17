@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<snippets _group="TypeScript">
+  <snippet _name="import" trigger="import" _description="ES module import">
+    <text languages="typescript;typescript-jsx;"><![CDATA[import { ${1:name} } from '${2:module}';
+$0]]></text>
+  </snippet>
+  <snippet _name="importd" trigger="importd" _description="Default import">
+    <text languages="typescript;typescript-jsx;"><![CDATA[import ${1:name} from '${2:module}';
+$0]]></text>
+  </snippet>
+  <snippet _name="function" trigger="function" _description="Function declaration">
+    <text languages="typescript;typescript-jsx;"><![CDATA[function ${1:name}(${2:args}): ${3:void} {
+	$0
+}]]></text>
+  </snippet>
+  <snippet _name="arrow" trigger="arrow" _description="Arrow function const">
+    <text languages="typescript;typescript-jsx;"><![CDATA[const ${1:name} = (${2:args}): ${3:void} => {
+	$0
+};]]></text>
+  </snippet>
+  <snippet _name="class" trigger="class" _description="Class declaration">
+    <text languages="typescript;typescript-jsx;"><![CDATA[class ${1:Name} {
+	constructor(${2}) {
+		$0
+	}
+}]]></text>
+  </snippet>
+  <snippet _name="interface" trigger="interface" _description="Interface">
+    <text languages="typescript;typescript-jsx;"><![CDATA[interface ${1:Name} {
+	$0
+}]]></text>
+  </snippet>
+  <snippet _name="type" trigger="type" _description="Type alias">
+    <text languages="typescript;typescript-jsx;"><![CDATA[type ${1:Name} = $0;]]></text>
+  </snippet>
+  <snippet _name="enum" trigger="enum" _description="Enum">
+    <text languages="typescript;typescript-jsx;"><![CDATA[enum ${1:Name} {
+	$0
+}]]></text>
+  </snippet>
+  <snippet _name="if" trigger="if" _description="If block">
+    <text languages="typescript;typescript-jsx;"><![CDATA[if (${1:condition}) {
+	$0
+}]]></text>
+  </snippet>
+  <snippet _name="for" trigger="for" _description="For-of loop">
+    <text languages="typescript;typescript-jsx;"><![CDATA[for (const ${1:item} of ${2:items}) {
+	$0
+}]]></text>
+  </snippet>
+  <snippet _name="try" trigger="try" _description="Try/catch block">
+    <text languages="typescript;typescript-jsx;"><![CDATA[try {
+	$1
+} catch (${2:err}) {
+	$0
+}]]></text>
+  </snippet>
+  <snippet _name="async" trigger="async" _description="Async function">
+    <text languages="typescript;typescript-jsx;"><![CDATA[async function ${1:name}(${2}): Promise<${3:void}> {
+	$0
+}]]></text>
+  </snippet>
+</snippets>

@@ -4,6 +4,10 @@
 
 - **GtkSourceView Language Specifications** (`rust/limux-host-linux/src/editor/bundled_langs/*.lang`) — Copyright the GNOME / gtksourceview contributors, licensed LGPL-2.1-or-later. Vendored from https://gitlab.gnome.org/GNOME/gtksourceview/-/tree/master/data/language-specs because the Arch `gtksourceview5` package does not ship these data files.
 
+- **Bundled Snippet Files (upstream subset)** (`rust/limux-host-linux/src/editor/bundled_snippets/{c,js,python,rust,xml,shebang,licenses}.snippets`) — Copyright the GNOME / gnome-builder contributors, licensed LGPL-2.1-or-later. Vendored from the gnome-builder project (`src/plugins/snippets/snippets/`) because the Arch `gtksourceview5` package does not ship a default snippet set.
+
+- **Bundled Snippet Files (Lyrux-authored)** (`rust/limux-host-linux/src/editor/bundled_snippets/{typescript,markdown,css,html,toml,yaml,sh,go,json}.snippets`) — Original work, copyright (c) Lyrux contributors. MIT License. Hand-authored using the GtkSourceView snippet XML schema.
+
 - **Catppuccin Latte / Frappé / Macchiato / Mocha** — Palette copyright (c) Catppuccin Org, MIT License. Source: https://github.com/catppuccin/gtk. GtkSourceView XML hand-rolled by Lyrux using the documented palette values.
 
 - **Tokyo Night / Tokyo Night Storm** — Palette derived from Tokyo Night by Enkia, MIT License, via https://github.com/folke/tokyonight.nvim. GtkSourceView XML hand-rolled by Lyrux using the documented palette values.

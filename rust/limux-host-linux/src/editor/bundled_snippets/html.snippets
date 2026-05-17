@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<snippets _group="HTML">
+  <snippet _name="doc" trigger="doc" _description="HTML5 document">
+    <text languages="html;"><![CDATA[<!DOCTYPE html>
+<html lang="${1:en}">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>${2:Document}</title>
+</head>
+<body>
+	$0
+</body>
+</html>]]></text>
+  </snippet>
+  <snippet _name="div" trigger="div" _description="Div element">
+    <text languages="html;"><![CDATA[<div${1: class="${2:name}"}>$0</div>]]></text>
+  </snippet>
+  <snippet _name="a" trigger="a" _description="Anchor">
+    <text languages="html;"><![CDATA[<a href="${1:#}">$0</a>]]></text>
+  </snippet>
+  <snippet _name="img" trigger="img" _description="Image tag">
+    <text languages="html;"><![CDATA[<img src="${1:src}" alt="${2:alt}">$0]]></text>
+  </snippet>
+  <snippet _name="form" trigger="form" _description="Form element">
+    <text languages="html;"><![CDATA[<form action="${1:url}" method="${2:post}">
+	$0
+</form>]]></text>
+  </snippet>
+  <snippet _name="input" trigger="input" _description="Input element">
+    <text languages="html;"><![CDATA[<input type="${1:text}" name="${2:name}" value="${3}">$0]]></text>
+  </snippet>
+  <snippet _name="script" trigger="script" _description="Script tag">
+    <text languages="html;"><![CDATA[<script src="${1:src}"></script>$0]]></text>
+  </snippet>
+  <snippet _name="link" trigger="link" _description="Stylesheet link">
+    <text languages="html;"><![CDATA[<link rel="stylesheet" href="${1:href}">$0]]></text>
+  </snippet>
+</snippets>

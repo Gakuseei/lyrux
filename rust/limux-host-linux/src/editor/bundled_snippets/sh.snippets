@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<snippets _group="Shell">
+  <snippet _name="bang" trigger="bang" _description="Bash shebang + safe defaults">
+    <text languages="sh;"><![CDATA[#!/usr/bin/env bash
+set -euo pipefail
+
+$0]]></text>
+  </snippet>
+  <snippet _name="if" trigger="if" _description="If block">
+    <text languages="sh;"><![CDATA[if [[ ${1:condition} ]]; then
+	$0
+fi]]></text>
+  </snippet>
+  <snippet _name="for" trigger="for" _description="For loop">
+    <text languages="sh;"><![CDATA[for ${1:item} in ${2:list}; do
+	$0
+done]]></text>
+  </snippet>
+  <snippet _name="while" trigger="while" _description="While loop">
+    <text languages="sh;"><![CDATA[while ${1:condition}; do
+	$0
+done]]></text>
+  </snippet>
+  <snippet _name="case" trigger="case" _description="Case statement">
+    <text languages="sh;"><![CDATA[case "${1:var}" in
+	${2:pattern})
+		$0
+		;;
+esac]]></text>
+  </snippet>
+  <snippet _name="fn" trigger="fn" _description="Function declaration">
+    <text languages="sh;"><![CDATA[${1:name}() {
+	$0
+}]]></text>
+  </snippet>
+</snippets>
