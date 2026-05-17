@@ -43,7 +43,7 @@ Editor polish v2 + file manager polish + theme system + snippets. 43 commits.
 - Default `wrap_lines: false` (developer convention; toggleable in Settings).
 - File extension → language ID map fixed (`.jsx/.tsx` finally render with syntax highlighting; `.py` uses python3 schema; `.h` uses chdr).
 - Dirty marker compares full buffer text against saved state (clears on revert).
-- Default `theme_mode: System` for new installs; existing configs preserve their manual choice.
+- Default `theme_mode: Manual` for new installs; existing user theme choices preserved on upgrade. Opt-in to system-sync via Settings.
 
 ### Fixed
 - 3 critical Rc-cycle leaks (FileMonitor, sticky-scroll, status-bar) — same family as the 2026-05-15 memory-leak hunt.

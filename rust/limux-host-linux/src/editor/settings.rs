@@ -6,8 +6,8 @@ use crate::editor::view::ViewConfig;
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum ThemeMode {
-    #[default]
     System,
+    #[default]
     Manual,
 }
 
