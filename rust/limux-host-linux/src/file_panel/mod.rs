@@ -633,6 +633,36 @@ impl FilePanelHandle {
         self.wire_context_menu();
         self.wire_header_buttons();
         self.wire_actions(window);
+        self.wire_keyboard();
+    }
+
+    fn wire_keyboard(&self) {
+        let list_view = self.inner.borrow().view.list_view.clone();
+        let ctrl = gtk::EventControllerKey::new();
+        let handle = self.clone();
+        ctrl.connect_key_pressed(move |_, key, _, mods| {
+            let ctrl_held = mods.contains(gtk::gdk::ModifierType::CONTROL_MASK);
+            let shift_held = mods.contains(gtk::gdk::ModifierType::SHIFT_MASK);
+            let action = match (key, ctrl_held, shift_held) {
+                (gtk::gdk::Key::Delete, false, false) => Some("fp-delete"),
+                (gtk::gdk::Key::Delete, false, true) => Some("fp-delete-permanent"),
+                (gtk::gdk::Key::F2, false, false) => Some("fp-rename"),
+                (gtk::gdk::Key::F5, false, false) => Some("fp-refresh"),
+                (gtk::gdk::Key::c, true, false) => Some("fp-copy"),
+                (gtk::gdk::Key::x, true, false) => Some("fp-cut"),
+                (gtk::gdk::Key::v, true, false) => Some("fp-paste"),
+                (gtk::gdk::Key::d, true, false) => Some("fp-duplicate"),
+                (gtk::gdk::Key::n, true, false) => Some("fp-new-file"),
+                (gtk::gdk::Key::n, true, true) => Some("fp-new-folder"),
+                _ => None,
+            };
+            if let Some(name) = action {
+                handle.dispatch_action(name);
+                return glib::Propagation::Stop;
+            }
+            glib::Propagation::Proceed
+        });
+        list_view.add_controller(ctrl);
     }
 
     fn wire_list_activate(&self) {
