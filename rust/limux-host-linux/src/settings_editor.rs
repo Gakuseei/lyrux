@@ -414,6 +414,7 @@ fn apply_editor_settings_now(settings: &EditorSettings, system_prefers_dark: Opt
         state.sticky.set_enabled(view_cfg.show_sticky_scroll);
         state.minimap.set_visible(view_cfg.show_minimap);
         state.minimap_container.set_visible(view_cfg.show_minimap);
+        crate::editor::minimap_overlay::apply_reservation(&state.scrolled, view_cfg.show_minimap);
         state
             .wrap_button
             .set_label(crate::editor::status_bar::wrap_label_text(

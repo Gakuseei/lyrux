@@ -88,6 +88,7 @@ pub fn build(path: PathBuf, cfg: &ViewConfig) -> BuildOutcome {
     let editor_row_built = build_editor_row(&view, sticky.overlay(), &minimap, cfg.show_minimap);
     let editor_row = editor_row_built.root;
     let minimap_container = editor_row_built.minimap_container;
+    minimap_overlay::apply_reservation(&scrolled, cfg.show_minimap);
 
     let banner = gtk4::Revealer::builder()
         .reveal_child(false)

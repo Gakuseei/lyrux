@@ -79,6 +79,7 @@ pub fn spawn_empty(cfg: &ViewConfig) -> EditorTabState {
         tab_state::build_editor_row(&view, sticky.overlay(), &minimap, cfg.show_minimap);
     let editor_row = editor_row_built.root;
     let minimap_container = editor_row_built.minimap_container;
+    minimap_overlay::apply_reservation(&scrolled, cfg.show_minimap);
 
     let banner = gtk4::Revealer::builder()
         .reveal_child(false)

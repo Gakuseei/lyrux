@@ -5,7 +5,12 @@ use gtk4 as gtk;
 use gtk4::glib;
 use gtk4::prelude::*;
 
-const MINIMAP_NATURAL_WIDTH: i32 = 120;
+pub const MINIMAP_NATURAL_WIDTH: i32 = 120;
+
+pub fn apply_reservation(scrolled: &gtk::ScrolledWindow, visible: bool) {
+    let margin = if visible { MINIMAP_NATURAL_WIDTH } else { 0 };
+    scrolled.set_margin_end(margin);
+}
 
 #[derive(Clone)]
 pub struct MinimapContainer {
