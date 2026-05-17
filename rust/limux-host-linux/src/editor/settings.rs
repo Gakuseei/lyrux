@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use crate::editor::themes;
 use crate::editor::view::ViewConfig;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -41,7 +42,7 @@ pub struct EditorSettings {
 }
 
 fn default_theme() -> String {
-    "lyrux-dark".to_string()
+    themes::default_id().to_string()
 }
 fn default_font_family() -> String {
     "JetBrains Mono".to_string()

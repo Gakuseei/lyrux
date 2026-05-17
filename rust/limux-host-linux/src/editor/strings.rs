@@ -49,6 +49,7 @@ pub const ERROR_FILE_BINARY: &str = "Binary file; use the image viewer or a hex 
 pub const ERROR_OUTSIDE_WORKSPACE: &str = "Can't save here — file is outside the workspace.";
 pub const ERROR_WRITE_FAILED_PREFIX: &str = "Save failed: ";
 
+pub const THEME_LYRUX_GREY: &str = "Lyrux Grey";
 pub const THEME_LYRUX_DARK: &str = "Lyrux Dark";
 pub const THEME_LYRUX_LIGHT: &str = "Lyrux Light";
 pub const THEME_CATPPUCCIN_LATTE: &str = "Catppuccin Latte";

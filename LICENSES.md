@@ -10,7 +10,7 @@
 
 - **One Dark / One Light** — Palette derived from Atom One (MIT License, GitHub Inc.). GtkSourceView XML hand-rolled by Lyrux using the documented palette values.
 
-- **Lyrux Dark / Lyrux Light** — Original work, copyright (c) Lyrux contributors. MIT License.
+- **Lyrux Dark / Lyrux Light / Lyrux Grey** — Original work, copyright (c) Lyrux contributors. MIT License.
 
 ## Bundled Fonts
 

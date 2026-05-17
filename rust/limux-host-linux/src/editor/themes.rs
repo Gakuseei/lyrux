@@ -3,6 +3,11 @@ use crate::editor::strings;
 
 const SCHEMES: &[(&str, &str, &str)] = &[
     (
+        "lyrux-grey",
+        strings::THEME_LYRUX_GREY,
+        include_str!("bundled_styles/lyrux-grey.xml"),
+    ),
+    (
         "lyrux-dark",
         strings::THEME_LYRUX_DARK,
         include_str!("bundled_styles/lyrux-dark.xml"),
@@ -101,5 +106,5 @@ pub fn label_for(id: &str) -> Option<&'static str> {
 }
 
 pub fn default_id() -> &'static str {
-    "lyrux-dark"
+    "lyrux-grey"
 }
