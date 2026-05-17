@@ -65,6 +65,7 @@ pub enum ShortcutId {
     EditorQuickOpen,
     EditorCommandPalette,
     EditorFindInFiles,
+    PaneTogglePinTab,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -120,6 +121,7 @@ pub enum ShortcutCommand {
     EditorQuickOpen,
     EditorCommandPalette,
     EditorFindInFiles,
+    PaneTogglePinTab,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -318,7 +320,7 @@ struct ShortcutConfigFile {
     shortcuts: HashMap<String, serde_json::Value>,
 }
 
-const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 52] = [
+const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 53] = [
     ShortcutDefinition {
         id: ShortcutId::NewWorkspace,
         config_key: "new_workspace",
@@ -888,6 +890,17 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 52] = [
         label: "Find in files",
         registers_gtk_accel: false,
         command: ShortcutCommand::EditorFindInFiles,
+        scope: ShortcutScope::Window,
+        editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
+    },
+    ShortcutDefinition {
+        id: ShortcutId::PaneTogglePinTab,
+        config_key: "pane_toggle_pin_tab",
+        action_name: "win.pane-toggle-pin-tab",
+        default_accel: "<Ctrl><Alt>p",
+        label: "Pin or unpin active tab",
+        registers_gtk_accel: false,
+        command: ShortcutCommand::PaneTogglePinTab,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
     },
@@ -1659,7 +1672,7 @@ mod tests {
 
     #[test]
     fn definitions_cover_current_host_shortcuts() {
-        assert_eq!(definitions().len(), 52);
+        assert_eq!(definitions().len(), 53);
     }
 
     #[test]

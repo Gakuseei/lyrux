@@ -175,6 +175,11 @@ const COMMANDS: &[CommandEntry] = &[
         accel: None,
     },
     CommandEntry {
+        label: strings::CMD_PANE_TOGGLE_PIN,
+        action_name: "win.pane-toggle-pin-tab",
+        accel: Some("Ctrl+Alt+P"),
+    },
+    CommandEntry {
         label: strings::CMD_NEW_TERMINAL,
         action_name: "win.new-terminal",
         accel: None,

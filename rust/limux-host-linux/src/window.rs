@@ -1675,6 +1675,12 @@ fn dispatch_shortcut_command(state: &State, command: ShortcutCommand) -> bool {
             }
             true
         }
+        ShortcutCommand::PaneTogglePinTab => {
+            if let Some((_ws_id, pane_widget)) = find_focused_pane(state) {
+                pane::toggle_pin_active_tab(&pane_widget);
+            }
+            true
+        }
         ShortcutCommand::EditorFindInFiles => {
             if let Some((_ws_id, pane_widget)) = find_focused_pane(state) {
                 let root = quick_open_root_for(state, &pane_widget);

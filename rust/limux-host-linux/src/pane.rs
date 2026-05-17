@@ -1634,6 +1634,27 @@ pub fn add_editor_tab_to_pane(pane_widget: &gtk::Widget) {
     }
 }
 
+pub fn toggle_pin_active_tab(pane_widget: &gtk::Widget) {
+    let Some(internals) = find_pane_internals(pane_widget) else {
+        return;
+    };
+    let active_id = {
+        let ts = internals.tab_state.borrow();
+        match ts.active_tab.as_deref() {
+            Some(id) => id.to_string(),
+            None => return,
+        }
+    };
+    {
+        let mut ts = internals.tab_state.borrow_mut();
+        if let Some(entry) = ts.find_tab_mut(&active_id) {
+            entry.pinned = !entry.pinned;
+            apply_pin_visuals(&entry.tab_button, entry.pinned);
+        }
+    }
+    (internals.callbacks.on_state_changed)();
+}
+
 #[allow(dead_code)]
 pub fn add_browser_tab_to_pane(pane_widget: &gtk::Widget) {
     add_browser_tab_to_pane_with_uri(pane_widget, None);
