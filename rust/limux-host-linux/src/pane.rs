@@ -2882,6 +2882,22 @@ fn extract_file_paths(value: &glib::Value) -> Vec<std::path::PathBuf> {
             return vec![p];
         }
     }
+    if let Ok(raw) = value.get::<String>() {
+        let mut out = Vec::new();
+        for line in raw.lines() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            let file = gtk4::gio::File::for_uri(trimmed);
+            if let Some(p) = file.path() {
+                out.push(p);
+            }
+        }
+        if !out.is_empty() {
+            return out;
+        }
+    }
     Vec::new()
 }
 
