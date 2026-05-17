@@ -5,6 +5,35 @@ All notable changes to Lyrux are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-05-17
+
+Vim mode + perf polish + Round-2 audit fix loop.
+
+### Added
+- Real Vim mode via native input-method context (Settings → Editor → Vim mode). `:w` saves, `:q` closes, `:wq` save+close. Other vim commands handled natively (search /pattern, replace :s/x/y/g, motion).
+- Status bar shows vim mode state (NORMAL / INSERT / VISUAL / `:cmd`) when vim is on.
+- 13 editor commands exposed in shortcut config (Goto-Line, Find, Replace, Toggle-Comment, Duplicate, Delete, Move, Select-Next) — now visible and remappable in Keybinds editor.
+- DnD: drag-source supports MOVE in addition to COPY.
+
+### Changed
+- Quick-open file walker now runs on a worker thread (cancel-on-new-query); no UI freeze on large repos.
+- Settings disk-save debounced 200ms (was: write per change).
+- Editor font CSS now uses a single global provider (was: per-tab provider leaked on tab close).
+- Sort menu shows active radio marker.
+- Inline-rename popover for files anchors to the selected row instead of the panel header.
+- Dirty-comparison adds char-count pre-check for cheap fast-path (was: full string fetch on every keystroke).
+
+### Fixed
+- `limux-perf:` log prefix replaced with `lyrux-perf:` per logging rule.
+- Remaining user-facing "Limux" mentions rebranded to "Lyrux".
+- Recent-files MRU now pushes only on successful file open (was: pollutes with binary / not-found / too-large paths).
+- CHANGELOG honesty: clarified Ctrl+L still bound in browser scope.
+- ThemeMode default switched from System to Manual to preserve upgraded user theme choices.
+
+### Performance
+- Dirty-compare per keystroke: 1 MB file = 0 alloc when char_count differs (fast path).
+- 50KB JS heap saved per tab via single global CssProvider.
+
 ## [0.5.0] - 2026-05-17
 
 Editor polish v2 + file manager polish + theme system + snippets. 43 commits.
