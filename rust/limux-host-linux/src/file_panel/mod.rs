@@ -390,6 +390,19 @@ impl FilePanelHandle {
         if !active_now {
             return;
         }
+        // Cooldown: clamp refresh_subtree to once per 500ms per workspace.
+        // Continuous background FS events (e.g. inside an active build) would
+        // otherwise trigger a refresh storm; the visibility filter alone is
+        // not enough because the root itself is always "visible".
+        const REFRESH_COOLDOWN_MS: u64 = 500;
+        {
+            let inner = self.inner.borrow();
+            if let Some(last) = inner.last_refresh_at.get(workspace_id) {
+                if last.elapsed() < std::time::Duration::from_millis(REFRESH_COOLDOWN_MS) {
+                    return;
+                }
+            }
+        }
         // Drop paths matched by the workspace's `.gitignore`. Aria-class
         // workspaces write to many ignored dirs (`.superpowers/`,
         // `.playwright/`, `.todos/`, ...) and would otherwise drive a
@@ -435,19 +448,6 @@ impl FilePanelHandle {
         };
         if visible_parents.is_empty() {
             return;
-        }
-        // Cooldown: clamp refresh_subtree to once per 500ms per workspace.
-        // Continuous background FS events (e.g. inside an active build) would
-        // otherwise trigger a refresh storm; the visibility filter alone is
-        // not enough because the root itself is always "visible".
-        const REFRESH_COOLDOWN_MS: u64 = 500;
-        {
-            let inner = self.inner.borrow();
-            if let Some(last) = inner.last_refresh_at.get(workspace_id) {
-                if last.elapsed() < std::time::Duration::from_millis(REFRESH_COOLDOWN_MS) {
-                    return;
-                }
-            }
         }
         // Collapse threshold: many visible parents → one root refresh is
         // cheaper than N parent refreshes, and refresh_subtree(root) already
