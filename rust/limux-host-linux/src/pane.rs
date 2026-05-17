@@ -1683,6 +1683,29 @@ pub fn add_terminal_tab_to_pane(pane_widget: &gtk::Widget) {
     }
 }
 
+pub fn open_settings_dialog_for_pane(pane_widget: &gtk::Widget) {
+    let Some(internals) = find_pane_internals(pane_widget) else {
+        return;
+    };
+    settings_editor::present_settings_dialog(
+        &internals.pane_outer,
+        settings_editor::SettingsEditorInput {
+            config: (internals.callbacks.current_config)(),
+            shortcuts: (internals.callbacks.current_shortcuts)(),
+            on_capture: internals.callbacks.on_capture_shortcut.clone(),
+            on_config_changed: internals.callbacks.on_config_changed.clone(),
+        },
+    );
+}
+
+pub fn open_keybinds_editor_for_pane(pane_widget: &gtk::Widget) {
+    let Some(internals) = find_pane_internals(pane_widget) else {
+        return;
+    };
+    let target: gtk::Widget = internals.pane_outer.clone().upcast();
+    (internals.callbacks.on_open_keybinds)(&target);
+}
+
 pub fn toggle_or_focus_terminal_in_pane(pane_widget: &gtk::Widget) {
     let Some(internals) = find_pane_internals(pane_widget) else {
         return;

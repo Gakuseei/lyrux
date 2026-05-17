@@ -69,6 +69,8 @@ pub enum ShortcutId {
     EditorReopenClosedTab,
     WindowToggleTerminal,
     EditorSaveAll,
+    WindowOpenSettings,
+    WindowOpenKeybinds,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -128,6 +130,8 @@ pub enum ShortcutCommand {
     EditorReopenClosedTab,
     WindowToggleTerminal,
     EditorSaveAll,
+    WindowOpenSettings,
+    WindowOpenKeybinds,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -326,7 +330,7 @@ struct ShortcutConfigFile {
     shortcuts: HashMap<String, serde_json::Value>,
 }
 
-const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 56] = [
+const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
     ShortcutDefinition {
         id: ShortcutId::NewWorkspace,
         config_key: "new_workspace",
@@ -942,6 +946,28 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 56] = [
         command: ShortcutCommand::EditorSaveAll,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
+    },
+    ShortcutDefinition {
+        id: ShortcutId::WindowOpenSettings,
+        config_key: "window_open_settings",
+        action_name: "win.open-settings",
+        default_accel: "<Ctrl>comma",
+        label: "Open Settings",
+        registers_gtk_accel: false,
+        command: ShortcutCommand::WindowOpenSettings,
+        scope: ShortcutScope::Window,
+        editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+    },
+    ShortcutDefinition {
+        id: ShortcutId::WindowOpenKeybinds,
+        config_key: "window_open_keybinds",
+        action_name: "win.open-keybinds",
+        default_accel: "<Ctrl><Shift>comma",
+        label: "Open Keybinds Editor",
+        registers_gtk_accel: false,
+        command: ShortcutCommand::WindowOpenKeybinds,
+        scope: ShortcutScope::Window,
+        editable_capture_policy: EditableCapturePolicy::BypassInEditable,
     },
 ];
 
@@ -1711,7 +1737,7 @@ mod tests {
 
     #[test]
     fn definitions_cover_current_host_shortcuts() {
-        assert_eq!(definitions().len(), 56);
+        assert_eq!(definitions().len(), 58);
     }
 
     #[test]

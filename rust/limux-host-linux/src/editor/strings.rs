@@ -182,6 +182,10 @@ pub const CMD_TOGGLE_TERMINAL: &str = "Terminal: Toggle / Focus";
 pub const SHORTCUT_LABEL_TOGGLE_TERMINAL: &str = "Toggle or focus terminal";
 pub const CMD_OPEN_BROWSER_IN_SPLIT: &str = "Browser: Open in Split";
 pub const CMD_QUIT_APP: &str = "Application: Quit";
+pub const CMD_OPEN_SETTINGS: &str = "Application: Open Settings";
+pub const CMD_OPEN_KEYBINDS: &str = "Application: Open Keybinds Editor";
+pub const SHORTCUT_LABEL_OPEN_SETTINGS: &str = "Open Settings";
+pub const SHORTCUT_LABEL_OPEN_KEYBINDS: &str = "Open Keybinds Editor";
 
 pub const STATUS_LINE_PREFIX: &str = "Ln ";
 pub const STATUS_COL_PREFIX: &str = "Col ";

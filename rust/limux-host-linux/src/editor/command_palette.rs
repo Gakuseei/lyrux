@@ -215,6 +215,16 @@ const COMMANDS: &[CommandEntry] = &[
         accel: None,
     },
     CommandEntry {
+        label: strings::CMD_OPEN_SETTINGS,
+        action_name: "win.open-settings",
+        accel: Some("Ctrl+,"),
+    },
+    CommandEntry {
+        label: strings::CMD_OPEN_KEYBINDS,
+        action_name: "win.open-keybinds",
+        accel: Some("Ctrl+Shift+,"),
+    },
+    CommandEntry {
         label: strings::CMD_QUIT_APP,
         action_name: "app.quit",
         accel: Some("Ctrl+Q"),

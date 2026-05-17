@@ -1700,6 +1700,18 @@ fn dispatch_shortcut_command(state: &State, command: ShortcutCommand) -> bool {
             save_all_editor_tabs();
             true
         }
+        ShortcutCommand::WindowOpenSettings => {
+            if let Some((_ws_id, pane_widget)) = find_focused_pane(state) {
+                pane::open_settings_dialog_for_pane(&pane_widget);
+            }
+            true
+        }
+        ShortcutCommand::WindowOpenKeybinds => {
+            if let Some((_ws_id, pane_widget)) = find_focused_pane(state) {
+                pane::open_keybinds_editor_for_pane(&pane_widget);
+            }
+            true
+        }
         ShortcutCommand::EditorFindInFiles => {
             if let Some((_ws_id, pane_widget)) = find_focused_pane(state) {
                 let root = quick_open_root_for(state, &pane_widget);
