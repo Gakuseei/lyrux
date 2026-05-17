@@ -1634,6 +1634,44 @@ pub fn add_editor_tab_to_pane(pane_widget: &gtk::Widget) {
     }
 }
 
+pub fn reopen_closed_tab(pane_widget: &gtk::Widget) {
+    let Some(internals) = find_pane_internals(pane_widget) else {
+        return;
+    };
+    let Some(closed) = editor::closed_tabs::pop() else {
+        return;
+    };
+    if !closed.path.exists() {
+        return;
+    }
+    add_editor_tab_for_path_inner(&internals, &closed.path);
+    let active_id = {
+        let ts = internals.tab_state.borrow();
+        ts.active_tab.clone()
+    };
+    let Some(active_id) = active_id else {
+        return;
+    };
+    let ts = internals.tab_state.borrow();
+    let Some(entry) = ts.tabs.iter().find(|e| e.id == active_id) else {
+        return;
+    };
+    let TabKind::Editor { state } = &entry.kind else {
+        return;
+    };
+    use sourceview5::prelude::*;
+    let buffer = state.buffer.clone();
+    let offset = closed.cursor_offset;
+    let view = state.view.clone();
+    gtk::glib::idle_add_local_once(move || {
+        let total = buffer.char_count();
+        let target = offset.clamp(0, total);
+        let iter = buffer.iter_at_offset(target);
+        buffer.place_cursor(&iter);
+        view.scroll_to_iter(&mut iter.clone(), 0.0, true, 0.5, 0.5);
+    });
+}
+
 pub fn toggle_pin_active_tab(pane_widget: &gtk::Widget) {
     let Some(internals) = find_pane_internals(pane_widget) else {
         return;
@@ -2804,6 +2842,7 @@ fn remove_tab(
     pane_outer: &gtk::Box,
     empty_reason: PaneEmptyReason,
 ) {
+    capture_closed_editor_tab(tab_state, tab_id);
     let dirty_editor = {
         let ts = tab_state.borrow();
         ts.tabs
@@ -2843,6 +2882,27 @@ fn remove_tab(
         pane_outer,
         empty_reason,
     );
+}
+
+fn capture_closed_editor_tab(tab_state: &Rc<RefCell<TabState>>, tab_id: &str) {
+    let ts = tab_state.borrow();
+    let Some(entry) = ts.tabs.iter().find(|e| e.id == tab_id) else {
+        return;
+    };
+    let TabKind::Editor { state } = &entry.kind else {
+        return;
+    };
+    let path = state.path.borrow().clone();
+    if path.as_os_str().is_empty() {
+        return;
+    }
+    use sourceview5::prelude::*;
+    let insert_iter = state.buffer.iter_at_mark(&state.buffer.get_insert());
+    let cursor_offset = insert_iter.offset();
+    editor::closed_tabs::push(editor::closed_tabs::ClosedTab {
+        path,
+        cursor_offset,
+    });
 }
 
 fn remove_tab_force(

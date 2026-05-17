@@ -66,6 +66,7 @@ pub enum ShortcutId {
     EditorCommandPalette,
     EditorFindInFiles,
     PaneTogglePinTab,
+    EditorReopenClosedTab,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -122,6 +123,7 @@ pub enum ShortcutCommand {
     EditorCommandPalette,
     EditorFindInFiles,
     PaneTogglePinTab,
+    EditorReopenClosedTab,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -320,7 +322,7 @@ struct ShortcutConfigFile {
     shortcuts: HashMap<String, serde_json::Value>,
 }
 
-const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 53] = [
+const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 54] = [
     ShortcutDefinition {
         id: ShortcutId::NewWorkspace,
         config_key: "new_workspace",
@@ -901,6 +903,17 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 53] = [
         label: "Pin or unpin active tab",
         registers_gtk_accel: false,
         command: ShortcutCommand::PaneTogglePinTab,
+        scope: ShortcutScope::Window,
+        editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
+    },
+    ShortcutDefinition {
+        id: ShortcutId::EditorReopenClosedTab,
+        config_key: "editor_reopen_closed_tab",
+        action_name: "win.editor-reopen-closed-tab",
+        default_accel: "<Ctrl><Alt>t",
+        label: "Reopen closed editor tab",
+        registers_gtk_accel: false,
+        command: ShortcutCommand::EditorReopenClosedTab,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
     },
@@ -1672,7 +1685,7 @@ mod tests {
 
     #[test]
     fn definitions_cover_current_host_shortcuts() {
-        assert_eq!(definitions().len(), 53);
+        assert_eq!(definitions().len(), 54);
     }
 
     #[test]

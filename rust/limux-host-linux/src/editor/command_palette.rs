@@ -180,6 +180,11 @@ const COMMANDS: &[CommandEntry] = &[
         accel: Some("Ctrl+Alt+P"),
     },
     CommandEntry {
+        label: strings::CMD_EDITOR_REOPEN_CLOSED,
+        action_name: "win.editor-reopen-closed-tab",
+        accel: Some("Ctrl+Alt+T"),
+    },
+    CommandEntry {
         label: strings::CMD_NEW_TERMINAL,
         action_name: "win.new-terminal",
         accel: None,

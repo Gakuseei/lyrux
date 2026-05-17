@@ -129,6 +129,7 @@ pub const FIF_NO_ROOT: &str = "No workspace folder is open.";
 pub const FIF_RG_FAILED_PREFIX: &str = "Search failed: ";
 pub const SHORTCUT_LABEL_EDITOR_FIND_IN_FILES: &str = "Find in files";
 pub const SHORTCUT_LABEL_PANE_TOGGLE_PIN: &str = "Pin or unpin active tab";
+pub const SHORTCUT_LABEL_REOPEN_CLOSED_TAB: &str = "Reopen closed editor tab";
 
 pub fn fif_results_label(matches: usize, files: usize) -> String {
     format!("{matches} matches in {files} files")
@@ -171,6 +172,7 @@ pub const CMD_EDITOR_MOVE_LINE_DOWN: &str = "Editor: Move Line Down";
 pub const CMD_EDITOR_SELECT_NEXT_OCCURRENCE: &str = "Editor: Select Next Occurrence";
 pub const CMD_EDITOR_TOGGLE_WRAP: &str = "Editor: Toggle Word Wrap";
 pub const CMD_PANE_TOGGLE_PIN: &str = "Pane: Pin / Unpin Tab";
+pub const CMD_EDITOR_REOPEN_CLOSED: &str = "Editor: Reopen Closed Tab";
 pub const CMD_NEW_TERMINAL: &str = "Terminal: New";
 pub const CMD_NEW_TERMINAL_IN_PANE: &str = "Terminal: New in Focused Pane";
 pub const CMD_OPEN_BROWSER_IN_SPLIT: &str = "Browser: Open in Split";

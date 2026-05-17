@@ -1681,6 +1681,12 @@ fn dispatch_shortcut_command(state: &State, command: ShortcutCommand) -> bool {
             }
             true
         }
+        ShortcutCommand::EditorReopenClosedTab => {
+            if let Some((_ws_id, pane_widget)) = find_focused_pane(state) {
+                pane::reopen_closed_tab(&pane_widget);
+            }
+            true
+        }
         ShortcutCommand::EditorFindInFiles => {
             if let Some((_ws_id, pane_widget)) = find_focused_pane(state) {
                 let root = quick_open_root_for(state, &pane_widget);

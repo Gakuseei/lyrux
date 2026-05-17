@@ -1,4 +1,5 @@
 pub mod buffer;
+pub mod closed_tabs;
 pub mod command_palette;
 pub mod editorconfig;
 pub mod find_bar;
