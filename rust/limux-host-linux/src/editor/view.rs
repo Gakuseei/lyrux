@@ -3,6 +3,7 @@
 use std::cell::RefCell;
 
 use gtk4 as gtk;
+use gtk4::prelude::WidgetExt;
 use sourceview5::prelude::*;
 
 use crate::editor::snippets;
@@ -85,7 +86,7 @@ pub fn apply_to_view(view: &sourceview5::View, cfg: &ViewConfig) {
     view.set_insert_spaces_instead_of_tabs(cfg.insert_spaces);
     view.set_auto_indent(cfg.auto_indent);
     view.set_indent_on_tab(true);
-    view.set_show_line_marks(true);
+    view.set_show_line_marks(false);
     view.set_monospace(true);
     if cfg.wrap_lines {
         view.set_wrap_mode(gtk::WrapMode::WordChar);
@@ -112,7 +113,7 @@ pub fn apply_to_view(view: &sourceview5::View, cfg: &ViewConfig) {
 
 pub fn apply_css(view: &sourceview5::View, cfg: &ViewConfig) {
     let css = format!(
-        ".lyrux-editor-buffer, .lyrux-editor-buffer text {{ font-family: \"{0}\", \"Lilex\", \"JetBrains Mono\", \"JetBrainsMono Nerd Font\", \"Cascadia Mono\", \"Fira Code\", \"Iosevka\", \"DejaVu Sans Mono\", monospace; font-size: {1}pt; padding: 6px 12px; line-height: 1.3; letter-spacing: 0; }} .lyrux-sticky-header {{ font-family: \"{0}\", \"Lilex\", \"JetBrains Mono\", monospace; font-size: {1}pt; padding: 2px 12px; background: alpha(@theme_bg_color, 0.92); color: @theme_fg_color; border-bottom: 1px solid alpha(@theme_fg_color, 0.18); font-weight: 600; cursor: pointer; transition: background 120ms ease; }} .lyrux-sticky-header:hover {{ background: alpha(@theme_bg_color, 0.98); color: @theme_fg_color; }}",
+        ".lyrux-editor-buffer, .lyrux-editor-buffer text {{ font-family: \"{0}\", \"Lilex\", \"JetBrains Mono\", \"JetBrainsMono Nerd Font\", \"Cascadia Mono\", \"Fira Code\", \"Iosevka\", \"DejaVu Sans Mono\", monospace; font-size: {1}pt; padding: 6px 12px; line-height: 1.3; letter-spacing: 0; }} .lyrux-sticky-header {{ font-family: \"{0}\", \"Lilex\", \"JetBrains Mono\", monospace; font-size: {1}pt; padding: 2px 12px; background: alpha(@theme_bg_color, 0.92); color: @theme_fg_color; border-bottom: 1px solid alpha(@theme_fg_color, 0.18); font-weight: 600; cursor: pointer; transition: background 120ms ease; }} .lyrux-sticky-header:hover {{ background: alpha(@theme_bg_color, 0.98); color: @theme_fg_color; }} .lyrux-minimap {{ min-width: 0; }} .lyrux-minimap-container {{ min-width: 0; }} .lyrux-minimap-viewport {{ background: alpha(@theme_fg_color, 0.08); border-top: 1px solid alpha(@theme_fg_color, 0.22); border-bottom: 1px solid alpha(@theme_fg_color, 0.22); }}",
         cfg.font_family.replace('"', ""),
         cfg.font_size
     );

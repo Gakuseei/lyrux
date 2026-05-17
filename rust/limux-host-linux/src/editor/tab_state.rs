@@ -8,6 +8,7 @@ use crate::editor::buffer::{self, FileEtag, LoadResult};
 use crate::editor::highlight::{self, HighlightController};
 use crate::editor::indent;
 use crate::editor::langs;
+use crate::editor::minimap_overlay;
 use crate::editor::pair;
 use crate::editor::status_bar;
 use crate::editor::sticky_scroll::{self, StickyController};
@@ -37,6 +38,7 @@ pub struct EditorTabState {
     pub highlight: HighlightController,
     pub sticky: StickyController,
     pub minimap: sourceview5::Map,
+    pub minimap_container: gtk4::Overlay,
     pub wrap_button: gtk4::Button,
     pub vim_label: gtk4::Label,
     pub vim_im_context: Rc<RefCell<Option<sourceview5::VimIMContext>>>,
@@ -82,11 +84,9 @@ pub fn build(path: PathBuf, cfg: &ViewConfig) -> BuildOutcome {
     let sticky = sticky_scroll::install(&view, &buffer, &scrolled, cfg.show_sticky_scroll);
 
     let minimap = build_minimap(&view, cfg.show_minimap);
-    let editor_row = gtk4::Box::new(gtk4::Orientation::Horizontal, 0);
-    editor_row.set_hexpand(true);
-    editor_row.set_vexpand(true);
-    editor_row.append(sticky.overlay());
-    editor_row.append(&minimap);
+    let editor_row_built = build_editor_row(&view, sticky.overlay(), &minimap, cfg.show_minimap);
+    let editor_row = editor_row_built.root;
+    let minimap_container = editor_row_built.minimap_container;
 
     let banner = gtk4::Revealer::builder()
         .reveal_child(false)
@@ -124,6 +124,7 @@ pub fn build(path: PathBuf, cfg: &ViewConfig) -> BuildOutcome {
         highlight: highlight_ctrl,
         sticky,
         minimap,
+        minimap_container,
         wrap_button,
         vim_label,
         vim_im_context: Rc::new(RefCell::new(None)),
@@ -189,9 +190,35 @@ pub fn compute_dirty(current: &str, saved: &str) -> bool {
 pub fn build_minimap(view: &sourceview5::View, visible: bool) -> sourceview5::Map {
     let map = sourceview5::Map::new();
     map.set_view(view);
-    map.set_width_request(120);
     map.set_visible(visible);
     map
+}
+
+pub struct EditorRow {
+    pub root: gtk4::Overlay,
+    pub minimap_container: gtk4::Overlay,
+}
+
+pub fn build_editor_row(
+    view: &sourceview5::View,
+    sticky_overlay: &gtk4::Overlay,
+    minimap: &sourceview5::Map,
+    show_minimap: bool,
+) -> EditorRow {
+    let row = gtk4::Overlay::new();
+    row.set_hexpand(true);
+    row.set_vexpand(true);
+    row.set_child(Some(sticky_overlay));
+
+    let container = minimap_overlay::build(view, minimap);
+    container.root.set_halign(gtk4::Align::End);
+    container.root.set_valign(gtk4::Align::Fill);
+    container.root.set_visible(show_minimap);
+    row.add_overlay(&container.root);
+    EditorRow {
+        root: row,
+        minimap_container: container.root,
+    }
 }
 
 impl EditorTabState {

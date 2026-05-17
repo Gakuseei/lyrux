@@ -9,6 +9,7 @@ pub mod image_viewer;
 pub mod indent;
 pub mod keymap;
 pub mod langs;
+pub mod minimap_overlay;
 pub mod pair;
 pub mod quick_open;
 pub mod recent_files;
@@ -73,11 +74,10 @@ pub fn spawn_empty(cfg: &ViewConfig) -> EditorTabState {
         .build();
     let sticky = sticky_scroll::install(&view, &buffer, &scrolled, cfg.show_sticky_scroll);
     let minimap = tab_state::build_minimap(&view, cfg.show_minimap);
-    let editor_row = gtk4::Box::new(gtk4::Orientation::Horizontal, 0);
-    editor_row.set_hexpand(true);
-    editor_row.set_vexpand(true);
-    editor_row.append(sticky.overlay());
-    editor_row.append(&minimap);
+    let editor_row_built =
+        tab_state::build_editor_row(&view, sticky.overlay(), &minimap, cfg.show_minimap);
+    let editor_row = editor_row_built.root;
+    let minimap_container = editor_row_built.minimap_container;
 
     let banner = gtk4::Revealer::builder()
         .reveal_child(false)
@@ -114,6 +114,7 @@ pub fn spawn_empty(cfg: &ViewConfig) -> EditorTabState {
         highlight: highlight_ctrl,
         sticky,
         minimap,
+        minimap_container,
         wrap_button,
         vim_label,
         vim_im_context: Rc::new(RefCell::new(None)),
