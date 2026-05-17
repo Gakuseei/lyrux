@@ -38,6 +38,7 @@ pub struct EditorTabState {
     pub highlight: HighlightController,
     pub sticky: StickyController,
     pub minimap: sourceview5::Map,
+    pub wrap_button: gtk4::Button,
     pub save_action: ActionCb,
     pub close_action: ActionCb,
 }
@@ -90,11 +91,13 @@ pub fn build(path: PathBuf, cfg: &ViewConfig) -> BuildOutcome {
         .build();
 
     let status = status_bar::build(&buffer, cfg);
+    let wrap_button = status.wrap_button.clone();
+    let status_root = status.root;
 
     let root = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
     root.append(&banner);
     root.append(&editor_row);
-    root.append(&status);
+    root.append(&status_root);
     root.set_hexpand(true);
     root.set_vexpand(true);
 
@@ -117,6 +120,7 @@ pub fn build(path: PathBuf, cfg: &ViewConfig) -> BuildOutcome {
         highlight: highlight_ctrl,
         sticky,
         minimap,
+        wrap_button,
         save_action: Rc::new(RefCell::new(None)),
         close_action: Rc::new(RefCell::new(None)),
     };

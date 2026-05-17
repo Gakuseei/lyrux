@@ -166,6 +166,7 @@ pub const CMD_EDITOR_DELETE_LINE: &str = "Editor: Delete Line";
 pub const CMD_EDITOR_MOVE_LINE_UP: &str = "Editor: Move Line Up";
 pub const CMD_EDITOR_MOVE_LINE_DOWN: &str = "Editor: Move Line Down";
 pub const CMD_EDITOR_SELECT_NEXT_OCCURRENCE: &str = "Editor: Select Next Occurrence";
+pub const CMD_EDITOR_TOGGLE_WRAP: &str = "Editor: Toggle Word Wrap";
 pub const CMD_NEW_TERMINAL: &str = "Terminal: New";
 pub const CMD_NEW_TERMINAL_IN_PANE: &str = "Terminal: New in Focused Pane";
 pub const CMD_OPEN_BROWSER_IN_SPLIT: &str = "Browser: Open in Split";
@@ -178,5 +179,8 @@ pub const STATUS_TAB_WIDTH: &str = "Tab Width:";
 pub const STATUS_ENCODING_UTF8: &str = "UTF-8";
 pub const STATUS_EOL_LF: &str = "LF";
 pub const STATUS_LANG_PLAIN_TEXT: &str = "Plain Text";
+pub const STATUS_WRAP_ON: &str = "Wrap";
+pub const STATUS_WRAP_OFF: &str = "No Wrap";
+pub const STATUS_WRAP_TOOLTIP: &str = "Toggle word wrap";
 
 pub const COMPLETION_WORDS_TITLE: &str = "Buffer";

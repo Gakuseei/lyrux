@@ -1380,6 +1380,25 @@ fn register_editor_actions(window: &adw::ApplicationWindow, state: &State) {
     add_editor_action(window, state, "editor-select-next-occurrence", |tab, _w| {
         crate::editor::keymap::select_next_occurrence(tab);
     });
+    register_editor_toggle_wrap_action(window, state);
+}
+
+fn register_editor_toggle_wrap_action(window: &adw::ApplicationWindow, state: &State) {
+    let action = gtk::gio::SimpleAction::new("editor-toggle-wrap", None);
+    let state_w = state.clone();
+    action.connect_activate(move |_, _| {
+        let snapshot = {
+            let s = state_w.borrow();
+            let mut cfg = s.config.borrow_mut();
+            cfg.editor.wrap_lines = !cfg.editor.wrap_lines;
+            cfg.clone()
+        };
+        if let Err(err) = app_config::save(&snapshot) {
+            eprintln!("lyrux: failed to persist wrap toggle: {err}");
+        }
+        crate::settings_editor::broadcast_editor_settings(&snapshot.editor);
+    });
+    window.add_action(&action);
 }
 
 fn add_editor_action(

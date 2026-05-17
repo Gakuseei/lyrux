@@ -377,7 +377,7 @@ fn build_editor_page(input: &SettingsEditorInput) -> gtk::Widget {
     )
 }
 
-fn broadcast_editor_settings(settings: &EditorSettings) {
+pub fn broadcast_editor_settings(settings: &EditorSettings) {
     let pending = settings.clone();
     EDITOR_BROADCAST_DEBOUNCE.with(|slot| {
         if let Some(id) = slot.borrow_mut().take() {
@@ -413,6 +413,11 @@ fn apply_editor_settings_now(settings: &EditorSettings, system_prefers_dark: Opt
             .set_enabled(view_cfg.highlight_word_at_cursor);
         state.sticky.set_enabled(view_cfg.show_sticky_scroll);
         state.minimap.set_visible(view_cfg.show_minimap);
+        state
+            .wrap_button
+            .set_label(crate::editor::status_bar::wrap_label_text(
+                view_cfg.wrap_lines,
+            ));
     });
     crate::window::apply_file_panel_columns(settings.fp_show_size, settings.fp_show_mtime);
 }

@@ -170,6 +170,11 @@ const COMMANDS: &[CommandEntry] = &[
         accel: Some("Ctrl+D"),
     },
     CommandEntry {
+        label: strings::CMD_EDITOR_TOGGLE_WRAP,
+        action_name: "win.editor-toggle-wrap",
+        accel: None,
+    },
+    CommandEntry {
         label: strings::CMD_NEW_TERMINAL,
         action_name: "win.new-terminal",
         accel: None,

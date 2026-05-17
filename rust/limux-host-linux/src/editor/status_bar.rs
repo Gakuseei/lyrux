@@ -8,7 +8,12 @@ use sourceview5::prelude::*;
 use crate::editor::strings;
 use crate::editor::view::ViewConfig;
 
-pub fn build(buffer: &sourceview5::Buffer, cfg: &ViewConfig) -> gtk4::Box {
+pub struct StatusBar {
+    pub root: gtk4::Box,
+    pub wrap_button: gtk4::Button,
+}
+
+pub fn build(buffer: &sourceview5::Buffer, cfg: &ViewConfig) -> StatusBar {
     let bar = gtk4::Box::builder()
         .orientation(gtk4::Orientation::Horizontal)
         .spacing(12)
@@ -35,6 +40,15 @@ pub fn build(buffer: &sourceview5::Buffer, cfg: &ViewConfig) -> gtk4::Box {
     eol_label.set_xalign(1.0);
     eol_label.set_hexpand(true);
     bar.append(&eol_label);
+
+    let wrap_button = gtk4::Button::builder()
+        .label(wrap_label_text(cfg.wrap_lines))
+        .has_frame(false)
+        .tooltip_text(strings::STATUS_WRAP_TOOLTIP)
+        .action_name("win.editor-toggle-wrap")
+        .build();
+    wrap_button.add_css_class("lyrux-editor-statusbar-wrap");
+    bar.append(&wrap_button);
 
     let encoding_label = gtk4::Label::new(Some(strings::STATUS_ENCODING_UTF8));
     encoding_label.set_xalign(1.0);
@@ -82,5 +96,16 @@ pub fn build(buffer: &sourceview5::Buffer, cfg: &ViewConfig) -> gtk4::Box {
         buffer.connect_language_notify(move |_| update());
     }
 
-    bar
+    StatusBar {
+        root: bar,
+        wrap_button,
+    }
+}
+
+pub fn wrap_label_text(wrap_lines: bool) -> &'static str {
+    if wrap_lines {
+        strings::STATUS_WRAP_ON
+    } else {
+        strings::STATUS_WRAP_OFF
+    }
 }
