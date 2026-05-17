@@ -71,7 +71,7 @@ fn default_theme_light() -> String {
     themes::default_light_id().to_string()
 }
 fn default_font_family() -> String {
-    "Lilex".to_string()
+    "Lyrux Lilex".to_string()
 }
 fn default_font_size() -> i32 {
     12
