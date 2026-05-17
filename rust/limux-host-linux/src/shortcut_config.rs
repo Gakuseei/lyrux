@@ -934,7 +934,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         registers_gtk_accel: false,
         command: ShortcutCommand::WindowToggleTerminal,
         scope: ShortcutScope::Window,
-        editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
     },
     ShortcutDefinition {
         id: ShortcutId::EditorSaveAll,
@@ -956,7 +956,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         registers_gtk_accel: false,
         command: ShortcutCommand::WindowOpenSettings,
         scope: ShortcutScope::Window,
-        editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
     },
     ShortcutDefinition {
         id: ShortcutId::WindowOpenKeybinds,
@@ -967,7 +967,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         registers_gtk_accel: false,
         command: ShortcutCommand::WindowOpenKeybinds,
         scope: ShortcutScope::Window,
-        editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
     },
 ];
 
