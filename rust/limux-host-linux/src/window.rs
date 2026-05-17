@@ -3666,27 +3666,12 @@ pub(crate) fn create_pane_for_workspace(
             s.config.clone()
         }),
         on_config_changed: Rc::new(
-            move |previous: &app_config::AppConfig, updated: &app_config::AppConfig| {
+            move |_previous: &app_config::AppConfig, updated: &app_config::AppConfig| {
                 let style_manager = adw::StyleManager::default();
                 let system_prefers_dark =
                     state_for_config_changed.borrow().system_prefers_dark.get();
                 apply_appearance(&style_manager, system_prefers_dark, &updated.appearance);
-                if let Err(err) = app_config::save(updated) {
-                    state_for_config_changed
-                        .borrow()
-                        .config
-                        .borrow_mut()
-                        .clone_from(previous);
-                    apply_appearance(&style_manager, system_prefers_dark, &previous.appearance);
-
-                    let detail = format!("Failed to save Lyrux settings: {err}");
-                    eprintln!("limux: {detail}");
-                    show_runtime_error(
-                        &state_for_config_changed,
-                        "Failed to save settings",
-                        &detail,
-                    );
-                }
+                app_config::save_debounced(updated);
             },
         ),
     });

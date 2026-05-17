@@ -1,7 +1,9 @@
+use std::cell::RefCell;
 use std::fs;
 use std::path::Path;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use gtk4::glib;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
@@ -9,6 +11,12 @@ pub use crate::editor::EditorSettings;
 use crate::shortcut_config;
 
 pub const SETTINGS_FILE_NAME: &str = "settings.json";
+const DISK_SAVE_DEBOUNCE_MS: u64 = 200;
+
+thread_local! {
+    static DISK_SAVE_DEBOUNCE: RefCell<Option<glib::SourceId>> = const { RefCell::new(None) };
+    static DISK_SAVE_PENDING: RefCell<Option<AppConfig>> = const { RefCell::new(None) };
+}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum ColorScheme {
@@ -219,6 +227,28 @@ pub fn save(config: &AppConfig) -> Result<(), String> {
 
     save_to_path(&path, config)
         .map_err(|err| format!("failed to save app config `{}`: {err}", path.display()))
+}
+
+pub fn save_debounced(config: &AppConfig) {
+    DISK_SAVE_PENDING.with(|slot| {
+        *slot.borrow_mut() = Some(config.clone());
+    });
+    DISK_SAVE_DEBOUNCE.with(|slot| {
+        if let Some(id) = slot.borrow_mut().take() {
+            id.remove();
+        }
+        let source_id =
+            glib::timeout_add_local_once(Duration::from_millis(DISK_SAVE_DEBOUNCE_MS), || {
+                DISK_SAVE_DEBOUNCE.with(|slot| slot.borrow_mut().take());
+                let pending = DISK_SAVE_PENDING.with(|slot| slot.borrow_mut().take());
+                if let Some(cfg) = pending {
+                    if let Err(err) = save(&cfg) {
+                        eprintln!("lyrux: debounced settings save failed: {err}");
+                    }
+                }
+            });
+        *slot.borrow_mut() = Some(source_id);
+    });
 }
 
 fn save_to_path(path: &Path, config: &AppConfig) -> Result<(), String> {
