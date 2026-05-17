@@ -132,12 +132,17 @@ const COMMANDS: &[CommandEntry] = &[
     CommandEntry {
         label: strings::CMD_EDITOR_FIND_NEXT,
         action_name: "win.editor-find-next",
-        accel: Some("Ctrl+G"),
+        accel: Some("F3"),
+    },
+    CommandEntry {
+        label: strings::CMD_EDITOR_FIND_PREVIOUS,
+        action_name: "win.editor-find-previous",
+        accel: Some("Shift+F3"),
     },
     CommandEntry {
         label: strings::CMD_EDITOR_GOTO_LINE,
         action_name: "win.editor-goto-line",
-        accel: Some("Ctrl+L"),
+        accel: Some("Ctrl+G"),
     },
     CommandEntry {
         label: strings::CMD_EDITOR_TOGGLE_COMMENT,

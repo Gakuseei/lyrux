@@ -44,6 +44,12 @@ pub fn find_next(state: &EditorTabState) {
     advance(&ctx, &view, true);
 }
 
+pub fn find_previous(state: &EditorTabState) {
+    let ctx = keymap::ensure_search_context(state);
+    let view = state.view.clone();
+    advance(&ctx, &view, false);
+}
+
 fn ensure_bar(state: &EditorTabState, ctx: &sourceview5::SearchContext) -> FindBarState {
     let widget: gtk4::Widget = state.root.clone().upcast();
     unsafe {

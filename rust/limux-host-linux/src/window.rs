@@ -1359,6 +1359,9 @@ fn register_editor_actions(window: &adw::ApplicationWindow, state: &State) {
     add_editor_action(window, state, "editor-find-next", |tab, _w| {
         crate::editor::keymap::find_next(tab);
     });
+    add_editor_action(window, state, "editor-find-previous", |tab, _w| {
+        crate::editor::keymap::find_previous(tab);
+    });
     add_editor_action(window, state, "editor-goto-line", |tab, _w| {
         crate::editor::keymap::show_goto_line(tab);
     });

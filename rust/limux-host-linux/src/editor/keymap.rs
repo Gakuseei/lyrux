@@ -35,6 +35,15 @@ pub fn install(
         let alt_held = mods.contains(gtk4::gdk::ModifierType::ALT_MASK);
         let shift_held = mods.contains(gtk4::gdk::ModifierType::SHIFT_MASK);
 
+        if key == gtk4::gdk::Key::F3 && !ctrl_held && !alt_held {
+            if shift_held {
+                find_previous(&state);
+            } else {
+                find_next(&state);
+            }
+            return glib::Propagation::Stop;
+        }
+
         if alt_held && !ctrl_held {
             return match key {
                 gtk4::gdk::Key::Up => {
@@ -71,11 +80,7 @@ pub fn install(
                 show_find_bar(&state, true);
                 glib::Propagation::Stop
             }
-            gtk4::gdk::Key::g | gtk4::gdk::Key::F3 => {
-                find_next(&state);
-                glib::Propagation::Stop
-            }
-            gtk4::gdk::Key::l => {
+            gtk4::gdk::Key::g => {
                 show_goto_line(&state);
                 glib::Propagation::Stop
             }
@@ -608,6 +613,10 @@ pub(crate) fn show_find_bar(state: &EditorTabState, with_replace: bool) {
 
 pub(crate) fn find_next(state: &EditorTabState) {
     crate::editor::find_bar::find_next(state);
+}
+
+pub(crate) fn find_previous(state: &EditorTabState) {
+    crate::editor::find_bar::find_previous(state);
 }
 
 pub(crate) fn show_goto_line(state: &EditorTabState) {

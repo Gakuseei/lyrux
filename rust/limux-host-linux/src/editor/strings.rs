@@ -163,6 +163,7 @@ pub const CMD_EDITOR_SAVE: &str = "Editor: Save";
 pub const CMD_EDITOR_FIND: &str = "Editor: Find";
 pub const CMD_EDITOR_REPLACE: &str = "Editor: Replace";
 pub const CMD_EDITOR_FIND_NEXT: &str = "Editor: Find Next";
+pub const CMD_EDITOR_FIND_PREVIOUS: &str = "Editor: Find Previous";
 pub const CMD_EDITOR_GOTO_LINE: &str = "Editor: Go to Line";
 pub const CMD_EDITOR_TOGGLE_COMMENT: &str = "Editor: Toggle Line Comment";
 pub const CMD_EDITOR_DUPLICATE_LINE: &str = "Editor: Duplicate Line";
