@@ -31,9 +31,8 @@ fn attach(state: &EditorTabState) {
     label.set_visible(true);
 
     let label_for_notify = label.clone();
-    let im_for_notify = im.clone();
-    im.connect_command_bar_text_notify(move |_| {
-        let txt = im_for_notify.command_bar_text();
+    im.connect_command_bar_text_notify(move |ctx| {
+        let txt = ctx.command_bar_text();
         let s = txt.as_str();
         if s.is_empty() {
             label_for_notify.set_text(strings::STATUS_VIM_NORMAL);
