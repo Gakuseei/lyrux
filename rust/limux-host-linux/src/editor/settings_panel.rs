@@ -116,6 +116,19 @@ pub fn build(current: &EditorSettings, cb: SettingsCallbacks) -> gtk4::Widget {
         },
     ));
     root.append(&bool_row(
+        strings::SETTING_SHOW_MINIMAP,
+        current.show_minimap,
+        {
+            let cb = cb.on_change.clone();
+            let snapshot = current.clone();
+            move |v| {
+                let mut next = snapshot.clone();
+                next.show_minimap = v;
+                cb(&next);
+            }
+        },
+    ));
+    root.append(&bool_row(
         strings::SETTING_HIGHLIGHT_WORD,
         current.highlight_word_at_cursor,
         {

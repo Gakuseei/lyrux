@@ -26,6 +26,7 @@ pub struct ViewConfig {
     pub show_indent_guides: bool,
     pub highlight_word_at_cursor: bool,
     pub show_sticky_scroll: bool,
+    pub show_minimap: bool,
 }
 
 impl Default for ViewConfig {
@@ -45,6 +46,7 @@ impl Default for ViewConfig {
             show_indent_guides: true,
             highlight_word_at_cursor: true,
             show_sticky_scroll: true,
+            show_minimap: true,
         }
     }
 }

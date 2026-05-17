@@ -412,6 +412,7 @@ fn apply_editor_settings_now(settings: &EditorSettings, system_prefers_dark: Opt
             .highlight
             .set_enabled(view_cfg.highlight_word_at_cursor);
         state.sticky.set_enabled(view_cfg.show_sticky_scroll);
+        state.minimap.set_visible(view_cfg.show_minimap);
     });
     crate::window::apply_file_panel_columns(settings.fp_show_size, settings.fp_show_mtime);
 }

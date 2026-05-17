@@ -51,6 +51,8 @@ pub struct EditorSettings {
     pub highlight_word_at_cursor: bool,
     #[serde(default = "default_true")]
     pub show_sticky_scroll: bool,
+    #[serde(default = "default_true")]
+    pub show_minimap: bool,
     #[serde(default)]
     pub vim_mode: bool,
     #[serde(default)]
@@ -106,6 +108,7 @@ impl Default for EditorSettings {
             show_indent_guides: true,
             highlight_word_at_cursor: true,
             show_sticky_scroll: true,
+            show_minimap: true,
             vim_mode: false,
             fp_show_size: false,
             fp_show_mtime: false,
@@ -147,6 +150,7 @@ impl EditorSettings {
             show_indent_guides: self.show_indent_guides,
             highlight_word_at_cursor: self.highlight_word_at_cursor,
             show_sticky_scroll: self.show_sticky_scroll,
+            show_minimap: self.show_minimap,
         }
     }
 }

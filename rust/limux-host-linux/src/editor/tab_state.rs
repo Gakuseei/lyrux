@@ -37,6 +37,7 @@ pub struct EditorTabState {
     pub swap_path: Rc<RefCell<Option<PathBuf>>>,
     pub highlight: HighlightController,
     pub sticky: StickyController,
+    pub minimap: sourceview5::Map,
     pub save_action: ActionCb,
     pub close_action: ActionCb,
 }
@@ -76,6 +77,13 @@ pub fn build(path: PathBuf, cfg: &ViewConfig) -> BuildOutcome {
         .build();
     let sticky = sticky_scroll::install(&view, &buffer, &scrolled, cfg.show_sticky_scroll);
 
+    let minimap = build_minimap(&view, cfg.show_minimap);
+    let editor_row = gtk4::Box::new(gtk4::Orientation::Horizontal, 0);
+    editor_row.set_hexpand(true);
+    editor_row.set_vexpand(true);
+    editor_row.append(sticky.overlay());
+    editor_row.append(&minimap);
+
     let banner = gtk4::Revealer::builder()
         .reveal_child(false)
         .transition_type(gtk4::RevealerTransitionType::SlideDown)
@@ -85,7 +93,7 @@ pub fn build(path: PathBuf, cfg: &ViewConfig) -> BuildOutcome {
 
     let root = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
     root.append(&banner);
-    root.append(sticky.overlay());
+    root.append(&editor_row);
     root.append(&status);
     root.set_hexpand(true);
     root.set_vexpand(true);
@@ -108,6 +116,7 @@ pub fn build(path: PathBuf, cfg: &ViewConfig) -> BuildOutcome {
         swap_path: Rc::new(RefCell::new(None)),
         highlight: highlight_ctrl,
         sticky,
+        minimap,
         save_action: Rc::new(RefCell::new(None)),
         close_action: Rc::new(RefCell::new(None)),
     };
@@ -154,6 +163,14 @@ fn install_dirty_tracker(
 
 pub fn compute_dirty(current: &str, saved: &str) -> bool {
     current != saved
+}
+
+pub fn build_minimap(view: &sourceview5::View, visible: bool) -> sourceview5::Map {
+    let map = sourceview5::Map::new();
+    map.set_view(view);
+    map.set_width_request(120);
+    map.set_visible(visible);
+    map
 }
 
 impl EditorTabState {

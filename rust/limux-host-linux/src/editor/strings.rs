@@ -22,6 +22,7 @@ pub const SETTING_FINAL_NEWLINE: &str = "Ensure final newline on save";
 pub const SETTING_INDENT_GUIDES: &str = "Show indent guides";
 pub const SETTING_HIGHLIGHT_WORD: &str = "Highlight matching word at cursor";
 pub const SETTING_STICKY_SCROLL: &str = "Sticky scroll (pin function/class headers)";
+pub const SETTING_SHOW_MINIMAP: &str = "Show minimap";
 pub const SETTING_VIM: &str = "Vim mode (coming soon)";
 
 pub const SETTINGS_SECTION_DISPLAY: &str = "Display";

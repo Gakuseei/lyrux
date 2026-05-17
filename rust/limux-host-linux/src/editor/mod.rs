@@ -69,6 +69,13 @@ pub fn spawn_empty(cfg: &ViewConfig) -> EditorTabState {
         .vexpand(true)
         .build();
     let sticky = sticky_scroll::install(&view, &buffer, &scrolled, cfg.show_sticky_scroll);
+    let minimap = tab_state::build_minimap(&view, cfg.show_minimap);
+    let editor_row = gtk4::Box::new(gtk4::Orientation::Horizontal, 0);
+    editor_row.set_hexpand(true);
+    editor_row.set_vexpand(true);
+    editor_row.append(sticky.overlay());
+    editor_row.append(&minimap);
+
     let banner = gtk4::Revealer::builder()
         .reveal_child(false)
         .transition_type(gtk4::RevealerTransitionType::SlideDown)
@@ -77,7 +84,7 @@ pub fn spawn_empty(cfg: &ViewConfig) -> EditorTabState {
 
     let root = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
     root.append(&banner);
-    root.append(sticky.overlay());
+    root.append(&editor_row);
     root.append(&status);
     root.set_hexpand(true);
     root.set_vexpand(true);
@@ -100,6 +107,7 @@ pub fn spawn_empty(cfg: &ViewConfig) -> EditorTabState {
         swap_path: Rc::new(RefCell::new(None)),
         highlight: highlight_ctrl,
         sticky,
+        minimap,
         save_action: Rc::new(RefCell::new(None)),
         close_action: Rc::new(RefCell::new(None)),
     };
