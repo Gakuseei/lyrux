@@ -455,7 +455,14 @@ pub fn create_pane(
         .spacing(0)
         .hexpand(true)
         .build();
-    tab_overlay.set_child(Some(&tab_strip));
+    let tab_strip_scroller = gtk::ScrolledWindow::builder()
+        .hscrollbar_policy(gtk::PolicyType::External)
+        .vscrollbar_policy(gtk::PolicyType::Never)
+        .child(&tab_strip)
+        .hexpand(true)
+        .build();
+    tab_strip_scroller.add_css_class("limux-tab-strip-scroller");
+    tab_overlay.set_child(Some(&tab_strip_scroller));
 
     let drop_indicator = gtk::Box::new(gtk::Orientation::Vertical, 0);
     drop_indicator.add_css_class("limux-tab-drop-indicator");
