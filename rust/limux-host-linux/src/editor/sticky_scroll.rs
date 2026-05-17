@@ -61,18 +61,15 @@ pub fn install(
     let last_header = Rc::new(Cell::new(-1i32));
 
     let label_for_cb = label.clone();
-    let view_for_cb = view.clone();
-    let buffer_for_cb = buffer.clone();
+    let view_weak = view.downgrade();
+    let buffer_weak = buffer.downgrade();
     let enabled_for_cb = enabled_rc.clone();
     let last_for_cb = last_header.clone();
     let refresh_fn: RefreshFn = Rc::new(move || {
-        update(
-            &view_for_cb,
-            &buffer_for_cb,
-            &label_for_cb,
-            &enabled_for_cb,
-            &last_for_cb,
-        );
+        let (Some(view), Some(buffer)) = (view_weak.upgrade(), buffer_weak.upgrade()) else {
+            return;
+        };
+        update(&view, &buffer, &label_for_cb, &enabled_for_cb, &last_for_cb);
     });
 
     let vadj = scrolled.vadjustment();
