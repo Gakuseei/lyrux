@@ -5,6 +5,29 @@ All notable changes to Lyrux are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-05-17
+
+Editor polish: theme, minimap, sticky scroll, image viewer, drag-and-drop rebuild.
+
+### Added
+- Minimap viewport indicator — translucent slice on the minimap tracks the visible buffer range; updates on scroll, edit, resize. Native click-to-jump preserved.
+- Sticky scroll header is now clickable: click jumps the view to that header line, places the cursor there, focuses the editor. Pointer cursor + hover highlight.
+- Image viewer fits oversized images to the viewport on open (Ctrl+0 re-fits, Ctrl+1 = 100%, Ctrl+wheel / Ctrl+/- = manual zoom and disables auto-fit).
+- DnD: cursor-preview icon falls back to a guaranteed-symbolic icon when the resolved name is missing — no more broken-icon during drag.
+- DnD: pane drop overlay shows four corner indicators + a centered "Open here as a new tab" label, with a dashed accent border.
+
+### Changed
+- `lyrux-grey` theme palette desaturated to a true grey identity — keyword/type/function/string/number/accent now grey-tinted variants that blend into the `@window_bg_color` chrome instead of fighting it.
+- `lyrux-grey` line-numbers gutter background equals the editor background — gutter dissolves into the surrounding pane.
+- Minimap is now overlaid (right-aligned, `halign=End`) on top of the editor's scrolled view instead of sitting in a horizontal row. Pane width no longer creeps when an editor tab opens.
+- File drops on a terminal pane now open a new editor tab in that pane (previously: pasted the path as text into the terminal).
+- File drops on an open editor view now open a new tab in the pane (previously: GTK4 TextView pasted file contents into the active buffer).
+- Drop overlay copy: "Open here as a new tab" / "Open as a new tab".
+
+### Fixed
+- Hidden the unused line-marks gutter that rendered as a thin dark column to the left of line numbers across all themes.
+- Editor font CSS leak into the minimap widget — class scoped to `.lyrux-editor-buffer`, Map widget unaffected.
+
 ## [0.6.0] - 2026-05-17
 
 Vim mode + perf polish + Round-2 audit fix loop.
