@@ -188,6 +188,37 @@ pub fn build(current: &EditorSettings, cb: SettingsCallbacks) -> gtk4::Widget {
 
     root.append(&vim_row());
 
+    root.append(&section_header(
+        crate::file_panel::strings::SETTINGS_SECTION_FILE_PANEL,
+        true,
+    ));
+    root.append(&bool_row(
+        crate::file_panel::strings::SETTING_FP_SHOW_SIZE,
+        current.fp_show_size,
+        {
+            let cb = cb.on_change.clone();
+            let snapshot = current.clone();
+            move |v| {
+                let mut next = snapshot.clone();
+                next.fp_show_size = v;
+                cb(&next);
+            }
+        },
+    ));
+    root.append(&bool_row(
+        crate::file_panel::strings::SETTING_FP_SHOW_MTIME,
+        current.fp_show_mtime,
+        {
+            let cb = cb.on_change.clone();
+            let snapshot = current.clone();
+            move |v| {
+                let mut next = snapshot.clone();
+                next.fp_show_mtime = v;
+                cb(&next);
+            }
+        },
+    ));
+
     let scroller = gtk4::ScrolledWindow::builder()
         .hscrollbar_policy(gtk4::PolicyType::Never)
         .vscrollbar_policy(gtk4::PolicyType::Automatic)

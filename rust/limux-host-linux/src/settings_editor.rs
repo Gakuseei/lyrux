@@ -405,6 +405,7 @@ fn apply_editor_settings_now(settings: &EditorSettings) {
             .set_enabled(view_cfg.highlight_word_at_cursor);
         state.sticky.set_enabled(view_cfg.show_sticky_scroll);
     });
+    crate::window::apply_file_panel_columns(settings.fp_show_size, settings.fp_show_mtime);
 }
 
 #[cfg(test)]

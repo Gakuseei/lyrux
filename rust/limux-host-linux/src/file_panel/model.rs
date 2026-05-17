@@ -55,6 +55,8 @@ pub struct Row {
     pub git_status: GitStatus,
     pub parent_idx: Option<usize>,
     pub ignored: bool,
+    pub size: u64,
+    pub mtime: i64,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -472,7 +474,7 @@ impl TreeModel {
         });
         entries
             .into_iter()
-            .map(|(path, kind, _, _, _)| {
+            .map(|(path, kind, _, size, mtime)| {
                 let expanded = self.expanded_paths.contains(&path);
                 let is_dir = matches!(kind, Kind::Dir);
                 let git_status = if is_dir {
@@ -491,6 +493,8 @@ impl TreeModel {
                     expanded,
                     git_status,
                     parent_idx,
+                    size,
+                    mtime,
                     ignored,
                 }
             })

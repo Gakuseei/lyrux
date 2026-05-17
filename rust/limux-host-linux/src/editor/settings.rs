@@ -39,6 +39,10 @@ pub struct EditorSettings {
     pub show_sticky_scroll: bool,
     #[serde(default)]
     pub vim_mode: bool,
+    #[serde(default)]
+    pub fp_show_size: bool,
+    #[serde(default)]
+    pub fp_show_mtime: bool,
 }
 
 fn default_theme() -> String {
@@ -80,6 +84,8 @@ impl Default for EditorSettings {
             highlight_word_at_cursor: true,
             show_sticky_scroll: true,
             vim_mode: false,
+            fp_show_size: false,
+            fp_show_mtime: false,
         }
     }
 }

@@ -75,11 +75,15 @@ pub struct ViewState {
     pub store: gtk4::gio::ListStore,
     pub selection: gtk::MultiSelection,
     pub list_view: gtk::ListView,
+    pub show_size: std::rc::Rc<std::cell::Cell<bool>>,
+    pub show_mtime: std::rc::Rc<std::cell::Cell<bool>>,
 }
 
 pub fn build_list_view() -> ViewState {
     let store = gtk4::gio::ListStore::new::<RowObject>();
     let selection = gtk::MultiSelection::new(Some(store.clone()));
+    let show_size = std::rc::Rc::new(std::cell::Cell::new(false));
+    let show_mtime = std::rc::Rc::new(std::cell::Cell::new(false));
     let factory = gtk::SignalListItemFactory::new();
     factory.connect_setup(|_, item| {
         let item = item.downcast_ref::<gtk::ListItem>().unwrap();
@@ -96,16 +100,26 @@ pub fn build_list_view() -> ViewState {
         label.set_xalign(0.0);
         label.set_hexpand(true);
         label.add_css_class("limux-fp-name");
+        let size_lbl = gtk::Label::new(None);
+        size_lbl.set_xalign(1.0);
+        size_lbl.add_css_class("limux-fp-size");
+        let mtime_lbl = gtk::Label::new(None);
+        mtime_lbl.set_xalign(1.0);
+        mtime_lbl.add_css_class("limux-fp-mtime");
         let marker = gtk::Label::new(None);
         marker.add_css_class("limux-fp-git");
         row_box.append(&indent);
         row_box.append(&chevron);
         row_box.append(&icon);
         row_box.append(&label);
+        row_box.append(&size_lbl);
+        row_box.append(&mtime_lbl);
         row_box.append(&marker);
         item.set_child(Some(&row_box));
     });
-    factory.connect_bind(|_, item| {
+    let show_size_c = show_size.clone();
+    let show_mtime_c = show_mtime.clone();
+    factory.connect_bind(move |_, item| {
         let item = item.downcast_ref::<gtk::ListItem>().unwrap();
         let row_obj = match item.item().and_then(|o| o.downcast::<RowObject>().ok()) {
             Some(o) => o,
@@ -115,7 +129,7 @@ pub fn build_list_view() -> ViewState {
             Some(b) => b,
             None => return,
         };
-        bind_row(&row_box, &row_obj);
+        bind_row(&row_box, &row_obj, show_size_c.get(), show_mtime_c.get());
     });
     let list_view = gtk::ListView::new(Some(selection.clone()), Some(factory));
     list_view.add_css_class("limux-fp-listview");
@@ -125,24 +139,28 @@ pub fn build_list_view() -> ViewState {
         store,
         selection,
         list_view,
+        show_size,
+        show_mtime,
     }
 }
 
-fn bind_row(row_box: &gtk::Box, row_obj: &RowObject) {
+fn bind_row(row_box: &gtk::Box, row_obj: &RowObject, show_size: bool, show_mtime: bool) {
     let mut children: Vec<gtk::Widget> = Vec::new();
     let mut child = row_box.first_child();
     while let Some(w) = child {
         child = w.next_sibling();
         children.push(w);
     }
-    if children.len() != 5 {
+    if children.len() != 7 {
         return;
     }
     let indent = children[0].clone();
     let chevron = children[1].clone().downcast::<gtk::Image>().unwrap();
     let icon = children[2].clone().downcast::<gtk::Image>().unwrap();
     let label = children[3].clone().downcast::<gtk::Label>().unwrap();
-    let marker = children[4].clone().downcast::<gtk::Label>().unwrap();
+    let size_lbl = children[4].clone().downcast::<gtk::Label>().unwrap();
+    let mtime_lbl = children[5].clone().downcast::<gtk::Label>().unwrap();
+    let marker = children[6].clone().downcast::<gtk::Label>().unwrap();
 
     let depth = row_obj.depth();
     indent.set_width_request((depth as i32) * ROW_INDENT_PX);
@@ -210,6 +228,26 @@ fn bind_row(row_box: &gtk::Box, row_obj: &RowObject) {
         row_box.add_css_class("limux-fp-row-ignored");
     } else {
         row_box.remove_css_class("limux-fp-row-ignored");
+    }
+
+    if show_size && !is_dir {
+        size_lbl.set_text(&crate::file_panel::strings::human_size(row_obj.size()));
+        size_lbl.set_visible(true);
+    } else {
+        size_lbl.set_visible(false);
+    }
+    if show_mtime {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+        mtime_lbl.set_text(&crate::file_panel::strings::relative_time(
+            row_obj.mtime(),
+            now,
+        ));
+        mtime_lbl.set_visible(true);
+    } else {
+        mtime_lbl.set_visible(false);
     }
 }
 
@@ -307,6 +345,8 @@ pub fn file_panel_css() -> &'static str {
 .limux-fp-rowicon { color: #9a9a9a; }
 .limux-fp-name { color: #b8b8b0; }
 .limux-fp-git { font-size: 9px; padding-left: 8px; }
+.limux-fp-size { font-size: 10px; color: #7a7a7a; padding-left: 8px; min-width: 36px; }
+.limux-fp-mtime { font-size: 10px; color: #7a7a7a; padding-left: 8px; min-width: 36px; }
 .limux-fp-git-m { color: #c0a060; }
 .limux-fp-git-a { color: #7aa67a; }
 .limux-fp-git-d { color: #c08080; }

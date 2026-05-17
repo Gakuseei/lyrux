@@ -154,6 +154,27 @@ impl FilePanelHandle {
         self.inner.borrow_mut().on_open_terminal = Some(Rc::new(callback));
     }
 
+    pub fn set_columns_visible(&self, show_size: bool, show_mtime: bool) {
+        let (store, active) = {
+            let inner = self.inner.borrow();
+            inner.view.show_size.set(show_size);
+            inner.view.show_mtime.set(show_mtime);
+            (inner.view.store.clone(), inner.active.clone())
+        };
+        let n = store.n_items();
+        if n > 0 {
+            let empty: [glib::Object; 0] = [];
+            store.splice(0, n, &empty);
+        }
+        let Some(active) = active else {
+            return;
+        };
+        let inner = self.inner.borrow();
+        if let Some(per) = inner.cache.get(&active) {
+            apply_model_to_store(&per.model, &store);
+        }
+    }
+
     pub fn widget(&self) -> gtk::Widget {
         self.inner.borrow().root_box.clone().upcast()
     }
@@ -1353,6 +1374,8 @@ mod tests {
             git_status: crate::file_panel::model::GitStatus::Clean,
             parent_idx: None,
             ignored: false,
+            size: 0,
+            mtime: 0,
         });
         assert_eq!(compute_desired_width(&m), 600);
     }

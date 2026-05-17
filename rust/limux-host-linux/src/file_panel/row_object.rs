@@ -28,6 +28,10 @@ mod imp {
         pub name: RefCell<String>,
         #[property(get, set)]
         pub ignored: std::cell::Cell<bool>,
+        #[property(get, set)]
+        pub size: std::cell::Cell<u64>,
+        #[property(get, set)]
+        pub mtime: std::cell::Cell<i64>,
     }
 
     #[glib::object_subclass]
@@ -59,6 +63,8 @@ impl RowObject {
                 .unwrap_or_default(),
         );
         obj.set_ignored(row.ignored);
+        obj.set_size(row.size);
+        obj.set_mtime(row.mtime);
         obj
     }
 
@@ -85,6 +91,8 @@ impl RowObject {
             && self.expanded() == row.expanded
             && self.git_id() == git_to_id(row.git_status)
             && self.ignored() == row.ignored
+            && self.size() == row.size
+            && self.mtime() == row.mtime
     }
 }
 

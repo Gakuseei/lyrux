@@ -945,6 +945,10 @@ pub fn build_window(app: &adw::Application) {
 
     let file_panel_handle = crate::file_panel::FilePanelHandle::new();
     file_panel_handle.set_visible(file_panel_visible_initial);
+    {
+        let cfg = config.borrow();
+        file_panel_handle.set_columns_visible(cfg.editor.fp_show_size, cfg.editor.fp_show_mtime);
+    }
     file_panel_handle.wire_interactions(window.upcast_ref::<gtk::ApplicationWindow>());
     let file_panel_widget = file_panel_handle.widget();
 
@@ -3069,6 +3073,16 @@ fn create_workspace_with_folder(state: &State, name: &str, folder_path: &str) {
     };
     add_workspace_from_state(state, &workspace);
     request_session_save(state);
+}
+
+pub fn apply_file_panel_columns(show_size: bool, show_mtime: bool) {
+    CONTROL_STATE.with(|slot| {
+        let state = slot.borrow().clone();
+        if let Some(state) = state {
+            let panel = state.borrow().file_panel.clone();
+            panel.set_columns_visible(show_size, show_mtime);
+        }
+    });
 }
 
 fn dispatch_control_command(command: ControlCommand) {
