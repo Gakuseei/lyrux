@@ -10,6 +10,7 @@ pub mod keymap;
 pub mod langs;
 pub mod pair;
 pub mod quick_open;
+pub mod recent_files;
 pub mod session;
 pub mod settings;
 pub mod settings_panel;

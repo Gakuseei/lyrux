@@ -1392,6 +1392,7 @@ fn editor_view_config(internals: &Rc<PaneInternals>) -> editor::ViewConfig {
 fn add_editor_tab_for_path_inner(internals: &Rc<PaneInternals>, path: &std::path::Path) {
     let mut cfg = editor_view_config(internals);
     editor::editorconfig::apply_view_overrides(path, &mut cfg);
+    editor::recent_files::push_path(path);
     let state = match editor::spawn_from_path(path.to_path_buf(), &cfg) {
         editor::tab_state::BuildOutcome::Ok(state) => state,
         editor::tab_state::BuildOutcome::TooLarge(_) => {

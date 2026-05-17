@@ -1659,7 +1659,13 @@ fn dispatch_shortcut_command(state: &State, command: ShortcutCommand) -> bool {
                     std::rc::Rc::new(move |path: &std::path::Path| {
                         pane::open_editor_tab_for_pane(&pane_for_cb, path);
                     });
-                crate::editor::quick_open::show(&pane_widget, root.as_deref(), on_open);
+                let recent = crate::editor::recent_files::load().entries;
+                crate::editor::quick_open::show_with_recent(
+                    &pane_widget,
+                    root.as_deref(),
+                    recent,
+                    on_open,
+                );
             }
             true
         }

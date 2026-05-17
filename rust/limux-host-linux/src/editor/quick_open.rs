@@ -25,13 +25,24 @@ struct FileEntry {
     mtime: SystemTime,
 }
 
+#[allow(dead_code)]
 pub fn show(parent_widget: &gtk::Widget, workspace_root: Option<&Path>, on_open: OpenFileCallback) {
+    show_with_recent(parent_widget, workspace_root, Vec::new(), on_open);
+}
+
+pub fn show_with_recent(
+    parent_widget: &gtk::Widget,
+    workspace_root: Option<&Path>,
+    recent_paths: Vec<PathBuf>,
+    on_open: OpenFileCallback,
+) {
     let parent: gtk::Widget = parent_widget.clone();
     let files = match workspace_root {
         Some(root) => walk_workspace(root),
         None => Vec::new(),
     };
     let root_buf: Option<PathBuf> = workspace_root.map(|p| p.to_path_buf());
+    let recent_entries = collect_recent_entries(recent_paths, root_buf.as_deref());
 
     let popover = gtk::Popover::builder()
         .has_arrow(false)
@@ -82,6 +93,7 @@ pub fn show(parent_widget: &gtk::Widget, workspace_root: Option<&Path>, on_open:
     popover.set_child(Some(&vbox));
 
     let files_rc: Rc<Vec<FileEntry>> = Rc::new(files);
+    let recent_rc: Rc<Vec<FileEntry>> = Rc::new(recent_entries);
     let selected: Rc<RefCell<usize>> = Rc::new(RefCell::new(0));
     let visible_paths: Rc<RefCell<Vec<PathBuf>>> = Rc::new(RefCell::new(Vec::new()));
 
@@ -89,6 +101,7 @@ pub fn show(parent_widget: &gtk::Widget, workspace_root: Option<&Path>, on_open:
         let list_box = list_box.clone();
         let empty_label = empty_label.clone();
         let files_rc = files_rc.clone();
+        let recent_rc = recent_rc.clone();
         let selected = selected.clone();
         let visible_paths = visible_paths.clone();
         let popover = popover.clone();
@@ -101,15 +114,47 @@ pub fn show(parent_widget: &gtk::Widget, workspace_root: Option<&Path>, on_open:
             visible_paths.borrow_mut().clear();
             *selected.borrow_mut() = 0;
 
+            let is_empty_query = query.trim().is_empty();
+            let recent_section: &[FileEntry] = if is_empty_query {
+                recent_rc.as_slice()
+            } else {
+                &[]
+            };
             let ranked = rank(&files_rc, query);
-            if ranked.is_empty() {
+            if ranked.is_empty() && recent_section.is_empty() {
                 empty_label.set_visible(true);
                 return;
             }
             empty_label.set_visible(false);
 
-            for (idx, entry) in ranked.iter().enumerate() {
-                let row = build_row(entry, idx == 0);
+            let mut row_idx: usize = 0;
+            if !recent_section.is_empty() {
+                list_box.append(&build_section_header(strings::QUICK_OPEN_RECENT_HEADER));
+                for entry in recent_section.iter().take(20) {
+                    let row = build_row(entry, row_idx == 0);
+                    let path_clone = entry.path.clone();
+                    let popover_clone = popover.clone();
+                    let on_open_clone = on_open.clone();
+                    let root_clone = root_buf.clone();
+                    row.connect_clicked(move |_| {
+                        activate_path(
+                            &popover_clone,
+                            &on_open_clone,
+                            root_clone.as_deref(),
+                            &path_clone,
+                        );
+                    });
+                    list_box.append(&row);
+                    visible_paths.borrow_mut().push(entry.path.clone());
+                    row_idx += 1;
+                }
+                if !ranked.is_empty() {
+                    list_box.append(&build_section_header(strings::QUICK_OPEN_FILES_HEADER));
+                }
+            }
+
+            for entry in ranked.iter() {
+                let row = build_row(entry, row_idx == 0);
                 let path_clone = entry.path.clone();
                 let popover_clone = popover.clone();
                 let on_open_clone = on_open.clone();
@@ -124,6 +169,7 @@ pub fn show(parent_widget: &gtk::Widget, workspace_root: Option<&Path>, on_open:
                 });
                 list_box.append(&row);
                 visible_paths.borrow_mut().push(entry.path.clone());
+                row_idx += 1;
             }
         })
     };
@@ -204,6 +250,54 @@ pub fn show(parent_widget: &gtk::Widget, workspace_root: Option<&Path>, on_open:
 
     popover.popup();
     entry.grab_focus();
+}
+
+fn collect_recent_entries(paths: Vec<PathBuf>, root: Option<&Path>) -> Vec<FileEntry> {
+    let mut out: Vec<FileEntry> = Vec::with_capacity(paths.len());
+    for path in paths {
+        if !path.exists() {
+            continue;
+        }
+        if let Some(r) = root {
+            if !path.starts_with(r) {
+                continue;
+            }
+        }
+        let basename = match path.file_name().and_then(|s| s.to_str()) {
+            Some(b) => b.to_string(),
+            None => continue,
+        };
+        let rel_display = match root {
+            Some(r) => path
+                .strip_prefix(r)
+                .unwrap_or(path.as_path())
+                .to_string_lossy()
+                .to_string(),
+            None => path.to_string_lossy().to_string(),
+        };
+        let mtime = path
+            .metadata()
+            .ok()
+            .and_then(|m| m.modified().ok())
+            .unwrap_or(SystemTime::UNIX_EPOCH);
+        out.push(FileEntry {
+            path,
+            basename,
+            rel_display,
+            mtime,
+        });
+    }
+    out
+}
+
+fn build_section_header(label: &str) -> gtk::Label {
+    let lbl = gtk::Label::builder().label(label).xalign(0.0).build();
+    lbl.add_css_class("dim-label");
+    lbl.add_css_class("caption-heading");
+    lbl.set_margin_top(6);
+    lbl.set_margin_bottom(2);
+    lbl.set_margin_start(8);
+    lbl
 }
 
 fn build_row(entry: &FileEntry, is_selected: bool) -> gtk::Button {
