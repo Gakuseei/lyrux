@@ -66,6 +66,9 @@
   <style name="def:underlined"             foreground="accent"   underline="single"/>
   <style name="def:net-address"            foreground="accent"   underline="single"/>
   <style name="def:variable"               foreground="type"/>
+  <style name="def:reserved"               foreground="keyword"  bold="true"/>
+  <style name="def:decimal"                foreground="number"/>
+  <style name="def:special-constant"       foreground="function" bold="true"/>
   <style name="def:character"              foreground="string"/>
   <style name="def:boolean"                foreground="number"   bold="true"/>
   <style name="def:floating-point"         foreground="number"/>
