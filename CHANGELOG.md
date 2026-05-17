@@ -30,7 +30,7 @@ Editor polish v2 + file manager polish + theme system + snippets. 43 commits.
 - User themes — drop `.xml` into `~/.config/lyrux/themes/`.
 - System color-scheme auto-sync (light/dark theme follows system).
 - Save All Ctrl+Alt+S.
-- Goto-Line moved to Ctrl+G (standard); Ctrl+L freed.
+- Editor: goto-line moved from Ctrl+L to Ctrl+G (standard); the former Ctrl+L still focuses browser address bar in browser tabs.
 - F3 / Shift+F3 find-next / prev (standard).
 - Ctrl+` toggles or focuses terminal.
 - Ctrl+, opens Settings; Ctrl+Shift+, opens Keybinds editor.
