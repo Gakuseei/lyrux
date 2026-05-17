@@ -208,14 +208,14 @@ impl TreeModel {
 
     pub fn refresh_subtree(&mut self, parent_path: &Path) -> bool {
         crate::file_panel::perf_log!(
-            "limux-perf: refresh_subtree ENTER path={:?} expanded_paths_len={}",
+            "lyrux-perf: refresh_subtree ENTER path={:?} expanded_paths_len={}",
             parent_path,
             self.expanded_paths.len()
         );
         if parent_path == self.root {
             if self.tree_matches_fs() {
                 crate::file_panel::perf_log!(
-                    "limux-perf: refresh_subtree EXIT(root,no-fs-change) expanded_paths_len={} rows_len={}",
+                    "lyrux-perf: refresh_subtree EXIT(root,no-fs-change) expanded_paths_len={} rows_len={}",
                     self.expanded_paths.len(),
                     self.rows.len()
                 );
@@ -230,7 +230,7 @@ impl TreeModel {
                 self.force_expand_at_path(&path);
             }
             crate::file_panel::perf_log!(
-                "limux-perf: refresh_subtree EXIT(root) expanded_paths_len={} rows_len={}",
+                "lyrux-perf: refresh_subtree EXIT(root) expanded_paths_len={} rows_len={}",
                 self.expanded_paths.len(),
                 self.rows.len()
             );
@@ -265,7 +265,7 @@ impl TreeModel {
             self.force_expand_at_path(&path);
         }
         crate::file_panel::perf_log!(
-            "limux-perf: refresh_subtree EXIT(parent) path={:?} expanded_paths_len={} rows_len={}",
+            "lyrux-perf: refresh_subtree EXIT(parent) path={:?} expanded_paths_len={} rows_len={}",
             parent_path,
             self.expanded_paths.len(),
             self.rows.len()
@@ -279,13 +279,13 @@ impl TreeModel {
                 if self.rows[idx].kind == Kind::Dir {
                     if self.rows[idx].expanded && self.row_kids_match_fs(idx) {
                         crate::file_panel::perf_log!(
-                            "limux-perf: force_expand_at_path SKIP(already-expanded-with-kids) {:?}",
+                            "lyrux-perf: force_expand_at_path SKIP(already-expanded-with-kids) {:?}",
                             path
                         );
                         return;
                     }
                     crate::file_panel::perf_log!(
-                        "limux-perf: force_expand_at_path RE-EXPAND {:?}",
+                        "lyrux-perf: force_expand_at_path RE-EXPAND {:?}",
                         path
                     );
                     self.rows[idx].expanded = false;
@@ -296,14 +296,14 @@ impl TreeModel {
                     self.expand_at_no_change(idx);
                 } else {
                     crate::file_panel::perf_log!(
-                        "limux-perf: force_expand_at_path SKIP(not-dir) {:?}",
+                        "lyrux-perf: force_expand_at_path SKIP(not-dir) {:?}",
                         path
                     );
                 }
             }
             None => {
                 crate::file_panel::perf_log!(
-                    "limux-perf: force_expand_at_path SKIP(no-row) {:?}",
+                    "lyrux-perf: force_expand_at_path SKIP(no-row) {:?}",
                     path
                 );
             }
@@ -421,7 +421,7 @@ impl TreeModel {
             end += 1;
         }
         crate::file_panel::perf_log!(
-            "limux-perf: collapse_at path={:?} descendants_removed={} expanded_paths_len={}",
+            "lyrux-perf: collapse_at path={:?} descendants_removed={} expanded_paths_len={}",
             top_path,
             descendant_removed,
             self.expanded_paths.len()

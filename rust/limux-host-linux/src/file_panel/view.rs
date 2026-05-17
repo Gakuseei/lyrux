@@ -338,7 +338,7 @@ pub fn apply_model_to_store(model: &TreeModel, store: &gtk4::gio::ListStore) {
         splices += 1;
     }
     crate::file_panel::perf_log!(
-        "limux-perf: apply_model_to_store old={} new={} splices={}",
+        "lyrux-perf: apply_model_to_store old={} new={} splices={}",
         old_len,
         new_len,
         splices

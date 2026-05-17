@@ -19,7 +19,7 @@ pub mod watcher;
 
 // Perf instrumentation. Stripped in release builds (`cfg(debug_assertions)`
 // gates the expansion to a no-op when optimizations are on). Use in place of
-// raw `eprintln!("limux-perf: ...")` so production AppImage stays clean.
+// raw `eprintln!("lyrux-perf: ...")` so production AppImage stays clean.
 macro_rules! perf_log {
     ($($arg:tt)*) => {
         #[cfg(debug_assertions)]
@@ -232,7 +232,7 @@ impl FilePanelHandle {
             }
             for p in &expanded {
                 crate::file_panel::perf_log!(
-                    "limux-perf: expanded_paths::insert(show_workspace seed) {:?}",
+                    "lyrux-perf: expanded_paths::insert(show_workspace seed) {:?}",
                     p
                 );
                 model.expanded_paths.insert(p.clone());
@@ -480,7 +480,7 @@ impl FilePanelHandle {
                 .insert(workspace_id.to_string(), std::time::Instant::now());
         } else {
             crate::file_panel::perf_log!(
-                "limux-perf: on_watcher_event SKIP apply_model_to_store (no-op refresh)"
+                "lyrux-perf: on_watcher_event SKIP apply_model_to_store (no-op refresh)"
             );
         }
     }
@@ -560,13 +560,13 @@ impl FilePanelHandle {
             let t1 = std::time::Instant::now();
             if let Ok(map) = crate::file_panel::git::run_status(&root_for_thread) {
                 crate::file_panel::perf_log!(
-                    "limux-perf: run_status (worker thread) took {:?}",
+                    "lyrux-perf: run_status (worker thread) took {:?}",
                     t1.elapsed()
                 );
                 let _ = tx.send(map);
             } else {
                 crate::file_panel::perf_log!(
-                    "limux-perf: run_status (worker thread, err) took {:?}",
+                    "lyrux-perf: run_status (worker thread, err) took {:?}",
                     t1.elapsed()
                 );
             }
@@ -577,7 +577,7 @@ impl FilePanelHandle {
         let src = glib::timeout_add_local(Duration::from_millis(50), move || match rx.try_recv() {
             Ok(map) => {
                 crate::file_panel::perf_log!(
-                    "limux-perf: refresh_git_for (spawn to result delivered) took {:?}",
+                    "lyrux-perf: refresh_git_for (spawn to result delivered) took {:?}",
                     t0.elapsed()
                 );
                 // Clear our stored SourceId BEFORE calling `apply_git_result`.
@@ -625,13 +625,13 @@ impl FilePanelHandle {
                 let root = per.model.root.clone();
                 let t_refresh = std::time::Instant::now();
                 crate::file_panel::perf_log!(
-                    "limux-perf: apply_git_result calling refresh_subtree ws={} root={:?}",
+                    "lyrux-perf: apply_git_result calling refresh_subtree ws={} root={:?}",
                     workspace_id,
                     root
                 );
                 let changed = per.model.refresh_subtree(&root);
                 crate::file_panel::perf_log!(
-                    "limux-perf: apply_git_result refresh_subtree took {:?} changed={}",
+                    "lyrux-perf: apply_git_result refresh_subtree took {:?} changed={}",
                     t_refresh.elapsed(),
                     changed
                 );
@@ -639,7 +639,7 @@ impl FilePanelHandle {
                     let t_apply = std::time::Instant::now();
                     apply_model_to_store(&per.model, &store);
                     crate::file_panel::perf_log!(
-                        "limux-perf: apply_git_result apply_model_to_store took {:?}",
+                        "lyrux-perf: apply_git_result apply_model_to_store took {:?}",
                         t_apply.elapsed()
                     );
                 }
@@ -649,7 +649,7 @@ impl FilePanelHandle {
                 return;
             }
         }
-        crate::file_panel::perf_log!("limux-perf: apply_git_result total took {:?}", t0.elapsed());
+        crate::file_panel::perf_log!("lyrux-perf: apply_git_result total took {:?}", t0.elapsed());
         if rerun {
             self.refresh_git_for(workspace_id.to_string());
         }
@@ -716,7 +716,7 @@ impl FilePanelHandle {
                 handle.open_file_in_editor(&path);
             }
             crate::file_panel::perf_log!(
-                "limux-perf: list_view connect_activate (full click) took {:?}",
+                "lyrux-perf: list_view connect_activate (full click) took {:?}",
                 t0.elapsed()
             );
         });
@@ -743,7 +743,7 @@ impl FilePanelHandle {
                     let t_toggle = std::time::Instant::now();
                     let change = per.model.toggle_expand(idx);
                     crate::file_panel::perf_log!(
-                        "limux-perf: model.toggle_expand took {:?}",
+                        "lyrux-perf: model.toggle_expand took {:?}",
                         t_toggle.elapsed()
                     );
                     let t_apply = std::time::Instant::now();
@@ -751,14 +751,14 @@ impl FilePanelHandle {
                         apply_changes_to_store(&[change], &store);
                     }
                     crate::file_panel::perf_log!(
-                        "limux-perf: apply_changes_to_store (after toggle) took {:?}",
+                        "lyrux-perf: apply_changes_to_store (after toggle) took {:?}",
                         t_apply.elapsed()
                     );
                 }
             }
         }
         crate::file_panel::perf_log!(
-            "limux-perf: toggle_expand_path total took {:?}",
+            "lyrux-perf: toggle_expand_path total took {:?}",
             t0.elapsed()
         );
     }
@@ -1173,7 +1173,7 @@ impl FilePanelHandle {
                     return;
                 };
                 crate::file_panel::perf_log!(
-                    "limux-perf: expanded_paths::assign(collapse_all restore) {:?}",
+                    "lyrux-perf: expanded_paths::assign(collapse_all restore) {:?}",
                     snapshot
                 );
                 per.model.expanded_paths = snapshot;
@@ -1188,7 +1188,7 @@ impl FilePanelHandle {
                 let Some(per) = inner.cache.get_mut(&active) else {
                     return;
                 };
-                crate::file_panel::perf_log!("limux-perf: expanded_paths::clear(collapse_all)");
+                crate::file_panel::perf_log!("lyrux-perf: expanded_paths::clear(collapse_all)");
                 per.model.expanded_paths.clear();
                 per.model.rebuild_visible();
                 apply_model_to_store(&per.model, &store);
