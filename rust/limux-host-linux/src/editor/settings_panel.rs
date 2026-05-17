@@ -241,23 +241,22 @@ fn section_header(label: &str, top_margin: bool) -> gtk4::Label {
 
 fn theme_row(current: &EditorSettings, on_change: Rc<dyn Fn(&EditorSettings)>) -> gtk4::Box {
     let row = labeled_row(strings::SETTING_THEME);
-    let labels: Vec<&str> = themes::available()
+    let entries = themes::available_dynamic();
+    let label_refs: Vec<&str> = entries.iter().map(|(_, l)| l.as_str()).collect();
+    let dropdown = gtk4::DropDown::from_strings(&label_refs);
+    let pos = entries
         .iter()
-        .map(|(_, label, _)| *label)
-        .collect();
-    let dropdown = gtk4::DropDown::from_strings(&labels);
-    let pos = themes::available()
-        .iter()
-        .position(|(id, _, _)| *id == current.theme_id)
+        .position(|(id, _)| id == &current.theme_id)
         .unwrap_or(0) as u32;
     dropdown.set_selected(pos);
     dropdown.set_valign(gtk4::Align::Center);
     let snapshot = current.clone();
+    let entries_for_cb = entries.clone();
     dropdown.connect_selected_notify(move |dd| {
         let idx = dd.selected() as usize;
-        if let Some((id, _, _)) = themes::available().get(idx) {
+        if let Some((id, _)) = entries_for_cb.get(idx) {
             let mut next = snapshot.clone();
-            next.theme_id = (*id).to_string();
+            next.theme_id = id.clone();
             on_change(&next);
         }
     });

@@ -88,14 +88,38 @@ pub fn register_all(manager: &sourceview5::StyleSchemeManager) {
         let cache_str = cache_dir.to_string_lossy().to_string();
         if !paths.contains(&cache_str) {
             paths.push(cache_str);
-            let refs: Vec<&str> = paths.iter().map(String::as_str).collect();
-            manager.set_search_path(&refs);
         }
+        if let Some(config_dir) = dirs::config_dir() {
+            let user_themes = config_dir.join("lyrux/themes");
+            std::fs::create_dir_all(&user_themes).ok();
+            let user_str = user_themes.to_string_lossy().to_string();
+            if !paths.contains(&user_str) {
+                paths.insert(0, user_str);
+            }
+        }
+        let refs: Vec<&str> = paths.iter().map(String::as_str).collect();
+        manager.set_search_path(&refs);
     });
 }
 
 pub fn available() -> &'static [(&'static str, &'static str, &'static str)] {
     SCHEMES
+}
+
+pub fn available_dynamic() -> Vec<(String, String)> {
+    let manager = sourceview5::StyleSchemeManager::default();
+    register_all(&manager);
+    let mut entries: Vec<(String, String)> = manager
+        .scheme_ids()
+        .iter()
+        .map(|id| {
+            let id_str = id.to_string();
+            let label = display_label(&id_str);
+            (id_str, label)
+        })
+        .collect();
+    entries.sort_by(|a, b| a.1.to_lowercase().cmp(&b.1.to_lowercase()));
+    entries
 }
 
 pub fn label_for(id: &str) -> Option<&'static str> {
@@ -105,6 +129,28 @@ pub fn label_for(id: &str) -> Option<&'static str> {
         .map(|(_, l, _)| *l)
 }
 
+pub fn display_label(id: &str) -> String {
+    if let Some(bundled) = label_for(id) {
+        return bundled.to_string();
+    }
+    let manager = sourceview5::StyleSchemeManager::default();
+    if let Some(scheme) = manager.scheme(id) {
+        let name = scheme.name().to_string();
+        if !name.is_empty() {
+            return name;
+        }
+    }
+    id.to_string()
+}
+
 pub fn default_id() -> &'static str {
+    "lyrux-grey"
+}
+
+pub fn default_light_id() -> &'static str {
+    "lyrux-light"
+}
+
+pub fn default_dark_id() -> &'static str {
     "lyrux-grey"
 }
