@@ -2842,7 +2842,6 @@ fn remove_tab(
     pane_outer: &gtk::Box,
     empty_reason: PaneEmptyReason,
 ) {
-    capture_closed_editor_tab(tab_state, tab_id);
     let dirty_editor = {
         let ts = tab_state.borrow();
         ts.tabs
@@ -2914,6 +2913,7 @@ fn remove_tab_force(
     pane_outer: &gtk::Box,
     empty_reason: PaneEmptyReason,
 ) {
+    capture_closed_editor_tab(tab_state, tab_id);
     let mut ts = tab_state.borrow_mut();
     let Some(idx) = ts.tabs.iter().position(|e| e.id == tab_id) else {
         return;
