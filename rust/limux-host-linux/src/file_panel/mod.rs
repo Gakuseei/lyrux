@@ -12,6 +12,7 @@ pub mod git;
 pub mod model;
 pub mod ops;
 pub mod row_object;
+pub mod strings;
 pub mod view;
 pub mod watcher;
 
@@ -32,7 +33,6 @@ use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::mpsc;
 use std::time::Duration;
 
@@ -108,7 +108,6 @@ pub struct Inner {
 #[derive(Clone)]
 pub struct FilePanelHandle {
     inner: Rc<RefCell<Inner>>,
-    untitled_counter: Rc<AtomicU32>,
 }
 
 impl FilePanelHandle {
@@ -143,7 +142,6 @@ impl FilePanelHandle {
                 gitignore_cache: HashMap::new(),
                 last_refresh_at: HashMap::new(),
             })),
-            untitled_counter: Rc::new(AtomicU32::new(0)),
         }
     }
 
@@ -811,13 +809,89 @@ impl FilePanelHandle {
             .unwrap_or_else(|| root.to_path_buf())
     }
 
-    fn prompt_name(&self, _title: &str, default: &str) -> Option<String> {
-        let n = self.untitled_counter.fetch_add(1, Ordering::Relaxed);
-        let nanos = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.subsec_nanos())
-            .unwrap_or(0);
-        Some(format!("{default}-{n}-{nanos}"))
+    fn show_name_prompt(
+        &self,
+        title: &str,
+        placeholder: &str,
+        button_label: &str,
+        default: &str,
+        on_confirm: Box<dyn Fn(String) + 'static>,
+    ) {
+        let popover = gtk::Popover::new();
+        popover.set_has_arrow(true);
+        popover.set_autohide(true);
+        popover.set_position(gtk::PositionType::Bottom);
+
+        let vbox = gtk::Box::new(gtk::Orientation::Vertical, 8);
+        vbox.set_margin_start(10);
+        vbox.set_margin_end(10);
+        vbox.set_margin_top(10);
+        vbox.set_margin_bottom(10);
+        vbox.set_width_request(260);
+
+        let title_lbl = gtk::Label::new(Some(title));
+        title_lbl.set_xalign(0.0);
+        title_lbl.add_css_class("title-4");
+        vbox.append(&title_lbl);
+
+        let entry = gtk::Entry::new();
+        entry.set_placeholder_text(Some(placeholder));
+        entry.set_text(default);
+        entry.set_activates_default(false);
+        let (sel_end, _) = strings::split_basename_ext(default);
+        entry.select_region(0, sel_end as i32);
+        vbox.append(&entry);
+
+        let btn_row = gtk::Box::new(gtk::Orientation::Horizontal, 6);
+        btn_row.set_halign(gtk::Align::End);
+        let cancel_btn = gtk::Button::with_label(strings::DIALOG_BTN_CANCEL);
+        let confirm_btn = gtk::Button::with_label(button_label);
+        confirm_btn.add_css_class("suggested-action");
+        btn_row.append(&cancel_btn);
+        btn_row.append(&confirm_btn);
+        vbox.append(&btn_row);
+
+        popover.set_child(Some(&vbox));
+
+        let anchor = self.inner.borrow().header.root.clone();
+        popover.set_parent(&anchor);
+
+        let confirm_action: Rc<dyn Fn()> = {
+            let entry = entry.clone();
+            let popover = popover.clone();
+            let on_confirm = Rc::new(on_confirm);
+            Rc::new(move || {
+                let text = entry.text().to_string();
+                let trimmed = text.trim().to_string();
+                if trimmed.is_empty() {
+                    return;
+                }
+                popover.popdown();
+                on_confirm(trimmed);
+            })
+        };
+
+        {
+            let action = confirm_action.clone();
+            confirm_btn.connect_clicked(move |_| action());
+        }
+        {
+            let action = confirm_action.clone();
+            entry.connect_activate(move |_| action());
+        }
+        {
+            let popover = popover.clone();
+            cancel_btn.connect_clicked(move |_| popover.popdown());
+        }
+        {
+            let popover = popover.clone();
+            popover.connect_closed(move |p| {
+                p.unparent();
+            });
+        }
+
+        popover.popup();
+        entry.grab_focus();
     }
 
     fn do_new_file(&self) {
@@ -826,11 +900,17 @@ impl FilePanelHandle {
             None => return,
         };
         let parent = self.target_parent(&root);
-        let name = match self.prompt_name("New file", "untitled.txt") {
-            Some(n) => n,
-            None => return,
-        };
-        let _ = crate::file_panel::ops::new_file(&root, &parent, &name);
+        let handle = self.clone();
+        self.show_name_prompt(
+            strings::PROMPT_NEW_FILE_TITLE,
+            strings::PROMPT_PLACEHOLDER_FILE,
+            strings::DIALOG_BTN_CREATE,
+            "untitled.txt",
+            Box::new(move |name| {
+                let _ = crate::file_panel::ops::new_file(&root, &parent, &name);
+                handle.refresh_active_subtree(&parent);
+            }),
+        );
     }
 
     fn do_new_folder(&self) {
@@ -839,11 +919,17 @@ impl FilePanelHandle {
             None => return,
         };
         let parent = self.target_parent(&root);
-        let name = match self.prompt_name("New folder", "untitled") {
-            Some(n) => n,
-            None => return,
-        };
-        let _ = crate::file_panel::ops::new_folder(&root, &parent, &name);
+        let handle = self.clone();
+        self.show_name_prompt(
+            strings::PROMPT_NEW_FOLDER_TITLE,
+            strings::PROMPT_PLACEHOLDER_FOLDER,
+            strings::DIALOG_BTN_CREATE,
+            "untitled",
+            Box::new(move |name| {
+                let _ = crate::file_panel::ops::new_folder(&root, &parent, &name);
+                handle.refresh_active_subtree(&parent);
+            }),
+        );
     }
 
     fn do_rename(&self) {
@@ -855,12 +941,41 @@ impl FilePanelHandle {
         if paths.len() != 1 {
             return;
         }
-        let current = paths[0].file_name().and_then(|s| s.to_str()).unwrap_or("");
-        let new = match self.prompt_name("Rename", current) {
-            Some(n) => n,
+        let current_path = paths[0].clone();
+        let current_name = current_path
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("")
+            .to_string();
+        let parent = current_path
+            .parent()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(|| root.clone());
+        let handle = self.clone();
+        self.show_name_prompt(
+            strings::PROMPT_RENAME_TITLE,
+            strings::PROMPT_PLACEHOLDER_FILE,
+            strings::DIALOG_BTN_RENAME,
+            &current_name,
+            Box::new(move |new_name| {
+                let _ = crate::file_panel::ops::rename(&root, &current_path, &new_name);
+                handle.refresh_active_subtree(&parent);
+            }),
+        );
+    }
+
+    fn refresh_active_subtree(&self, parent: &Path) {
+        let mut inner = self.inner.borrow_mut();
+        let active = match inner.active.clone() {
+            Some(a) => a,
             None => return,
         };
-        let _ = crate::file_panel::ops::rename(&root, &paths[0], &new);
+        let store = inner.view.store.clone();
+        if let Some(per) = inner.cache.get_mut(&active) {
+            if per.model.refresh_subtree(parent) {
+                apply_model_to_store(&per.model, &store);
+            }
+        }
     }
 
     fn do_delete(&self, permanent: bool) {
