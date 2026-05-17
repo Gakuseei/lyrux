@@ -106,26 +106,30 @@ pub fn register_bundled(manager: &sourceview5::LanguageManager) {
 }
 
 pub fn language_id_for_extension(ext: &str) -> Option<&'static str> {
-    match ext {
-        "rs" => Some("rust"),
-        "ts" | "tsx" => Some("typescript"),
-        "js" | "mjs" | "cjs" | "jsx" => Some("javascript"),
-        "json" => Some("json"),
-        "md" | "markdown" => Some("markdown"),
-        "css" => Some("css"),
-        "html" | "htm" => Some("html"),
-        "py" => Some("python"),
-        "toml" => Some("toml"),
-        "yml" | "yaml" => Some("yaml"),
-        "sh" | "bash" | "zsh" | "fish" => Some("sh"),
-        "c" | "h" => Some("c"),
-        "cpp" | "cc" | "cxx" | "hpp" => Some("cpp"),
-        "go" => Some("go"),
-        "lua" => Some("lua"),
-        "rb" => Some("ruby"),
-        "xml" | "svg" => Some("xml"),
-        _ => None,
-    }
+    let id = match ext {
+        "rs" => "rust",
+        "ts" => "typescript",
+        "tsx" => "typescript-jsx",
+        "js" | "mjs" | "cjs" | "jsx" => "js",
+        "json" => "json",
+        "md" | "markdown" => "markdown",
+        "css" => "css",
+        "html" | "htm" => "html",
+        "py" | "pyi" | "py3" => "python3",
+        "toml" => "toml",
+        "yml" | "yaml" => "yaml",
+        "sh" | "bash" | "zsh" | "fish" => "sh",
+        "c" => "c",
+        "h" => "chdr",
+        "cpp" | "cc" | "cxx" | "hpp" | "hxx" => "cpp",
+        "go" => "go",
+        "lua" => "lua",
+        "rb" => "ruby",
+        "xml" | "svg" => "xml",
+        "dtd" => "dtd",
+        _ => return None,
+    };
+    Some(id)
 }
 
 pub fn language_for_path(path: &std::path::Path) -> Option<sourceview5::Language> {
@@ -153,7 +157,8 @@ mod tests {
 
     #[test]
     fn maps_typescript() {
-        assert_eq!(ext_id("tsx"), Some("typescript"));
+        assert_eq!(ext_id("ts"), Some("typescript"));
+        assert_eq!(ext_id("tsx"), Some("typescript-jsx"));
     }
 
     #[test]
@@ -162,7 +167,67 @@ mod tests {
     }
 
     #[test]
+    fn maps_javascript_family() {
+        assert_eq!(ext_id("js"), Some("js"));
+        assert_eq!(ext_id("jsx"), Some("js"));
+        assert_eq!(ext_id("mjs"), Some("js"));
+        assert_eq!(ext_id("cjs"), Some("js"));
+    }
+
+    #[test]
+    fn maps_python_family() {
+        assert_eq!(ext_id("py"), Some("python3"));
+        assert_eq!(ext_id("pyi"), Some("python3"));
+    }
+
+    #[test]
+    fn maps_c_header_separately() {
+        assert_eq!(ext_id("c"), Some("c"));
+        assert_eq!(ext_id("h"), Some("chdr"));
+    }
+
+    #[test]
     fn unknown_returns_none() {
         assert!(ext_id("zzzz").is_none());
+    }
+
+    fn collect_bundled_ids() -> std::collections::HashSet<&'static str> {
+        let mut ids = std::collections::HashSet::new();
+        for (_name, body) in BUNDLED_LANG_FILES {
+            let mut rest = *body;
+            while let Some(idx) = rest.find("<language") {
+                rest = &rest[idx + "<language".len()..];
+                let close = match rest.find('>') {
+                    Some(c) => c,
+                    None => break,
+                };
+                let attrs = &rest[..close];
+                if let Some(id_idx) = attrs.find("id=\"") {
+                    let after = &attrs[id_idx + 4..];
+                    if let Some(end) = after.find('"') {
+                        ids.insert(&after[..end]);
+                    }
+                }
+                rest = &rest[close + 1..];
+            }
+        }
+        ids
+    }
+
+    #[test]
+    fn every_mapped_id_exists_in_bundled_langs() {
+        let bundled = collect_bundled_ids();
+        let exts = [
+            "rs", "ts", "tsx", "js", "jsx", "mjs", "cjs", "json", "md", "css", "html", "htm", "py",
+            "pyi", "py3", "toml", "yml", "yaml", "sh", "bash", "zsh", "fish", "c", "h", "cpp",
+            "cc", "cxx", "hpp", "hxx", "go", "lua", "rb", "xml", "svg", "dtd",
+        ];
+        for ext in exts {
+            let id = ext_id(ext).unwrap_or_else(|| panic!("no mapping for {ext}"));
+            assert!(
+                bundled.contains(id),
+                "extension {ext} maps to {id} but no bundled .lang declares that id"
+            );
+        }
     }
 }
