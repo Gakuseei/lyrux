@@ -17,7 +17,7 @@ pub fn install_drag_source(
     get_row: Rc<RefCell<Option<RowObject>>>,
 ) {
     let source = gtk::DragSource::new();
-    source.set_actions(gdk::DragAction::COPY);
+    source.set_actions(gdk::DragAction::COPY | gdk::DragAction::MOVE);
     let prepare_row = Rc::clone(&get_row);
     source.connect_prepare(move |_, _, _| {
         let row = prepare_row.borrow().clone()?;
