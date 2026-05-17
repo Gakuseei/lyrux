@@ -23,7 +23,8 @@ jobs:
         id: version
         run: |
           SHORT_SHA="$(git rev-parse --short "${GITHUB_SHA}")"
-          echo "version=nightly-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          BASE_VERSION="$(grep '^version = ' Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/')"
+          echo "version=${BASE_VERSION}-nightly.${SHORT_SHA}" >> "$GITHUB_OUTPUT"
           echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Install Zig
