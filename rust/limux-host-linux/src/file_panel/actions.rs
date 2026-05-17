@@ -34,6 +34,7 @@ where
         "fp-sort-name-desc",
         "fp-sort-modified-desc",
         "fp-sort-size-desc",
+        "fp-open-in-new-pane",
     ];
     for name in &names {
         let action = gio::SimpleAction::new(name, None);

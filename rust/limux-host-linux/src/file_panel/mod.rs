@@ -81,12 +81,14 @@ pub struct PerWorkspace {
 
 pub type OpenFileCallback = dyn Fn(&Path);
 pub type OpenTerminalCallback = dyn Fn(&Path);
+pub type OpenInNewPaneCallback = dyn Fn(&Path);
 
 pub struct Inner {
     pub root_box: gtk::Box,
     pub header: HeaderHandle,
     pub on_open_file: Option<Rc<OpenFileCallback>>,
     pub on_open_terminal: Option<Rc<OpenTerminalCallback>>,
+    pub on_open_in_new_pane: Option<Rc<OpenInNewPaneCallback>>,
     // Kept on Inner so future code (DnD autoscroll, scroll restoration) can reach it.
     #[allow(dead_code)]
     pub scrolled: gtk::ScrolledWindow,
@@ -131,6 +133,7 @@ impl FilePanelHandle {
                 header,
                 on_open_file: None,
                 on_open_terminal: None,
+                on_open_in_new_pane: None,
                 scrolled,
                 view,
                 sticky,
@@ -152,6 +155,10 @@ impl FilePanelHandle {
 
     pub fn set_on_open_terminal<F: Fn(&Path) + 'static>(&self, callback: F) {
         self.inner.borrow_mut().on_open_terminal = Some(Rc::new(callback));
+    }
+
+    pub fn set_on_open_in_new_pane<F: Fn(&Path) + 'static>(&self, callback: F) {
+        self.inner.borrow_mut().on_open_in_new_pane = Some(Rc::new(callback));
     }
 
     pub fn set_columns_visible(&self, show_size: bool, show_mtime: bool) {
@@ -676,6 +683,8 @@ impl FilePanelHandle {
                 (gtk::gdk::Key::d, true, false) => Some("fp-duplicate"),
                 (gtk::gdk::Key::n, true, false) => Some("fp-new-file"),
                 (gtk::gdk::Key::n, true, true) => Some("fp-new-folder"),
+                (gtk::gdk::Key::Return, true, false) => Some("fp-open-in-new-pane"),
+                (gtk::gdk::Key::KP_Enter, true, false) => Some("fp-open-in-new-pane"),
                 _ => None,
             };
             if let Some(name) = action {
@@ -828,7 +837,22 @@ impl FilePanelHandle {
                 self.set_sort_mode(crate::file_panel::model::SortMode::ModifiedDesc)
             }
             "fp-sort-size-desc" => self.set_sort_mode(crate::file_panel::model::SortMode::SizeDesc),
+            "fp-open-in-new-pane" => self.do_open_in_new_pane(),
             _ => {}
+        }
+    }
+
+    fn do_open_in_new_pane(&self) {
+        let selected = self.selected_paths();
+        let Some(path) = selected.first().cloned() else {
+            return;
+        };
+        if path.is_dir() {
+            return;
+        }
+        let cb = self.inner.borrow().on_open_in_new_pane.clone();
+        if let Some(cb) = cb {
+            cb(&path);
         }
     }
 
