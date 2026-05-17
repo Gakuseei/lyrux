@@ -172,3 +172,5 @@ pub const STATUS_TAB_WIDTH: &str = "Tab Width:";
 pub const STATUS_ENCODING_UTF8: &str = "UTF-8";
 pub const STATUS_EOL_LF: &str = "LF";
 pub const STATUS_LANG_PLAIN_TEXT: &str = "Plain Text";
+
+pub const COMPLETION_WORDS_TITLE: &str = "Buffer";
