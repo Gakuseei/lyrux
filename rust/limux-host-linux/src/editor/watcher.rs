@@ -1,10 +1,58 @@
 #![allow(dead_code)]
 
+use std::cell::{Cell, RefCell};
+use std::path::PathBuf;
+use std::rc::Rc;
+
 use gtk4::prelude::*;
 
 use crate::editor::buffer::{self, FileEtag};
 use crate::editor::strings;
-use crate::editor::tab_state::EditorTabState;
+use crate::editor::tab_state::{DirtyMarkerCb, EditorTabState};
+
+#[derive(Clone)]
+struct WatcherCtx {
+    path: Rc<RefCell<PathBuf>>,
+    buffer: sourceview5::Buffer,
+    scrolled: gtk4::ScrolledWindow,
+    dirty: Rc<Cell<bool>>,
+    saved_etag: Rc<Cell<Option<FileEtag>>>,
+    suppress_dirty: Rc<Cell<bool>>,
+    banner: gtk4::Revealer,
+    dirty_marker_cb: DirtyMarkerCb,
+}
+
+impl WatcherCtx {
+    fn from_state(state: &EditorTabState) -> Self {
+        Self {
+            path: state.path.clone(),
+            buffer: state.buffer.clone(),
+            scrolled: state.scrolled.clone(),
+            dirty: state.dirty.clone(),
+            saved_etag: state.saved_etag.clone(),
+            suppress_dirty: state.suppress_dirty.clone(),
+            banner: state.banner.clone(),
+            dirty_marker_cb: state.dirty_marker_cb.clone(),
+        }
+    }
+
+    fn is_dirty(&self) -> bool {
+        self.dirty.get()
+    }
+
+    fn snapshot_text(&self) -> String {
+        let (start, end) = self.buffer.bounds();
+        self.buffer.text(&start, &end, false).to_string()
+    }
+
+    fn mark_clean(&self, etag: FileEtag) {
+        self.dirty.set(false);
+        self.saved_etag.set(Some(etag));
+        if let Some(cb) = self.dirty_marker_cb.borrow().as_ref() {
+            cb(false);
+        }
+    }
+}
 
 pub fn install(state: &EditorTabState) -> Option<gtk4::gio::FileMonitor> {
     let path = state.path.borrow().clone();
@@ -15,7 +63,7 @@ pub fn install(state: &EditorTabState) -> Option<gtk4::gio::FileMonitor> {
             gtk4::gio::Cancellable::NONE,
         )
         .ok()?;
-    let state = state.clone();
+    let ctx = WatcherCtx::from_state(state);
     monitor.connect_changed(move |_m, _f, _other, event| {
         if !matches!(
             event,
@@ -25,48 +73,48 @@ pub fn install(state: &EditorTabState) -> Option<gtk4::gio::FileMonitor> {
         ) {
             return;
         }
-        let path_now = state.path.borrow().clone();
+        let path_now = ctx.path.borrow().clone();
         let current = FileEtag::for_path(&path_now).ok();
-        let saved = state.saved_etag.get();
+        let saved = ctx.saved_etag.get();
         if current == saved {
             return;
         }
-        match (current, state.is_dirty()) {
-            (Some(_), false) => reload_clean(&state),
-            (Some(_), true) => show_banner(&state, false),
-            (None, _) => show_banner_deleted(&state),
+        match (current, ctx.is_dirty()) {
+            (Some(_), false) => reload_clean(&ctx),
+            (Some(_), true) => show_banner(&ctx, false),
+            (None, _) => show_banner_deleted(&ctx),
         }
     });
     Some(monitor)
 }
 
-fn reload_clean(state: &EditorTabState) {
-    let path = state.path.borrow().clone();
+fn reload_clean(ctx: &WatcherCtx) {
+    let path = ctx.path.borrow().clone();
     if let buffer::LoadResult::Text { contents, etag } = buffer::load(&path) {
         let cursor_line;
         let cursor_col;
         {
-            let mark = state.buffer.get_insert();
-            let iter = state.buffer.iter_at_mark(&mark);
+            let mark = ctx.buffer.get_insert();
+            let iter = ctx.buffer.iter_at_mark(&mark);
             cursor_line = iter.line();
             cursor_col = iter.line_offset();
         }
-        let scroll = state.scrolled.vadjustment().value();
+        let scroll = ctx.scrolled.vadjustment().value();
 
-        state.suppress_dirty.set(true);
-        state.buffer.set_text(&contents);
-        state.suppress_dirty.set(false);
-        state.mark_clean(etag);
+        ctx.suppress_dirty.set(true);
+        ctx.buffer.set_text(&contents);
+        ctx.suppress_dirty.set(false);
+        ctx.mark_clean(etag);
 
-        if let Some(iter) = state.buffer.iter_at_line_offset(cursor_line, cursor_col) {
-            state.buffer.place_cursor(&iter);
+        if let Some(iter) = ctx.buffer.iter_at_line_offset(cursor_line, cursor_col) {
+            ctx.buffer.place_cursor(&iter);
         }
-        state.scrolled.vadjustment().set_value(scroll);
+        ctx.scrolled.vadjustment().set_value(scroll);
     }
 }
 
-fn show_banner(state: &EditorTabState, deleted: bool) {
-    let path_display = state.path.borrow().display().to_string();
+fn show_banner(ctx: &WatcherCtx, deleted: bool) {
+    let path_display = ctx.path.borrow().display().to_string();
     let banner = build_banner_widget(
         if deleted {
             strings::BANNER_FILE_DELETED_PREFIX
@@ -75,21 +123,21 @@ fn show_banner(state: &EditorTabState, deleted: bool) {
         },
         &path_display,
         deleted,
-        state.clone(),
+        ctx.clone(),
     );
-    state.banner.set_child(Some(&banner));
-    state.banner.set_reveal_child(true);
+    ctx.banner.set_child(Some(&banner));
+    ctx.banner.set_reveal_child(true);
 }
 
-fn show_banner_deleted(state: &EditorTabState) {
-    show_banner(state, true);
+fn show_banner_deleted(ctx: &WatcherCtx) {
+    show_banner(ctx, true);
 }
 
 fn build_banner_widget(
     prefix: &str,
     path_display: &str,
     deleted: bool,
-    state: EditorTabState,
+    ctx: WatcherCtx,
 ) -> gtk4::Box {
     let bar = gtk4::Box::new(gtk4::Orientation::Horizontal, 8);
     bar.set_margin_top(6);
@@ -107,18 +155,18 @@ fn build_banner_widget(
         strings::BANNER_RELOAD
     };
     let action_btn = gtk4::Button::with_label(action_label);
-    let s = state.clone();
+    let c = ctx.clone();
     action_btn.connect_clicked(move |_| {
         if deleted {
-            let path = s.path.borrow().clone();
-            let _ = buffer::save_atomic(&path, &s.snapshot_text());
+            let path = c.path.borrow().clone();
+            let _ = buffer::save_atomic(&path, &c.snapshot_text());
             if let Ok(etag) = FileEtag::for_path(&path) {
-                s.mark_clean(etag);
+                c.mark_clean(etag);
             }
-            s.banner.set_reveal_child(false);
+            c.banner.set_reveal_child(false);
         } else {
-            reload_clean(&s);
-            s.banner.set_reveal_child(false);
+            reload_clean(&c);
+            c.banner.set_reveal_child(false);
         }
     });
     bar.append(&action_btn);
@@ -128,7 +176,7 @@ fn build_banner_widget(
     } else {
         strings::BANNER_KEEP_MINE
     });
-    let banner_weak = state.banner.downgrade();
+    let banner_weak = ctx.banner.downgrade();
     dismiss.connect_clicked(move |_| {
         if let Some(b) = banner_weak.upgrade() {
             b.set_reveal_child(false);
