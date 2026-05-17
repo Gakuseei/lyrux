@@ -75,6 +75,8 @@ pub enum PaneEmptyReason {
     MovedLastTabOut,
 }
 
+pub const DROP_OPEN_HERE: &str = "Open here";
+
 const HOST_ENTRY_CSS_CLASS: &str = "limux-host-entry";
 const TAB_RENAME_ENTRY_CSS_CLASS: &str = "limux-tab-rename-entry";
 const TAB_RENAME_ENTRY_CSS_CLASSES: [&str; 2] = [HOST_ENTRY_CSS_CLASS, TAB_RENAME_ENTRY_CSS_CLASS];
@@ -425,6 +427,25 @@ pub const PANE_CSS: &str = r#"
 .lyrux-find-invalid {
     border: 1px solid @error_color;
 }
+.lyrux-file-drop-overlay {
+    background: alpha(@accent_bg_color, 0.15);
+    border: 2px dashed alpha(@accent_bg_color, 0.6);
+    border-radius: 8px;
+    margin: 8px;
+}
+.lyrux-file-drop-label {
+    background: @accent_bg_color;
+    color: @accent_fg_color;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-weight: bold;
+}
+.lyrux-tab-strip-file-drop {
+    background: alpha(@accent_bg_color, 0.18);
+    border: 2px dashed alpha(@accent_bg_color, 0.7);
+    border-radius: 6px;
+    margin: 2px;
+}
 "#;
 
 pub fn create_pane(
@@ -488,6 +509,33 @@ pub fn create_pane(
     content_drop_overlay.set_visible(false);
     content_drop_overlay.set_can_target(false);
     content_overlay.add_overlay(&content_drop_overlay);
+
+    let file_drop_overlay = gtk::Box::builder()
+        .orientation(gtk::Orientation::Vertical)
+        .halign(gtk::Align::Fill)
+        .valign(gtk::Align::Fill)
+        .visible(false)
+        .can_target(false)
+        .build();
+    file_drop_overlay.add_css_class("lyrux-file-drop-overlay");
+    let file_drop_label = gtk::Label::new(Some(DROP_OPEN_HERE));
+    file_drop_label.set_halign(gtk::Align::Center);
+    file_drop_label.set_valign(gtk::Align::Center);
+    file_drop_label.set_hexpand(true);
+    file_drop_label.set_vexpand(true);
+    file_drop_label.add_css_class("lyrux-file-drop-label");
+    file_drop_overlay.append(&file_drop_label);
+    content_overlay.add_overlay(&file_drop_overlay);
+
+    let tab_strip_file_drop_overlay = gtk::Box::builder()
+        .orientation(gtk::Orientation::Horizontal)
+        .halign(gtk::Align::Fill)
+        .valign(gtk::Align::Fill)
+        .visible(false)
+        .can_target(false)
+        .build();
+    tab_strip_file_drop_overlay.add_css_class("lyrux-tab-strip-file-drop");
+    tab_overlay.add_overlay(&tab_strip_file_drop_overlay);
 
     let actions = gtk::Box::builder()
         .orientation(gtk::Orientation::Horizontal)
@@ -554,6 +602,8 @@ pub fn create_pane(
         content_stack: content_stack.clone(),
         drop_indicator: drop_indicator.clone(),
         content_drop_overlay: content_drop_overlay.clone(),
+        file_drop_overlay: file_drop_overlay.clone(),
+        tab_strip_file_drop_overlay: tab_strip_file_drop_overlay.clone(),
         pane_outer: outer.clone(),
         callbacks: callbacks.clone(),
         working_directory: ws_wd.clone(),
@@ -628,6 +678,8 @@ pub fn create_pane(
 
     install_tab_strip_drop_target(&tab_overlay, &internals);
     install_content_drop_target(&internals);
+    install_content_file_drop_target(&internals);
+    install_tab_strip_file_drop_target(&tab_overlay, &internals);
 
     register_pane(pane_id, &internals);
     unsafe {
@@ -831,6 +883,8 @@ pub struct PaneInternals {
     content_stack: gtk::Stack,
     drop_indicator: gtk::Box,
     content_drop_overlay: gtk::Box,
+    file_drop_overlay: gtk::Box,
+    tab_strip_file_drop_overlay: gtk::Box,
     pane_outer: gtk::Box,
     callbacks: Rc<PaneCallbacks>,
     working_directory: Rc<std::cell::RefCell<Option<String>>>,
@@ -2793,6 +2847,118 @@ fn install_content_drop_target(internals: &Rc<PaneInternals>) {
     internals.pane_outer.connect_destroy(move |_| {
         remove_tab_drag_listener(listener_id);
     });
+}
+
+fn open_file_paths_in_pane(target: &Rc<PaneInternals>, paths: &[std::path::PathBuf]) -> bool {
+    if paths.is_empty() {
+        return false;
+    }
+    let pane_widget: gtk::Widget = target.pane_outer.clone().upcast();
+    let mut opened_any = false;
+    for path in paths {
+        if path.is_dir() {
+            continue;
+        }
+        open_editor_tab_for_pane(&pane_widget, path);
+        opened_any = true;
+    }
+    opened_any
+}
+
+fn extract_file_paths(value: &glib::Value) -> Vec<std::path::PathBuf> {
+    if let Ok(list) = value.get::<gtk::gdk::FileList>() {
+        return list.files().iter().filter_map(|f| f.path()).collect();
+    }
+    if let Ok(file) = value.get::<gtk4::gio::File>() {
+        if let Some(p) = file.path() {
+            return vec![p];
+        }
+    }
+    Vec::new()
+}
+
+fn install_content_file_drop_target(internals: &Rc<PaneInternals>) {
+    let drop_target = gtk::DropTarget::new(
+        gtk::gdk::FileList::static_type(),
+        gtk::gdk::DragAction::COPY,
+    );
+    drop_target.set_types(&[
+        gtk::gdk::FileList::static_type(),
+        gtk4::gio::File::static_type(),
+    ]);
+    drop_target.set_preload(true);
+    {
+        let overlay = internals.file_drop_overlay.clone();
+        drop_target.connect_enter(move |_, _, _| {
+            overlay.set_visible(true);
+            gtk::gdk::DragAction::COPY
+        });
+    }
+    {
+        let overlay = internals.file_drop_overlay.clone();
+        drop_target.connect_motion(move |_, _, _| {
+            overlay.set_visible(true);
+            gtk::gdk::DragAction::COPY
+        });
+    }
+    {
+        let overlay = internals.file_drop_overlay.clone();
+        drop_target.connect_leave(move |_| {
+            overlay.set_visible(false);
+        });
+    }
+    {
+        let target = internals.clone();
+        let overlay = internals.file_drop_overlay.clone();
+        drop_target.connect_drop(move |_, value, _, _| {
+            overlay.set_visible(false);
+            let paths = extract_file_paths(value);
+            open_file_paths_in_pane(&target, &paths)
+        });
+    }
+    internals.content_stack.add_controller(drop_target);
+}
+
+fn install_tab_strip_file_drop_target(tab_overlay: &gtk::Overlay, internals: &Rc<PaneInternals>) {
+    let drop_target = gtk::DropTarget::new(
+        gtk::gdk::FileList::static_type(),
+        gtk::gdk::DragAction::COPY,
+    );
+    drop_target.set_types(&[
+        gtk::gdk::FileList::static_type(),
+        gtk4::gio::File::static_type(),
+    ]);
+    drop_target.set_preload(true);
+    {
+        let overlay = internals.tab_strip_file_drop_overlay.clone();
+        drop_target.connect_enter(move |_, _, _| {
+            overlay.set_visible(true);
+            gtk::gdk::DragAction::COPY
+        });
+    }
+    {
+        let overlay = internals.tab_strip_file_drop_overlay.clone();
+        drop_target.connect_motion(move |_, _, _| {
+            overlay.set_visible(true);
+            gtk::gdk::DragAction::COPY
+        });
+    }
+    {
+        let overlay = internals.tab_strip_file_drop_overlay.clone();
+        drop_target.connect_leave(move |_| {
+            overlay.set_visible(false);
+        });
+    }
+    {
+        let target = internals.clone();
+        let overlay = internals.tab_strip_file_drop_overlay.clone();
+        drop_target.connect_drop(move |_, value, _, _| {
+            overlay.set_visible(false);
+            let paths = extract_file_paths(value);
+            open_file_paths_in_pane(&target, &paths)
+        });
+    }
+    tab_overlay.add_controller(drop_target);
 }
 
 fn activate_tab(
