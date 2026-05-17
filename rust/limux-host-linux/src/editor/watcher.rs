@@ -17,6 +17,7 @@ struct WatcherCtx {
     scrolled: gtk4::ScrolledWindow,
     dirty: Rc<Cell<bool>>,
     saved_etag: Rc<Cell<Option<FileEtag>>>,
+    saved_text: Rc<RefCell<String>>,
     suppress_dirty: Rc<Cell<bool>>,
     banner: gtk4::Revealer,
     dirty_marker_cb: DirtyMarkerCb,
@@ -30,6 +31,7 @@ impl WatcherCtx {
             scrolled: state.scrolled.clone(),
             dirty: state.dirty.clone(),
             saved_etag: state.saved_etag.clone(),
+            saved_text: state.saved_text.clone(),
             suppress_dirty: state.suppress_dirty.clone(),
             banner: state.banner.clone(),
             dirty_marker_cb: state.dirty_marker_cb.clone(),
@@ -48,6 +50,7 @@ impl WatcherCtx {
     fn mark_clean(&self, etag: FileEtag) {
         self.dirty.set(false);
         self.saved_etag.set(Some(etag));
+        *self.saved_text.borrow_mut() = self.snapshot_text();
         if let Some(cb) = self.dirty_marker_cb.borrow().as_ref() {
             cb(false);
         }

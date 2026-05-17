@@ -88,6 +88,7 @@ pub fn spawn_empty(cfg: &ViewConfig) -> EditorTabState {
         buffer: buffer.clone(),
         dirty: Rc::new(Cell::new(false)),
         saved_etag: Rc::new(Cell::new(None)),
+        saved_text: Rc::new(RefCell::new(String::new())),
         banner,
         root,
         monitor: Rc::new(RefCell::new(None)),
@@ -104,11 +105,22 @@ pub fn spawn_empty(cfg: &ViewConfig) -> EditorTabState {
 
     let dirty = state.dirty.clone();
     let suppress = state.suppress_dirty.clone();
-    buffer.connect_changed(move |_| {
+    let saved_text = state.saved_text.clone();
+    let dirty_marker_cb = state.dirty_marker_cb.clone();
+    buffer.connect_changed(move |buf| {
         if suppress.get() {
             return;
         }
-        dirty.set(true);
+        let (s, e) = buf.bounds();
+        let now = buf.text(&s, &e, false).to_string();
+        let saved = saved_text.borrow();
+        let is_dirty = tab_state::compute_dirty(&now, &saved);
+        if dirty.get() != is_dirty {
+            dirty.set(is_dirty);
+            if let Some(cb) = dirty_marker_cb.borrow().as_ref() {
+                cb(is_dirty);
+            }
+        }
     });
 
     state

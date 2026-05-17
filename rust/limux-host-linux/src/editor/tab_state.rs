@@ -26,6 +26,7 @@ pub struct EditorTabState {
     pub buffer: sourceview5::Buffer,
     pub dirty: Rc<Cell<bool>>,
     pub saved_etag: Rc<Cell<Option<FileEtag>>>,
+    pub saved_text: Rc<RefCell<String>>,
     pub banner: gtk4::Revealer,
     pub root: gtk4::Box,
     pub monitor: Rc<RefCell<Option<gtk4::gio::FileMonitor>>>,
@@ -95,6 +96,7 @@ pub fn build(path: PathBuf, cfg: &ViewConfig) -> BuildOutcome {
         buffer: buffer.clone(),
         dirty: Rc::new(Cell::new(false)),
         saved_etag: Rc::new(Cell::new(Some(etag))),
+        saved_text: Rc::new(RefCell::new(text.clone())),
         banner,
         root,
         monitor: Rc::new(RefCell::new(None)),
@@ -109,16 +111,47 @@ pub fn build(path: PathBuf, cfg: &ViewConfig) -> BuildOutcome {
     };
     view::apply_css(&state.view, cfg, &state.css_provider);
 
-    let dirty = state.dirty.clone();
-    let suppress = state.suppress_dirty.clone();
-    buffer.connect_changed(move |_| {
+    install_dirty_tracker(
+        &buffer,
+        &state.dirty,
+        &state.suppress_dirty,
+        &state.saved_text,
+        &state.dirty_marker_cb,
+    );
+
+    BuildOutcome::Ok(state)
+}
+
+fn install_dirty_tracker(
+    buffer: &sourceview5::Buffer,
+    dirty: &Rc<Cell<bool>>,
+    suppress: &Rc<Cell<bool>>,
+    saved_text: &Rc<RefCell<String>>,
+    dirty_marker_cb: &DirtyMarkerCb,
+) {
+    let dirty = dirty.clone();
+    let suppress = suppress.clone();
+    let saved_text = saved_text.clone();
+    let dirty_marker_cb = dirty_marker_cb.clone();
+    buffer.connect_changed(move |buf| {
         if suppress.get() {
             return;
         }
-        dirty.set(true);
+        let (s, e) = buf.bounds();
+        let now = buf.text(&s, &e, false).to_string();
+        let saved = saved_text.borrow();
+        let is_dirty = compute_dirty(&now, &saved);
+        if dirty.get() != is_dirty {
+            dirty.set(is_dirty);
+            if let Some(cb) = dirty_marker_cb.borrow().as_ref() {
+                cb(is_dirty);
+            }
+        }
     });
+}
 
-    BuildOutcome::Ok(state)
+pub fn compute_dirty(current: &str, saved: &str) -> bool {
+    current != saved
 }
 
 impl EditorTabState {
@@ -130,6 +163,7 @@ impl EditorTabState {
     pub fn mark_clean(&self, etag: FileEtag) {
         self.dirty.set(false);
         self.saved_etag.set(Some(etag));
+        *self.saved_text.borrow_mut() = self.snapshot_text();
         if let Some(cb) = self.dirty_marker_cb.borrow().as_ref() {
             cb(false);
         }
@@ -145,18 +179,80 @@ impl EditorTabState {
 
     pub fn on_dirty_changed<F: Fn(bool) + 'static>(&self, f: F) {
         let cb: Rc<dyn Fn(bool)> = Rc::new(f);
-        *self.dirty_marker_cb.borrow_mut() = Some(cb.clone());
-        let suppress = self.suppress_dirty.clone();
-        self.buffer.connect_changed(move |_| {
-            if suppress.get() {
-                return;
-            }
-            cb(true);
-        });
+        *self.dirty_marker_cb.borrow_mut() = Some(cb);
     }
 
     pub fn on_title_changed<F: Fn(&str) + 'static>(&self, f: F) {
         let cb: Rc<dyn Fn(&str)> = Rc::new(f);
         *self.title_cb.borrow_mut() = Some(cb);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::compute_dirty;
+
+    #[derive(Default)]
+    struct DirtySim {
+        saved: String,
+        current: String,
+        dirty: bool,
+        emissions: Vec<bool>,
+    }
+
+    impl DirtySim {
+        fn new(initial: &str) -> Self {
+            Self {
+                saved: initial.to_string(),
+                current: initial.to_string(),
+                dirty: false,
+                emissions: Vec::new(),
+            }
+        }
+
+        fn edit(&mut self, next: &str) {
+            self.current = next.to_string();
+            let is_dirty = compute_dirty(&self.current, &self.saved);
+            if self.dirty != is_dirty {
+                self.dirty = is_dirty;
+                self.emissions.push(is_dirty);
+            }
+        }
+    }
+
+    #[test]
+    fn compute_dirty_string_equality() {
+        assert!(!compute_dirty("hello", "hello"));
+        assert!(compute_dirty("hello ", "hello"));
+        assert!(compute_dirty("", "x"));
+        assert!(!compute_dirty("", ""));
+    }
+
+    #[test]
+    fn type_then_backspace_reverts_dirty() {
+        let mut sim = DirtySim::new("hello");
+        sim.edit("hello ");
+        assert!(sim.dirty);
+        sim.edit("hello");
+        assert!(!sim.dirty);
+        assert_eq!(sim.emissions, vec![true, false]);
+    }
+
+    #[test]
+    fn repeated_typing_emits_dirty_once() {
+        let mut sim = DirtySim::new("a");
+        sim.edit("ab");
+        sim.edit("abc");
+        sim.edit("abcd");
+        assert_eq!(sim.emissions, vec![true]);
+    }
+
+    #[test]
+    fn empty_buffer_round_trip() {
+        let mut sim = DirtySim::new("");
+        sim.edit("x");
+        sim.edit("");
+        assert!(!sim.dirty);
+        assert_eq!(sim.emissions, vec![true, false]);
     }
 }
