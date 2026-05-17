@@ -6,6 +6,7 @@ use std::rc::Rc;
 use gtk4 as gtk;
 use sourceview5::prelude::*;
 
+use crate::editor::snippets;
 use crate::editor::strings;
 use crate::editor::themes;
 
@@ -57,11 +58,15 @@ pub fn build(buffer: &sourceview5::Buffer, cfg: &ViewConfig) -> sourceview5::Vie
 }
 
 fn install_completion(view: &sourceview5::View, buffer: &sourceview5::Buffer) {
+    let snippet_manager = sourceview5::SnippetManager::default();
+    snippets::register_bundled(&snippet_manager);
     view.set_enable_snippets(true);
     let completion = view.completion();
-    let snippets = sourceview5::CompletionSnippets::new();
-    completion.add_provider(&snippets);
+    let snippet_provider = sourceview5::CompletionSnippets::new();
+    snippet_provider.set_priority(200);
+    completion.add_provider(&snippet_provider);
     let words = sourceview5::CompletionWords::new(Some(strings::COMPLETION_WORDS_TITLE));
+    words.set_priority(100);
     words.register(buffer);
     completion.add_provider(&words);
 }

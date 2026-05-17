@@ -13,6 +13,7 @@ pub mod quick_open;
 pub mod session;
 pub mod settings;
 pub mod settings_panel;
+pub mod snippets;
 pub mod status_bar;
 pub mod sticky_scroll;
 pub mod strings;
