@@ -1,6 +1,13 @@
 use gtk4 as gtk;
 use gtk4::gio;
+use gtk4::glib;
 use gtk4::prelude::*;
+
+pub const SORT_MODE_FOLDERS_FIRST: &str = "folders_first";
+pub const SORT_MODE_NAME_ASC: &str = "name_asc";
+pub const SORT_MODE_NAME_DESC: &str = "name_desc";
+pub const SORT_MODE_MODIFIED_DESC: &str = "modified_desc";
+pub const SORT_MODE_SIZE_DESC: &str = "size_desc";
 
 pub struct ActionSet {
     #[allow(dead_code)]
@@ -29,11 +36,6 @@ where
         "fp-expand-all",
         "fp-toggle-hidden",
         "fp-refresh",
-        "fp-sort-folders-first",
-        "fp-sort-name-asc",
-        "fp-sort-name-desc",
-        "fp-sort-modified-desc",
-        "fp-sort-size-desc",
         "fp-open-in-new-pane",
     ];
     for name in &names {
@@ -43,23 +45,55 @@ where
         action.connect_activate(move |_, _| dispatch(n));
         window.add_action(&action);
     }
+    // Stateful sort-mode action: the menu items' radio markers track the
+    // current state. Default state mirrors `SortMode::default()` so the
+    // marker is correct on first paint without an extra round-trip.
+    let sort_action = gio::SimpleAction::new_stateful(
+        "fp-sort-mode",
+        Some(glib::VariantTy::STRING),
+        &SORT_MODE_FOLDERS_FIRST.to_variant(),
+    );
+    let dispatch_sort = dispatch.clone();
+    sort_action.connect_activate(move |action, param| {
+        let Some(target) = param.and_then(|v| v.str().map(String::from)) else {
+            return;
+        };
+        action.set_state(&target.to_variant());
+        let dispatched_name = sort_action_name_for(&target);
+        if let Some(name) = dispatched_name {
+            dispatch_sort(name);
+        }
+    });
+    window.add_action(&sort_action);
     ActionSet { names }
+}
+
+pub fn sort_action_name_for(target: &str) -> Option<&'static str> {
+    match target {
+        SORT_MODE_FOLDERS_FIRST => Some("fp-sort-folders-first"),
+        SORT_MODE_NAME_ASC => Some("fp-sort-name-asc"),
+        SORT_MODE_NAME_DESC => Some("fp-sort-name-desc"),
+        SORT_MODE_MODIFIED_DESC => Some("fp-sort-modified-desc"),
+        SORT_MODE_SIZE_DESC => Some("fp-sort-size-desc"),
+        _ => None,
+    }
 }
 
 pub fn build_sort_menu() -> gio::Menu {
     use crate::file_panel::strings;
     let menu = gio::Menu::new();
-    menu.append(
-        Some(strings::SORT_FOLDERS_FIRST),
-        Some("win.fp-sort-folders-first"),
-    );
-    menu.append(Some(strings::SORT_NAME_ASC), Some("win.fp-sort-name-asc"));
-    menu.append(Some(strings::SORT_NAME_DESC), Some("win.fp-sort-name-desc"));
-    menu.append(
-        Some(strings::SORT_MODIFIED_DESC),
-        Some("win.fp-sort-modified-desc"),
-    );
-    menu.append(Some(strings::SORT_SIZE_DESC), Some("win.fp-sort-size-desc"));
+    let entries: [(&str, &str); 5] = [
+        (strings::SORT_FOLDERS_FIRST, SORT_MODE_FOLDERS_FIRST),
+        (strings::SORT_NAME_ASC, SORT_MODE_NAME_ASC),
+        (strings::SORT_NAME_DESC, SORT_MODE_NAME_DESC),
+        (strings::SORT_MODIFIED_DESC, SORT_MODE_MODIFIED_DESC),
+        (strings::SORT_SIZE_DESC, SORT_MODE_SIZE_DESC),
+    ];
+    for (label, target) in entries {
+        let item = gio::MenuItem::new(Some(label), None);
+        item.set_action_and_target_value(Some("win.fp-sort-mode"), Some(&target.to_variant()));
+        menu.append_item(&item);
+    }
     menu
 }
 
