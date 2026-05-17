@@ -9,6 +9,7 @@ pub mod clipboard;
 pub mod config;
 pub mod dnd;
 pub mod git;
+pub mod icons;
 pub mod model;
 pub mod ops;
 pub mod row_object;

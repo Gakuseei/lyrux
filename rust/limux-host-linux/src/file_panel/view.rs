@@ -160,7 +160,12 @@ fn bind_row(row_box: &gtk::Box, row_obj: &RowObject) {
         }));
     } else {
         chevron.set_visible(false);
-        icon.set_icon_name(Some("text-x-generic-symbolic"));
+        let ext = row_obj
+            .name()
+            .rsplit_once('.')
+            .map(|(_, e)| e.to_string())
+            .unwrap_or_default();
+        icon.set_icon_name(Some(crate::file_panel::icons::icon_for_extension(&ext)));
     }
 
     label.set_text(&row_obj.name());
