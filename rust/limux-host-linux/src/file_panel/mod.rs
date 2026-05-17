@@ -927,6 +927,7 @@ impl FilePanelHandle {
         placeholder: &str,
         button_label: &str,
         default: &str,
+        anchor: Option<gtk::Widget>,
         on_confirm: Box<dyn Fn(String) + 'static>,
     ) {
         let popover = gtk::Popover::new();
@@ -965,8 +966,9 @@ impl FilePanelHandle {
 
         popover.set_child(Some(&vbox));
 
-        let anchor = self.inner.borrow().header.root.clone();
-        popover.set_parent(&anchor);
+        let anchor_widget =
+            anchor.unwrap_or_else(|| self.inner.borrow().header.root.clone().upcast());
+        popover.set_parent(&anchor_widget);
 
         let confirm_action: Rc<dyn Fn()> = {
             let entry = entry.clone();
@@ -1018,6 +1020,7 @@ impl FilePanelHandle {
             strings::PROMPT_PLACEHOLDER_FILE,
             strings::DIALOG_BTN_CREATE,
             "untitled.txt",
+            None,
             Box::new(move |name| {
                 let _ = crate::file_panel::ops::new_file(&root, &parent, &name);
                 handle.refresh_active_subtree(&parent);
@@ -1037,6 +1040,7 @@ impl FilePanelHandle {
             strings::PROMPT_PLACEHOLDER_FOLDER,
             strings::DIALOG_BTN_CREATE,
             "untitled",
+            None,
             Box::new(move |name| {
                 let _ = crate::file_panel::ops::new_folder(&root, &parent, &name);
                 handle.refresh_active_subtree(&parent);
@@ -1063,17 +1067,42 @@ impl FilePanelHandle {
             .parent()
             .map(|p| p.to_path_buf())
             .unwrap_or_else(|| root.clone());
+        let row_anchor = self.find_row_widget_for(&current_path);
         let handle = self.clone();
         self.show_name_prompt(
             strings::PROMPT_RENAME_TITLE,
             strings::PROMPT_PLACEHOLDER_FILE,
             strings::DIALOG_BTN_RENAME,
             &current_name,
+            row_anchor,
             Box::new(move |new_name| {
                 let _ = crate::file_panel::ops::rename(&root, &current_path, &new_name);
                 handle.refresh_active_subtree(&parent);
             }),
         );
+    }
+
+    fn find_row_widget_for(&self, path: &Path) -> Option<gtk::Widget> {
+        let list_view = self.inner.borrow().view.list_view.clone();
+        let mut item = list_view.first_child();
+        while let Some(w) = item {
+            let next = w.next_sibling();
+            if let Some(row_box) = w.first_child().and_then(|c| c.downcast::<gtk::Box>().ok()) {
+                let matches = unsafe {
+                    row_box
+                        .data::<Rc<RefCell<Option<RowObject>>>>("limux-fp-drag-row")
+                        .map(|ptr| ptr.as_ref().clone())
+                        .and_then(|cell| cell.borrow().clone())
+                        .map(|r| r.path() == path)
+                        .unwrap_or(false)
+                };
+                if matches {
+                    return Some(row_box.upcast());
+                }
+            }
+            item = next;
+        }
+        None
     }
 
     fn refresh_active_subtree(&self, parent: &Path) {
