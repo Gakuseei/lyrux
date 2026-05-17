@@ -101,6 +101,7 @@ pub fn spawn_empty(cfg: &ViewConfig) -> EditorTabState {
         dirty: Rc::new(Cell::new(false)),
         saved_etag: Rc::new(Cell::new(None)),
         saved_text: Rc::new(RefCell::new(String::new())),
+        saved_char_count: Rc::new(Cell::new(0)),
         banner,
         root,
         monitor: Rc::new(RefCell::new(None)),
@@ -118,25 +119,14 @@ pub fn spawn_empty(cfg: &ViewConfig) -> EditorTabState {
     };
     view::apply_css(&state.view, cfg, &state.css_provider);
 
-    let dirty = state.dirty.clone();
-    let suppress = state.suppress_dirty.clone();
-    let saved_text = state.saved_text.clone();
-    let dirty_marker_cb = state.dirty_marker_cb.clone();
-    buffer.connect_changed(move |buf| {
-        if suppress.get() {
-            return;
-        }
-        let (s, e) = buf.bounds();
-        let now = buf.text(&s, &e, false).to_string();
-        let saved = saved_text.borrow();
-        let is_dirty = tab_state::compute_dirty(&now, &saved);
-        if dirty.get() != is_dirty {
-            dirty.set(is_dirty);
-            if let Some(cb) = dirty_marker_cb.borrow().as_ref() {
-                cb(is_dirty);
-            }
-        }
-    });
+    tab_state::install_dirty_tracker(
+        &buffer,
+        &state.dirty,
+        &state.suppress_dirty,
+        &state.saved_text,
+        &state.saved_char_count,
+        &state.dirty_marker_cb,
+    );
 
     state
 }

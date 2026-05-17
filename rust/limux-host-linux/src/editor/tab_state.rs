@@ -27,6 +27,7 @@ pub struct EditorTabState {
     pub dirty: Rc<Cell<bool>>,
     pub saved_etag: Rc<Cell<Option<FileEtag>>>,
     pub saved_text: Rc<RefCell<String>>,
+    pub saved_char_count: Rc<Cell<i32>>,
     pub banner: gtk4::Revealer,
     pub root: gtk4::Box,
     pub monitor: Rc<RefCell<Option<gtk4::gio::FileMonitor>>>,
@@ -43,6 +44,7 @@ pub struct EditorTabState {
     pub close_action: ActionCb,
 }
 
+#[allow(clippy::large_enum_variant)]
 pub enum BuildOutcome {
     Ok(EditorTabState),
     TooLarge(#[allow(dead_code)] u64),
@@ -109,6 +111,7 @@ pub fn build(path: PathBuf, cfg: &ViewConfig) -> BuildOutcome {
         dirty: Rc::new(Cell::new(false)),
         saved_etag: Rc::new(Cell::new(Some(etag))),
         saved_text: Rc::new(RefCell::new(text.clone())),
+        saved_char_count: Rc::new(Cell::new(buffer.char_count())),
         banner,
         root,
         monitor: Rc::new(RefCell::new(None)),
@@ -131,31 +134,40 @@ pub fn build(path: PathBuf, cfg: &ViewConfig) -> BuildOutcome {
         &state.dirty,
         &state.suppress_dirty,
         &state.saved_text,
+        &state.saved_char_count,
         &state.dirty_marker_cb,
     );
 
     BuildOutcome::Ok(state)
 }
 
-fn install_dirty_tracker(
+pub fn install_dirty_tracker(
     buffer: &sourceview5::Buffer,
     dirty: &Rc<Cell<bool>>,
     suppress: &Rc<Cell<bool>>,
     saved_text: &Rc<RefCell<String>>,
+    saved_char_count: &Rc<Cell<i32>>,
     dirty_marker_cb: &DirtyMarkerCb,
 ) {
     let dirty = dirty.clone();
     let suppress = suppress.clone();
     let saved_text = saved_text.clone();
+    let saved_char_count = saved_char_count.clone();
     let dirty_marker_cb = dirty_marker_cb.clone();
     buffer.connect_changed(move |buf| {
         if suppress.get() {
             return;
         }
-        let (s, e) = buf.bounds();
-        let now = buf.text(&s, &e, false).to_string();
-        let saved = saved_text.borrow();
-        let is_dirty = compute_dirty(&now, &saved);
+        let cur_count = buf.char_count();
+        let saved_count = saved_char_count.get();
+        let is_dirty = if cur_count != saved_count {
+            true
+        } else {
+            let (s, e) = buf.bounds();
+            let now = buf.text(&s, &e, false).to_string();
+            let saved = saved_text.borrow();
+            compute_dirty(&now, &saved)
+        };
         if dirty.get() != is_dirty {
             dirty.set(is_dirty);
             if let Some(cb) = dirty_marker_cb.borrow().as_ref() {
@@ -187,6 +199,7 @@ impl EditorTabState {
         self.dirty.set(false);
         self.saved_etag.set(Some(etag));
         *self.saved_text.borrow_mut() = self.snapshot_text();
+        self.saved_char_count.set(self.buffer.char_count());
         if let Some(cb) = self.dirty_marker_cb.borrow().as_ref() {
             cb(false);
         }

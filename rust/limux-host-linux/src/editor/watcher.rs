@@ -18,6 +18,7 @@ struct WatcherCtx {
     dirty: Rc<Cell<bool>>,
     saved_etag: Rc<Cell<Option<FileEtag>>>,
     saved_text: Rc<RefCell<String>>,
+    saved_char_count: Rc<Cell<i32>>,
     suppress_dirty: Rc<Cell<bool>>,
     banner: gtk4::Revealer,
     dirty_marker_cb: DirtyMarkerCb,
@@ -33,6 +34,7 @@ impl WatcherCtx {
             dirty: state.dirty.clone(),
             saved_etag: state.saved_etag.clone(),
             saved_text: state.saved_text.clone(),
+            saved_char_count: state.saved_char_count.clone(),
             suppress_dirty: state.suppress_dirty.clone(),
             banner: state.banner.clone(),
             dirty_marker_cb: state.dirty_marker_cb.clone(),
@@ -53,6 +55,7 @@ impl WatcherCtx {
         self.dirty.set(false);
         self.saved_etag.set(Some(etag));
         *self.saved_text.borrow_mut() = self.snapshot_text();
+        self.saved_char_count.set(self.buffer.char_count());
         if let Some(cb) = self.dirty_marker_cb.borrow().as_ref() {
             cb(false);
         }
