@@ -48,17 +48,42 @@ pub fn install(
     label.set_halign(gtk::Align::Fill);
     label.set_valign(gtk::Align::Start);
     label.set_hexpand(true);
-    label.set_can_target(false);
+    label.set_can_target(true);
     label.set_can_focus(false);
     label.set_visible(false);
     label.set_single_line_mode(true);
     label.set_ellipsize(gtk::pango::EllipsizeMode::End);
+    label.set_cursor_from_name(Some("pointer"));
     label.add_css_class("lyrux-sticky-header");
 
     overlay.add_overlay(&label);
 
     let enabled_rc = Rc::new(Cell::new(enabled));
     let last_header = Rc::new(Cell::new(-1i32));
+
+    let click = gtk::GestureClick::new();
+    click.set_button(gtk::gdk::BUTTON_PRIMARY);
+    let view_for_click = view.downgrade();
+    let buffer_for_click = buffer.downgrade();
+    let last_for_click = last_header.clone();
+    click.connect_released(move |gesture, _n_press, _x, _y| {
+        let line = last_for_click.get();
+        if line < 0 {
+            return;
+        }
+        let (Some(view), Some(buffer)) = (view_for_click.upgrade(), buffer_for_click.upgrade())
+        else {
+            return;
+        };
+        let Some(mut iter) = buffer.iter_at_line(line) else {
+            return;
+        };
+        view.scroll_to_iter(&mut iter, 0.1, true, 0.0, 0.1);
+        buffer.place_cursor(&iter);
+        view.grab_focus();
+        gesture.set_state(gtk::EventSequenceState::Claimed);
+    });
+    label.add_controller(click);
 
     let label_for_cb = label.clone();
     let view_weak = view.downgrade();

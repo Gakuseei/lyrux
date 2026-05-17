@@ -112,7 +112,7 @@ pub fn apply_to_view(view: &sourceview5::View, cfg: &ViewConfig) {
 
 pub fn apply_css(view: &sourceview5::View, cfg: &ViewConfig) {
     let css = format!(
-        ".lyrux-editor-buffer, .lyrux-editor-buffer text {{ font-family: \"{0}\", \"Lilex\", \"JetBrains Mono\", \"JetBrainsMono Nerd Font\", \"Cascadia Mono\", \"Fira Code\", \"Iosevka\", \"DejaVu Sans Mono\", monospace; font-size: {1}pt; padding: 6px 12px; line-height: 1.3; letter-spacing: 0; }} .lyrux-sticky-header {{ font-family: \"{0}\", \"Lilex\", \"JetBrains Mono\", monospace; font-size: {1}pt; padding: 2px 12px; background: alpha(@theme_bg_color, 0.92); color: @theme_fg_color; border-bottom: 1px solid alpha(@theme_fg_color, 0.18); font-weight: 600; }}",
+        ".lyrux-editor-buffer, .lyrux-editor-buffer text {{ font-family: \"{0}\", \"Lilex\", \"JetBrains Mono\", \"JetBrainsMono Nerd Font\", \"Cascadia Mono\", \"Fira Code\", \"Iosevka\", \"DejaVu Sans Mono\", monospace; font-size: {1}pt; padding: 6px 12px; line-height: 1.3; letter-spacing: 0; }} .lyrux-sticky-header {{ font-family: \"{0}\", \"Lilex\", \"JetBrains Mono\", monospace; font-size: {1}pt; padding: 2px 12px; background: alpha(@theme_bg_color, 0.92); color: @theme_fg_color; border-bottom: 1px solid alpha(@theme_fg_color, 0.18); font-weight: 600; cursor: pointer; transition: background 120ms ease; }} .lyrux-sticky-header:hover {{ background: alpha(@theme_bg_color, 0.98); color: @theme_fg_color; }}",
         cfg.font_family.replace('"', ""),
         cfg.font_size
     );
