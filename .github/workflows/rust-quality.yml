@@ -23,10 +23,11 @@ jobs:
           tar -xf /tmp/zig.tar.xz -C /tmp
           echo "/tmp/zig-x86_64-linux-${ZIG_VERSION}" >> "$GITHUB_PATH"
 
-      - name: Install stable Rust with required components
+      - name: Install pinned Rust with required components
         run: |
-          rustup toolchain install stable --profile minimal --component rustfmt --component clippy
-          rustup default stable
+          RUST_VERSION=1.94.1
+          rustup toolchain install "${RUST_VERSION}" --profile minimal --component rustfmt --component clippy
+          rustup default "${RUST_VERSION}"
 
       - name: Install system dependencies
         run: |
