@@ -120,6 +120,11 @@ const COMMANDS: &[CommandEntry] = &[
         accel: Some("Ctrl+S"),
     },
     CommandEntry {
+        label: strings::CMD_EDITOR_SAVE_ALL,
+        action_name: "win.editor-save-all",
+        accel: Some("Ctrl+Alt+S"),
+    },
+    CommandEntry {
         label: strings::CMD_EDITOR_FIND,
         action_name: "win.editor-find",
         accel: Some("Ctrl+F"),

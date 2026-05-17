@@ -68,6 +68,7 @@ pub enum ShortcutId {
     PaneTogglePinTab,
     EditorReopenClosedTab,
     WindowToggleTerminal,
+    EditorSaveAll,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -126,6 +127,7 @@ pub enum ShortcutCommand {
     PaneTogglePinTab,
     EditorReopenClosedTab,
     WindowToggleTerminal,
+    EditorSaveAll,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -324,7 +326,7 @@ struct ShortcutConfigFile {
     shortcuts: HashMap<String, serde_json::Value>,
 }
 
-const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 55] = [
+const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 56] = [
     ShortcutDefinition {
         id: ShortcutId::NewWorkspace,
         config_key: "new_workspace",
@@ -929,6 +931,17 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 55] = [
         command: ShortcutCommand::WindowToggleTerminal,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+    },
+    ShortcutDefinition {
+        id: ShortcutId::EditorSaveAll,
+        config_key: "editor_save_all",
+        action_name: "win.editor-save-all",
+        default_accel: "<Ctrl><Alt>s",
+        label: "Save all editor tabs",
+        registers_gtk_accel: false,
+        command: ShortcutCommand::EditorSaveAll,
+        scope: ShortcutScope::Window,
+        editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
     },
 ];
 
@@ -1698,7 +1711,7 @@ mod tests {
 
     #[test]
     fn definitions_cover_current_host_shortcuts() {
-        assert_eq!(definitions().len(), 55);
+        assert_eq!(definitions().len(), 56);
     }
 
     #[test]

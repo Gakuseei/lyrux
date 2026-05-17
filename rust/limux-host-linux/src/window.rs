@@ -1696,6 +1696,10 @@ fn dispatch_shortcut_command(state: &State, command: ShortcutCommand) -> bool {
             }
             true
         }
+        ShortcutCommand::EditorSaveAll => {
+            save_all_editor_tabs();
+            true
+        }
         ShortcutCommand::EditorFindInFiles => {
             if let Some((_ws_id, pane_widget)) = find_focused_pane(state) {
                 let root = quick_open_root_for(state, &pane_widget);
@@ -4355,6 +4359,24 @@ fn close_focused_tab(state: &State) {
             }
         }
         remove_pane(state, &ws_id, &pane_widget);
+    }
+}
+
+fn save_all_editor_tabs() {
+    let mut actions: Vec<Rc<dyn Fn()>> = Vec::new();
+    pane::for_each_editor_tab(|state| {
+        if !state.is_dirty() {
+            return;
+        }
+        if state.path.borrow().as_os_str().is_empty() {
+            return;
+        }
+        if let Some(action) = state.save_action.borrow().clone() {
+            actions.push(action);
+        }
+    });
+    for action in actions {
+        action();
     }
 }
 
