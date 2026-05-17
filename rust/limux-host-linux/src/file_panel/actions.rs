@@ -29,6 +29,11 @@ where
         "fp-expand-all",
         "fp-toggle-hidden",
         "fp-refresh",
+        "fp-sort-folders-first",
+        "fp-sort-name-asc",
+        "fp-sort-name-desc",
+        "fp-sort-modified-desc",
+        "fp-sort-size-desc",
     ];
     for name in &names {
         let action = gio::SimpleAction::new(name, None);
@@ -38,6 +43,23 @@ where
         window.add_action(&action);
     }
     ActionSet { names }
+}
+
+pub fn build_sort_menu() -> gio::Menu {
+    use crate::file_panel::strings;
+    let menu = gio::Menu::new();
+    menu.append(
+        Some(strings::SORT_FOLDERS_FIRST),
+        Some("win.fp-sort-folders-first"),
+    );
+    menu.append(Some(strings::SORT_NAME_ASC), Some("win.fp-sort-name-asc"));
+    menu.append(Some(strings::SORT_NAME_DESC), Some("win.fp-sort-name-desc"));
+    menu.append(
+        Some(strings::SORT_MODIFIED_DESC),
+        Some("win.fp-sort-modified-desc"),
+    );
+    menu.append(Some(strings::SORT_SIZE_DESC), Some("win.fp-sort-size-desc"));
+    menu
 }
 
 pub fn build_context_menu() -> gio::Menu {

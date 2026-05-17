@@ -1,3 +1,10 @@
+pub const SORT_MENU_TOOLTIP: &str = "Sort by";
+pub const SORT_NAME_ASC: &str = "Name (A-Z)";
+pub const SORT_NAME_DESC: &str = "Name (Z-A)";
+pub const SORT_MODIFIED_DESC: &str = "Modified (newest)";
+pub const SORT_SIZE_DESC: &str = "Size (largest)";
+pub const SORT_FOLDERS_FIRST: &str = "Folders first, name";
+
 pub const PROMPT_NEW_FILE_TITLE: &str = "New File";
 pub const PROMPT_NEW_FOLDER_TITLE: &str = "New Folder";
 pub const PROMPT_RENAME_TITLE: &str = "Rename";

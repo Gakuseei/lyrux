@@ -17,6 +17,7 @@ pub struct HeaderHandle {
     pub title: gtk::Label,
     pub new_file: gtk::Button,
     pub new_folder: gtk::Button,
+    pub sort_menu: gtk::MenuButton,
     pub collapse_all: gtk::Button,
     pub toggle_hidden: gtk::Button,
 }
@@ -36,12 +37,18 @@ pub fn build_header() -> HeaderHandle {
 
     let new_file = make_icon_button("document-new-symbolic", "New file");
     let new_folder = make_icon_button("folder-new-symbolic", "New folder");
+    let sort_menu = gtk::MenuButton::new();
+    sort_menu.set_icon_name("view-sort-descending-symbolic");
+    sort_menu.set_tooltip_text(Some(crate::file_panel::strings::SORT_MENU_TOOLTIP));
+    sort_menu.add_css_class("flat");
+    sort_menu.add_css_class("limux-fp-icon");
     let collapse_all = make_icon_button("view-restore-symbolic", "Collapse all");
     let toggle_hidden = make_icon_button("view-conceal-symbolic", "Toggle hidden");
 
     root.append(&title);
     root.append(&new_file);
     root.append(&new_folder);
+    root.append(&sort_menu);
     root.append(&collapse_all);
     root.append(&toggle_hidden);
 
@@ -50,6 +57,7 @@ pub fn build_header() -> HeaderHandle {
         title,
         new_file,
         new_folder,
+        sort_menu,
         collapse_all,
         toggle_hidden,
     }

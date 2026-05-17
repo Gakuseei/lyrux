@@ -769,6 +769,8 @@ impl FilePanelHandle {
             .header
             .toggle_hidden
             .set_action_name(Some("win.fp-toggle-hidden"));
+        let sort_menu = crate::file_panel::actions::build_sort_menu();
+        inner.header.sort_menu.set_menu_model(Some(&sort_menu));
     }
 
     fn wire_actions(&self, window: &gtk::ApplicationWindow) {
@@ -796,7 +798,41 @@ impl FilePanelHandle {
             "fp-expand-all" => self.do_expand_all(),
             "fp-toggle-hidden" => self.do_toggle_hidden(),
             "fp-refresh" => self.do_refresh(),
+            "fp-sort-folders-first" => {
+                self.set_sort_mode(crate::file_panel::model::SortMode::FoldersFirstNameAsc)
+            }
+            "fp-sort-name-asc" => self.set_sort_mode(crate::file_panel::model::SortMode::NameAsc),
+            "fp-sort-name-desc" => self.set_sort_mode(crate::file_panel::model::SortMode::NameDesc),
+            "fp-sort-modified-desc" => {
+                self.set_sort_mode(crate::file_panel::model::SortMode::ModifiedDesc)
+            }
+            "fp-sort-size-desc" => self.set_sort_mode(crate::file_panel::model::SortMode::SizeDesc),
             _ => {}
+        }
+    }
+
+    fn set_sort_mode(&self, mode: crate::file_panel::model::SortMode) {
+        let active = match self.inner.borrow().active.clone() {
+            Some(a) => a,
+            None => return,
+        };
+        let mut inner = self.inner.borrow_mut();
+        let store = inner.view.store.clone();
+        if let Some(per) = inner.cache.get_mut(&active) {
+            per.model.set_sort_mode(mode);
+            per.model.rebuild_visible();
+            let expanded: Vec<PathBuf> =
+                per.model.expanded_paths.iter().cloned().collect::<Vec<_>>();
+            let mut sorted = expanded;
+            sorted.sort_by_key(|p| p.components().count());
+            for path in sorted {
+                if let Some(idx) = per.model.find_row(&path) {
+                    if !per.model.rows[idx].expanded {
+                        per.model.toggle_expand(idx);
+                    }
+                }
+            }
+            apply_model_to_store(&per.model, &store);
         }
     }
 

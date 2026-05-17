@@ -57,6 +57,16 @@ pub struct Row {
     pub ignored: bool,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum SortMode {
+    #[default]
+    FoldersFirstNameAsc,
+    NameAsc,
+    NameDesc,
+    ModifiedDesc,
+    SizeDesc,
+}
+
 #[derive(Clone, Debug)]
 pub struct TreeModel {
     pub root: PathBuf,
@@ -66,6 +76,7 @@ pub struct TreeModel {
     pub git_status_map: BTreeMap<PathBuf, GitStatus>,
     pub gitignore: Option<Rc<ignore::gitignore::Gitignore>>,
     pub ignored_cache: HashSet<PathBuf>,
+    pub sort_mode: SortMode,
 }
 
 #[derive(Clone, Debug)]
@@ -87,11 +98,16 @@ impl TreeModel {
             git_status_map: BTreeMap::new(),
             gitignore: None,
             ignored_cache: HashSet::new(),
+            sort_mode: SortMode::default(),
         }
     }
 
     pub fn set_hidden_visible(&mut self, v: bool) {
         self.hidden_visible = v;
+    }
+
+    pub fn set_sort_mode(&mut self, mode: SortMode) {
+        self.sort_mode = mode;
     }
 
     pub fn set_gitignore(&mut self, gi: Rc<ignore::gitignore::Gitignore>) {
@@ -421,33 +437,42 @@ impl TreeModel {
     fn reindex_parents_after(&mut self, _from: usize) {}
 
     fn list_children(&self, dir: &Path, depth: u32, parent_idx: Option<usize>) -> Vec<Row> {
-        let mut entries: Vec<(std::path::PathBuf, Kind, String)> = match std::fs::read_dir(dir) {
-            Ok(rd) => rd
-                .filter_map(|e| e.ok())
-                .filter_map(|e| {
-                    let path = e.path();
-                    let name = e.file_name().to_string_lossy().to_string();
-                    if !self.hidden_visible && name.starts_with('.') {
-                        return None;
-                    }
-                    let kind = classify(&path);
-                    Some((path, kind, name))
-                })
-                .collect(),
-            Err(_) => Vec::new(),
-        };
+        let mut entries: Vec<(std::path::PathBuf, Kind, String, u64, i64)> =
+            match std::fs::read_dir(dir) {
+                Ok(rd) => rd
+                    .filter_map(|e| e.ok())
+                    .filter_map(|e| {
+                        let path = e.path();
+                        let name = e.file_name().to_string_lossy().to_string();
+                        if !self.hidden_visible && name.starts_with('.') {
+                            return None;
+                        }
+                        let kind = classify(&path);
+                        let (size, mtime) = metadata_size_mtime(&path);
+                        Some((path, kind, name, size, mtime))
+                    })
+                    .collect(),
+                Err(_) => Vec::new(),
+            };
+        let mode = self.sort_mode;
         entries.sort_by(|a, b| {
             let a_dir = matches!(a.1, Kind::Dir);
             let b_dir = matches!(b.1, Kind::Dir);
-            match (a_dir, b_dir) {
-                (true, false) => std::cmp::Ordering::Less,
-                (false, true) => std::cmp::Ordering::Greater,
-                _ => a.2.to_lowercase().cmp(&b.2.to_lowercase()),
+            match mode {
+                SortMode::FoldersFirstNameAsc => match (a_dir, b_dir) {
+                    (true, false) => std::cmp::Ordering::Less,
+                    (false, true) => std::cmp::Ordering::Greater,
+                    _ => a.2.to_lowercase().cmp(&b.2.to_lowercase()),
+                },
+                SortMode::NameAsc => a.2.to_lowercase().cmp(&b.2.to_lowercase()),
+                SortMode::NameDesc => b.2.to_lowercase().cmp(&a.2.to_lowercase()),
+                SortMode::ModifiedDesc => b.4.cmp(&a.4),
+                SortMode::SizeDesc => b.3.cmp(&a.3),
             }
         });
         entries
             .into_iter()
-            .map(|(path, kind, _)| {
+            .map(|(path, kind, _, _, _)| {
                 let expanded = self.expanded_paths.contains(&path);
                 let is_dir = matches!(kind, Kind::Dir);
                 let git_status = if is_dir {
@@ -489,6 +514,21 @@ pub fn is_within_root(path: &Path, root: &Path) -> bool {
         }
     };
     canon.starts_with(root)
+}
+
+fn metadata_size_mtime(path: &Path) -> (u64, i64) {
+    let md = match std::fs::symlink_metadata(path) {
+        Ok(m) => m,
+        Err(_) => return (0, 0),
+    };
+    let size = md.len();
+    let mtime = md
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    (size, mtime)
 }
 
 fn classify(path: &Path) -> Kind {
