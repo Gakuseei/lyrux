@@ -38,6 +38,7 @@ pub struct EditorTabState {
     pub highlight: HighlightController,
     pub sticky: StickyController,
     pub save_action: ActionCb,
+    pub close_action: ActionCb,
 }
 
 pub enum BuildOutcome {
@@ -108,6 +109,7 @@ pub fn build(path: PathBuf, cfg: &ViewConfig) -> BuildOutcome {
         highlight: highlight_ctrl,
         sticky,
         save_action: Rc::new(RefCell::new(None)),
+        close_action: Rc::new(RefCell::new(None)),
     };
     view::apply_css(&state.view, cfg, &state.css_provider);
 

@@ -8,7 +8,7 @@ use gtk4::prelude::*;
 
 use crate::editor::buffer::{self, FileEtag};
 use crate::editor::strings;
-use crate::editor::tab_state::{DirtyMarkerCb, EditorTabState};
+use crate::editor::tab_state::{ActionCb, DirtyMarkerCb, EditorTabState};
 
 #[derive(Clone)]
 struct WatcherCtx {
@@ -21,6 +21,7 @@ struct WatcherCtx {
     suppress_dirty: Rc<Cell<bool>>,
     banner: gtk4::Revealer,
     dirty_marker_cb: DirtyMarkerCb,
+    close_action: ActionCb,
 }
 
 impl WatcherCtx {
@@ -35,6 +36,7 @@ impl WatcherCtx {
             suppress_dirty: state.suppress_dirty.clone(),
             banner: state.banner.clone(),
             dirty_marker_cb: state.dirty_marker_cb.clone(),
+            close_action: state.close_action.clone(),
         }
     }
 
@@ -180,9 +182,15 @@ fn build_banner_widget(
         strings::BANNER_KEEP_MINE
     });
     let banner_weak = ctx.banner.downgrade();
+    let close_action = ctx.close_action.clone();
     dismiss.connect_clicked(move |_| {
         if let Some(b) = banner_weak.upgrade() {
             b.set_reveal_child(false);
+        }
+        if deleted {
+            if let Some(cb) = close_action.borrow().as_ref() {
+                cb();
+            }
         }
     });
     bar.append(&dismiss);

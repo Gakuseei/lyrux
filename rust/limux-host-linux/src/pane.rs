@@ -3006,6 +3006,7 @@ fn install_editor_tab_hooks(
             PaneEmptyReason::ClosedLastTab,
         );
     });
+    *state.close_action.borrow_mut() = Some(on_close_request.clone());
 
     let callbacks_for_transform = internals.callbacks.clone();
     let path_for_transform = state.path.clone();
