@@ -1137,6 +1137,11 @@ pub fn build_window(app: &adw::Application) {
                 system_prefers_dark.get(),
                 &state.borrow().config.borrow().appearance,
             );
+            let editor_settings = state.borrow().config.borrow().editor.clone();
+            crate::settings_editor::reapply_editor_settings_for_system_pref(
+                &editor_settings,
+                system_prefers_dark.get(),
+            );
         });
     }
 
@@ -3093,6 +3098,15 @@ pub fn apply_file_panel_columns(show_size: bool, show_mtime: bool) {
             panel.set_columns_visible(show_size, show_mtime);
         }
     });
+}
+
+pub fn current_system_prefers_dark() -> Option<bool> {
+    CONTROL_STATE.with(|slot| {
+        slot.borrow()
+            .as_ref()
+            .map(|state| state.borrow().system_prefers_dark.get())
+            .unwrap_or(None)
+    })
 }
 
 fn dispatch_control_command(command: ControlCommand) {

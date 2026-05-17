@@ -387,15 +387,23 @@ fn broadcast_editor_settings(settings: &EditorSettings) {
             Duration::from_millis(EDITOR_BROADCAST_DEBOUNCE_MS),
             move || {
                 EDITOR_BROADCAST_DEBOUNCE.with(|slot| slot.borrow_mut().take());
-                apply_editor_settings_now(&pending);
+                let system_prefers_dark = crate::window::current_system_prefers_dark();
+                apply_editor_settings_now(&pending, system_prefers_dark);
             },
         );
         *slot.borrow_mut() = Some(source_id);
     });
 }
 
-fn apply_editor_settings_now(settings: &EditorSettings) {
-    let view_cfg = settings.to_view_config();
+pub fn reapply_editor_settings_for_system_pref(
+    settings: &EditorSettings,
+    system_prefers_dark: Option<bool>,
+) {
+    apply_editor_settings_now(settings, system_prefers_dark);
+}
+
+fn apply_editor_settings_now(settings: &EditorSettings, system_prefers_dark: Option<bool>) {
+    let view_cfg = settings.to_view_config_with_system_pref(system_prefers_dark);
     pane::for_each_editor_tab(|state| {
         editor_view::apply_to_view(&state.view, &view_cfg);
         editor_view::apply_to_buffer(&state.buffer, &view_cfg);

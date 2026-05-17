@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use gtk4::prelude::*;
 
-use crate::editor::settings::EditorSettings;
+use crate::editor::settings::{EditorSettings, ThemeMode};
 use crate::editor::{strings, themes};
 
 pub struct SettingsCallbacks {
@@ -22,7 +22,7 @@ pub fn build(current: &EditorSettings, cb: SettingsCallbacks) -> gtk4::Widget {
     root.append(&title);
 
     root.append(&section_header(strings::SETTINGS_SECTION_DISPLAY, false));
-    root.append(&theme_row(current, cb.on_change.clone()));
+    root.append(&theme_section(current, cb.on_change.clone()));
     root.append(&font_row(current, cb.on_change.clone()));
     root.append(&bool_row(
         strings::SETTING_LINE_NUMBERS,
@@ -239,29 +239,151 @@ fn section_header(label: &str, top_margin: bool) -> gtk4::Label {
     header
 }
 
-fn theme_row(current: &EditorSettings, on_change: Rc<dyn Fn(&EditorSettings)>) -> gtk4::Box {
-    let row = labeled_row(strings::SETTING_THEME);
+fn theme_section(current: &EditorSettings, on_change: Rc<dyn Fn(&EditorSettings)>) -> gtk4::Box {
+    let container = gtk4::Box::new(gtk4::Orientation::Vertical, 6);
+
     let entries = themes::available_dynamic();
     let label_refs: Vec<&str> = entries.iter().map(|(_, l)| l.as_str()).collect();
-    let dropdown = gtk4::DropDown::from_strings(&label_refs);
-    let pos = entries
+
+    let mode_row = labeled_row(strings::SETTING_THEME_MODE);
+    let mode_box = gtk4::Box::new(gtk4::Orientation::Horizontal, 0);
+    mode_box.add_css_class("linked");
+    mode_box.set_valign(gtk4::Align::Center);
+    let btn_system = gtk4::ToggleButton::builder()
+        .label(strings::THEME_MODE_SYSTEM)
+        .active(matches!(current.theme_mode, ThemeMode::System))
+        .build();
+    let btn_manual = gtk4::ToggleButton::builder()
+        .label(strings::THEME_MODE_MANUAL)
+        .active(matches!(current.theme_mode, ThemeMode::Manual))
+        .group(&btn_system)
+        .build();
+    mode_box.append(&btn_system);
+    mode_box.append(&btn_manual);
+    mode_row.append(&mode_box);
+    container.append(&mode_row);
+
+    let manual_row = labeled_row(strings::SETTING_THEME);
+    let manual_dropdown = gtk4::DropDown::from_strings(&label_refs);
+    let manual_pos = entries
         .iter()
         .position(|(id, _)| id == &current.theme_id)
         .unwrap_or(0) as u32;
-    dropdown.set_selected(pos);
-    dropdown.set_valign(gtk4::Align::Center);
-    let snapshot = current.clone();
-    let entries_for_cb = entries.clone();
-    dropdown.connect_selected_notify(move |dd| {
-        let idx = dd.selected() as usize;
-        if let Some((id, _)) = entries_for_cb.get(idx) {
+    manual_dropdown.set_selected(manual_pos);
+    manual_dropdown.set_valign(gtk4::Align::Center);
+    manual_row.append(&manual_dropdown);
+    container.append(&manual_row);
+
+    let dark_row = labeled_row(strings::SETTING_THEME_DARK);
+    let dark_dropdown = gtk4::DropDown::from_strings(&label_refs);
+    let dark_pos = entries
+        .iter()
+        .position(|(id, _)| id == &current.theme_id_dark)
+        .unwrap_or(0) as u32;
+    dark_dropdown.set_selected(dark_pos);
+    dark_dropdown.set_valign(gtk4::Align::Center);
+    dark_row.append(&dark_dropdown);
+    container.append(&dark_row);
+
+    let light_row = labeled_row(strings::SETTING_THEME_LIGHT);
+    let light_dropdown = gtk4::DropDown::from_strings(&label_refs);
+    let light_pos = entries
+        .iter()
+        .position(|(id, _)| id == &current.theme_id_light)
+        .unwrap_or(0) as u32;
+    light_dropdown.set_selected(light_pos);
+    light_dropdown.set_valign(gtk4::Align::Center);
+    light_row.append(&light_dropdown);
+    container.append(&light_row);
+
+    let update_visibility = {
+        let manual_row = manual_row.clone();
+        let dark_row = dark_row.clone();
+        let light_row = light_row.clone();
+        Rc::new(move |mode: ThemeMode| match mode {
+            ThemeMode::Manual => {
+                manual_row.set_visible(true);
+                dark_row.set_visible(false);
+                light_row.set_visible(false);
+            }
+            ThemeMode::System => {
+                manual_row.set_visible(false);
+                dark_row.set_visible(true);
+                light_row.set_visible(true);
+            }
+        })
+    };
+    update_visibility(current.theme_mode);
+
+    {
+        let snapshot = current.clone();
+        let on_change = on_change.clone();
+        let update_visibility = update_visibility.clone();
+        btn_system.connect_toggled(move |b| {
+            if !b.is_active() {
+                return;
+            }
             let mut next = snapshot.clone();
-            next.theme_id = id.clone();
+            next.theme_mode = ThemeMode::System;
+            update_visibility(ThemeMode::System);
             on_change(&next);
-        }
-    });
-    row.append(&dropdown);
-    row
+        });
+    }
+    {
+        let snapshot = current.clone();
+        let on_change = on_change.clone();
+        let update_visibility = update_visibility.clone();
+        btn_manual.connect_toggled(move |b| {
+            if !b.is_active() {
+                return;
+            }
+            let mut next = snapshot.clone();
+            next.theme_mode = ThemeMode::Manual;
+            update_visibility(ThemeMode::Manual);
+            on_change(&next);
+        });
+    }
+
+    {
+        let snapshot = current.clone();
+        let entries = entries.clone();
+        let on_change = on_change.clone();
+        manual_dropdown.connect_selected_notify(move |dd| {
+            let idx = dd.selected() as usize;
+            if let Some((id, _)) = entries.get(idx) {
+                let mut next = snapshot.clone();
+                next.theme_id = id.clone();
+                on_change(&next);
+            }
+        });
+    }
+    {
+        let snapshot = current.clone();
+        let entries = entries.clone();
+        let on_change = on_change.clone();
+        dark_dropdown.connect_selected_notify(move |dd| {
+            let idx = dd.selected() as usize;
+            if let Some((id, _)) = entries.get(idx) {
+                let mut next = snapshot.clone();
+                next.theme_id_dark = id.clone();
+                on_change(&next);
+            }
+        });
+    }
+    {
+        let snapshot = current.clone();
+        let entries = entries.clone();
+        light_dropdown.connect_selected_notify(move |dd| {
+            let idx = dd.selected() as usize;
+            if let Some((id, _)) = entries.get(idx) {
+                let mut next = snapshot.clone();
+                next.theme_id_light = id.clone();
+                on_change(&next);
+            }
+        });
+    }
+
+    container
 }
 
 fn font_row(current: &EditorSettings, on_change: Rc<dyn Fn(&EditorSettings)>) -> gtk4::Box {

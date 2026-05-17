@@ -186,7 +186,14 @@ fn parse_app_config_value(root: &Value) -> AppConfig {
 
     let editor = root
         .get("editor")
-        .and_then(|value| serde_json::from_value::<EditorSettings>(value.clone()).ok())
+        .and_then(|value| {
+            let mut parsed = serde_json::from_value::<EditorSettings>(value.clone()).ok()?;
+            let raw_obj = value.as_object()?;
+            if !raw_obj.contains_key("theme_mode") && raw_obj.contains_key("theme_id") {
+                parsed.theme_mode = crate::editor::settings::ThemeMode::Manual;
+            }
+            Some(parsed)
+        })
         .unwrap_or_default();
 
     AppConfig {

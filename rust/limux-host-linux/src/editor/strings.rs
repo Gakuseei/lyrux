@@ -2,6 +2,11 @@
 
 pub const SECTION_EDITOR: &str = "Editor";
 pub const SETTING_THEME: &str = "Theme";
+pub const SETTING_THEME_MODE: &str = "Theme mode";
+pub const SETTING_THEME_DARK: &str = "Dark theme";
+pub const SETTING_THEME_LIGHT: &str = "Light theme";
+pub const THEME_MODE_SYSTEM: &str = "Follow system";
+pub const THEME_MODE_MANUAL: &str = "Manual";
 pub const SETTING_FONT: &str = "Font family";
 pub const SETTING_FONT_SIZE: &str = "Font size";
 pub const SETTING_TAB_WIDTH: &str = "Tab width";

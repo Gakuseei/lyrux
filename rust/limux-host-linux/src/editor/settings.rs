@@ -3,10 +3,24 @@ use serde::{Deserialize, Serialize};
 use crate::editor::themes;
 use crate::editor::view::ViewConfig;
 
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ThemeMode {
+    #[default]
+    System,
+    Manual,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct EditorSettings {
+    #[serde(default)]
+    pub theme_mode: ThemeMode,
     #[serde(default = "default_theme")]
     pub theme_id: String,
+    #[serde(default = "default_theme_dark")]
+    pub theme_id_dark: String,
+    #[serde(default = "default_theme_light")]
+    pub theme_id_light: String,
     #[serde(default = "default_font_family")]
     pub font_family: String,
     #[serde(default = "default_font_size")]
@@ -48,6 +62,12 @@ pub struct EditorSettings {
 fn default_theme() -> String {
     themes::default_id().to_string()
 }
+fn default_theme_dark() -> String {
+    themes::default_dark_id().to_string()
+}
+fn default_theme_light() -> String {
+    themes::default_light_id().to_string()
+}
 fn default_font_family() -> String {
     "Lilex".to_string()
 }
@@ -67,7 +87,10 @@ fn default_wrap_lines() -> bool {
 impl Default for EditorSettings {
     fn default() -> Self {
         Self {
+            theme_mode: ThemeMode::default(),
             theme_id: default_theme(),
+            theme_id_dark: default_theme_dark(),
+            theme_id_light: default_theme_light(),
             font_family: default_font_family(),
             font_size: default_font_size(),
             tab_width: default_tab_width(),
@@ -91,9 +114,26 @@ impl Default for EditorSettings {
 }
 
 impl EditorSettings {
+    pub fn effective_theme_id(&self, system_prefers_dark: Option<bool>) -> String {
+        match self.theme_mode {
+            ThemeMode::Manual => self.theme_id.clone(),
+            ThemeMode::System => {
+                if system_prefers_dark.unwrap_or(true) {
+                    self.theme_id_dark.clone()
+                } else {
+                    self.theme_id_light.clone()
+                }
+            }
+        }
+    }
+
     pub fn to_view_config(&self) -> ViewConfig {
+        self.to_view_config_with_system_pref(None)
+    }
+
+    pub fn to_view_config_with_system_pref(&self, system_prefers_dark: Option<bool>) -> ViewConfig {
         ViewConfig {
-            theme_id: self.theme_id.clone(),
+            theme_id: self.effective_theme_id(system_prefers_dark),
             font_family: self.font_family.clone(),
             font_size: self.font_size,
             tab_width: self.tab_width,
