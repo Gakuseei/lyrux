@@ -47,10 +47,13 @@ pub fn build(buffer: &sourceview5::Buffer, cfg: &ViewConfig) -> gtk4::Box {
     };
     indent_label.set_text(&indent_text);
 
-    let buf = buffer.clone();
+    let buffer_weak = buffer.downgrade();
     let line_col_l = line_col_label.clone();
     let lang_l = lang_label.clone();
     let update: Rc<dyn Fn()> = Rc::new(move || {
+        let Some(buf) = buffer_weak.upgrade() else {
+            return;
+        };
         let cursor = buf.iter_at_mark(&buf.get_insert());
         let ln = cursor.line() + 1;
         let col = cursor.line_offset() + 1;
