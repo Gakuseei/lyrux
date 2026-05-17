@@ -1674,7 +1674,15 @@ fn dispatch_shortcut_command(state: &State, command: ShortcutCommand) -> bool {
         }
         ShortcutCommand::EditorCommandPalette => {
             if let Some((_ws_id, pane_widget)) = find_focused_pane(state) {
-                crate::editor::command_palette::show(&pane_widget);
+                let shortcuts = {
+                    let s = state.borrow();
+                    s.shortcuts.clone()
+                };
+                let accel_lookup: Rc<crate::editor::command_palette::AccelLookup> =
+                    Rc::new(move |action_name: &str| {
+                        shortcuts.display_label_for_action(action_name)
+                    });
+                crate::editor::command_palette::show(&pane_widget, accel_lookup);
             }
             true
         }

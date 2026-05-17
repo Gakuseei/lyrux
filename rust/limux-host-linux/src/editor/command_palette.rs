@@ -7,6 +7,8 @@ use gtk4::prelude::*;
 
 use crate::editor::strings;
 
+pub type AccelLookup = dyn Fn(&str) -> Option<String>;
+
 const POPOVER_WIDTH: i32 = 520;
 const POPOVER_HEIGHT: i32 = 380;
 const MAX_RESULTS: usize = 60;
@@ -15,223 +17,180 @@ const MAX_RESULTS: usize = 60;
 struct CommandEntry {
     label: &'static str,
     action_name: &'static str,
-    accel: Option<&'static str>,
 }
 
 const COMMANDS: &[CommandEntry] = &[
     CommandEntry {
         label: strings::CMD_NEW_WORKSPACE,
         action_name: "win.new-workspace",
-        accel: Some("Ctrl+Shift+N"),
     },
     CommandEntry {
         label: strings::CMD_CLOSE_WORKSPACE,
         action_name: "win.close-workspace",
-        accel: Some("Ctrl+Shift+W"),
     },
     CommandEntry {
         label: strings::CMD_NEXT_WORKSPACE,
         action_name: "win.next-workspace",
-        accel: None,
     },
     CommandEntry {
         label: strings::CMD_PREV_WORKSPACE,
         action_name: "win.prev-workspace",
-        accel: None,
     },
     CommandEntry {
         label: strings::CMD_SPLIT_RIGHT,
         action_name: "win.split-right",
-        accel: None,
     },
     CommandEntry {
         label: strings::CMD_SPLIT_DOWN,
         action_name: "win.split-down",
-        accel: None,
     },
     CommandEntry {
         label: strings::CMD_CLOSE_FOCUSED_PANE,
         action_name: "win.close-focused-pane",
-        accel: None,
     },
     CommandEntry {
         label: strings::CMD_FOCUS_LEFT,
         action_name: "win.focus-left",
-        accel: None,
     },
     CommandEntry {
         label: strings::CMD_FOCUS_RIGHT,
         action_name: "win.focus-right",
-        accel: None,
     },
     CommandEntry {
         label: strings::CMD_FOCUS_UP,
         action_name: "win.focus-up",
-        accel: None,
     },
     CommandEntry {
         label: strings::CMD_FOCUS_DOWN,
         action_name: "win.focus-down",
-        accel: None,
     },
     CommandEntry {
         label: strings::CMD_CYCLE_TAB_NEXT,
         action_name: "win.cycle-tab-next",
-        accel: None,
     },
     CommandEntry {
         label: strings::CMD_CYCLE_TAB_PREV,
         action_name: "win.cycle-tab-prev",
-        accel: None,
     },
     CommandEntry {
         label: strings::CMD_TOGGLE_SIDEBAR,
         action_name: "win.toggle-sidebar",
-        accel: Some("Ctrl+M"),
     },
     CommandEntry {
         label: strings::CMD_TOGGLE_FILE_PANEL,
         action_name: "win.toggle-file-panel",
-        accel: Some("Ctrl+B"),
     },
     CommandEntry {
         label: strings::CMD_TOGGLE_TOP_BAR,
         action_name: "win.toggle-top-bar",
-        accel: Some("Ctrl+Shift+M"),
     },
     CommandEntry {
         label: strings::CMD_TOGGLE_FULLSCREEN,
         action_name: "win.toggle-fullscreen",
-        accel: None,
     },
     CommandEntry {
         label: strings::CMD_EDITOR_TOGGLE_CURRENT_PANE,
         action_name: "win.editor-toggle-current-pane",
-        accel: Some("Ctrl+Shift+E"),
     },
     CommandEntry {
         label: strings::CMD_EDITOR_QUICK_OPEN,
         action_name: "win.editor-quick-open",
-        accel: Some("Ctrl+P"),
     },
     CommandEntry {
         label: strings::CMD_EDITOR_SAVE,
         action_name: "win.editor-save-active",
-        accel: Some("Ctrl+S"),
     },
     CommandEntry {
         label: strings::CMD_EDITOR_SAVE_ALL,
         action_name: "win.editor-save-all",
-        accel: Some("Ctrl+Alt+S"),
     },
     CommandEntry {
         label: strings::CMD_EDITOR_FIND,
         action_name: "win.editor-find",
-        accel: Some("Ctrl+F"),
     },
     CommandEntry {
         label: strings::CMD_EDITOR_REPLACE,
         action_name: "win.editor-replace",
-        accel: Some("Ctrl+H"),
     },
     CommandEntry {
         label: strings::CMD_EDITOR_FIND_NEXT,
         action_name: "win.editor-find-next",
-        accel: Some("F3"),
     },
     CommandEntry {
         label: strings::CMD_EDITOR_FIND_PREVIOUS,
         action_name: "win.editor-find-previous",
-        accel: Some("Shift+F3"),
     },
     CommandEntry {
         label: strings::CMD_EDITOR_GOTO_LINE,
         action_name: "win.editor-goto-line",
-        accel: Some("Ctrl+G"),
     },
     CommandEntry {
         label: strings::CMD_EDITOR_TOGGLE_COMMENT,
         action_name: "win.editor-toggle-comment",
-        accel: Some("Ctrl+/"),
     },
     CommandEntry {
         label: strings::CMD_EDITOR_DUPLICATE_LINE,
         action_name: "win.editor-duplicate-line",
-        accel: Some("Ctrl+Shift+D"),
     },
     CommandEntry {
         label: strings::CMD_EDITOR_DELETE_LINE,
         action_name: "win.editor-delete-line",
-        accel: Some("Ctrl+Shift+K"),
     },
     CommandEntry {
         label: strings::CMD_EDITOR_MOVE_LINE_UP,
         action_name: "win.editor-move-line-up",
-        accel: Some("Alt+Up"),
     },
     CommandEntry {
         label: strings::CMD_EDITOR_MOVE_LINE_DOWN,
         action_name: "win.editor-move-line-down",
-        accel: Some("Alt+Down"),
     },
     CommandEntry {
         label: strings::CMD_EDITOR_SELECT_NEXT_OCCURRENCE,
         action_name: "win.editor-select-next-occurrence",
-        accel: Some("Ctrl+D"),
     },
     CommandEntry {
         label: strings::CMD_EDITOR_TOGGLE_WRAP,
         action_name: "win.editor-toggle-wrap",
-        accel: None,
     },
     CommandEntry {
         label: strings::CMD_PANE_TOGGLE_PIN,
         action_name: "win.pane-toggle-pin-tab",
-        accel: Some("Ctrl+Alt+P"),
     },
     CommandEntry {
         label: strings::CMD_EDITOR_REOPEN_CLOSED,
         action_name: "win.editor-reopen-closed-tab",
-        accel: Some("Ctrl+Alt+T"),
     },
     CommandEntry {
         label: strings::CMD_NEW_TERMINAL,
         action_name: "win.new-terminal",
-        accel: None,
     },
     CommandEntry {
         label: strings::CMD_TOGGLE_TERMINAL,
         action_name: "win.toggle-or-focus-terminal",
-        accel: Some("Ctrl+`"),
     },
     CommandEntry {
         label: strings::CMD_NEW_TERMINAL_IN_PANE,
         action_name: "win.new-terminal-in-focused-pane",
-        accel: None,
     },
     CommandEntry {
         label: strings::CMD_OPEN_BROWSER_IN_SPLIT,
         action_name: "win.open-browser-in-split",
-        accel: None,
     },
     CommandEntry {
         label: strings::CMD_OPEN_SETTINGS,
         action_name: "win.open-settings",
-        accel: Some("Ctrl+,"),
     },
     CommandEntry {
         label: strings::CMD_OPEN_KEYBINDS,
         action_name: "win.open-keybinds",
-        accel: Some("Ctrl+Shift+,"),
     },
     CommandEntry {
         label: strings::CMD_QUIT_APP,
         action_name: "app.quit",
-        accel: Some("Ctrl+Q"),
     },
 ];
 
-pub fn show(parent_widget: &gtk::Widget) {
+pub fn show(parent_widget: &gtk::Widget, accel_lookup: Rc<AccelLookup>) {
     let parent: gtk::Widget = parent_widget.clone();
 
     let popover = gtk::Popover::builder()
@@ -292,6 +251,7 @@ pub fn show(parent_widget: &gtk::Widget) {
         let visible_actions = visible_actions.clone();
         let popover = popover.clone();
         let parent = parent.clone();
+        let accel_lookup = accel_lookup.clone();
         Rc::new(move |query: &str| {
             while let Some(child) = list_box.first_child() {
                 list_box.remove(&child);
@@ -307,7 +267,8 @@ pub fn show(parent_widget: &gtk::Widget) {
             empty_label.set_visible(false);
 
             for (idx, cmd) in filtered.iter().enumerate() {
-                let row = build_row(cmd, idx == 0);
+                let accel = accel_lookup(cmd.action_name);
+                let row = build_row(cmd, accel.as_deref(), idx == 0);
                 let action_name = cmd.action_name;
                 let popover_clone = popover.clone();
                 let parent_clone = parent.clone();
@@ -396,7 +357,7 @@ pub fn show(parent_widget: &gtk::Widget) {
     entry.grab_focus();
 }
 
-fn build_row(cmd: &CommandEntry, is_selected: bool) -> gtk::Button {
+fn build_row(cmd: &CommandEntry, accel: Option<&str>, is_selected: bool) -> gtk::Button {
     let row_box = gtk::Box::new(gtk::Orientation::Horizontal, 8);
     row_box.set_margin_top(4);
     row_box.set_margin_bottom(4);
@@ -411,7 +372,7 @@ fn build_row(cmd: &CommandEntry, is_selected: bool) -> gtk::Button {
     label.add_css_class("body");
     row_box.append(&label);
 
-    if let Some(accel) = cmd.accel {
+    if let Some(accel) = accel {
         let accel_label = gtk::Label::builder().label(accel).xalign(1.0).build();
         accel_label.add_css_class("dim-label");
         accel_label.add_css_class("caption");

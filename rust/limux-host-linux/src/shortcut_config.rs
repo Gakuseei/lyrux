@@ -1215,6 +1215,13 @@ impl ResolvedShortcutConfig {
             .and_then(ResolvedShortcut::display_label)
     }
 
+    pub fn display_label_for_action(&self, action_name: &str) -> Option<String> {
+        self.shortcuts
+            .iter()
+            .find(|shortcut| shortcut.definition.action_name == action_name)
+            .and_then(ResolvedShortcut::display_label)
+    }
+
     pub fn default_display_label_for_id(&self, id: ShortcutId) -> Option<String> {
         self.find_by_id(id)
             .map(ResolvedShortcut::default_display_label)
