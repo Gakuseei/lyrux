@@ -76,6 +76,7 @@ pub enum PaneEmptyReason {
 }
 
 pub const DROP_OPEN_HERE: &str = "Open here";
+pub const DROP_NEW_TAB: &str = "Open as new tab";
 
 const HOST_ENTRY_CSS_CLASS: &str = "limux-host-entry";
 const TAB_RENAME_ENTRY_CSS_CLASS: &str = "limux-tab-rename-entry";
@@ -535,6 +536,13 @@ pub fn create_pane(
         .can_target(false)
         .build();
     tab_strip_file_drop_overlay.add_css_class("lyrux-tab-strip-file-drop");
+    let tab_strip_file_drop_label = gtk::Label::new(Some(DROP_NEW_TAB));
+    tab_strip_file_drop_label.set_halign(gtk::Align::Center);
+    tab_strip_file_drop_label.set_valign(gtk::Align::Center);
+    tab_strip_file_drop_label.set_hexpand(true);
+    tab_strip_file_drop_label.set_vexpand(true);
+    tab_strip_file_drop_label.add_css_class("lyrux-file-drop-label");
+    tab_strip_file_drop_overlay.append(&tab_strip_file_drop_label);
     tab_overlay.add_overlay(&tab_strip_file_drop_overlay);
 
     let actions = gtk::Box::builder()
