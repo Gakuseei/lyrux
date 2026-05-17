@@ -1,7 +1,10 @@
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
-use std::time::SystemTime;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::mpsc;
+use std::sync::Arc;
+use std::time::{Duration, SystemTime};
 
 use gtk4 as gtk;
 use gtk4::glib;
@@ -16,6 +19,13 @@ const MAX_INDEXED_FILES: usize = 5000;
 const MAX_RESULTS: usize = 50;
 const POPOVER_WIDTH: i32 = 520;
 const POPOVER_HEIGHT: i32 = 360;
+const WALKER_BATCH_SIZE: usize = 100;
+const WALKER_POLL_INTERVAL_MS: u64 = 40;
+
+enum WalkerMessage {
+    Batch(Vec<FileEntry>),
+    Done,
+}
 
 #[derive(Clone)]
 struct FileEntry {
@@ -37,10 +47,6 @@ pub fn show_with_recent(
     on_open: OpenFileCallback,
 ) {
     let parent: gtk::Widget = parent_widget.clone();
-    let files = match workspace_root {
-        Some(root) => walk_workspace(root),
-        None => Vec::new(),
-    };
     let root_buf: Option<PathBuf> = workspace_root.map(|p| p.to_path_buf());
     let recent_entries = collect_recent_entries(recent_paths, root_buf.as_deref());
 
@@ -92,10 +98,12 @@ pub fn show_with_recent(
 
     popover.set_child(Some(&vbox));
 
-    let files_rc: Rc<Vec<FileEntry>> = Rc::new(files);
+    let files_rc: Rc<RefCell<Vec<FileEntry>>> = Rc::new(RefCell::new(Vec::new()));
     let recent_rc: Rc<Vec<FileEntry>> = Rc::new(recent_entries);
     let selected: Rc<RefCell<usize>> = Rc::new(RefCell::new(0));
     let visible_paths: Rc<RefCell<Vec<PathBuf>>> = Rc::new(RefCell::new(Vec::new()));
+    let last_query: Rc<RefCell<String>> = Rc::new(RefCell::new(String::new()));
+    let walker_generation: Arc<AtomicU64> = Arc::new(AtomicU64::new(0));
 
     let render = {
         let list_box = list_box.clone();
@@ -120,7 +128,7 @@ pub fn show_with_recent(
             } else {
                 &[]
             };
-            let ranked = rank(&files_rc, query);
+            let ranked = rank(&files_rc.borrow(), query);
             if ranked.is_empty() && recent_section.is_empty() {
                 empty_label.set_visible(true);
                 return;
@@ -176,10 +184,52 @@ pub fn show_with_recent(
 
     render("");
 
+    if let Some(root) = root_buf.clone() {
+        let gen_id = walker_generation.fetch_add(1, Ordering::AcqRel) + 1;
+        let (tx, rx) = mpsc::channel::<WalkerMessage>();
+        let generation_for_worker = walker_generation.clone();
+        std::thread::Builder::new()
+            .name("lyrux-quick-open-walker".into())
+            .spawn(move || {
+                walker_thread(&root, gen_id, &generation_for_worker, &tx);
+            })
+            .ok();
+
+        let files_rc_poll = files_rc.clone();
+        let render_poll = render.clone();
+        let last_query_poll = last_query.clone();
+        let generation_poll = walker_generation.clone();
+        glib::timeout_add_local(
+            Duration::from_millis(WALKER_POLL_INTERVAL_MS),
+            move || match rx.try_recv() {
+                Ok(WalkerMessage::Batch(batch)) => {
+                    if generation_poll.load(Ordering::Acquire) != gen_id {
+                        return glib::ControlFlow::Break;
+                    }
+                    files_rc_poll.borrow_mut().extend(batch);
+                    let query = last_query_poll.borrow().clone();
+                    render_poll(&query);
+                    glib::ControlFlow::Continue
+                }
+                Ok(WalkerMessage::Done) => glib::ControlFlow::Break,
+                Err(mpsc::TryRecvError::Empty) => {
+                    if generation_poll.load(Ordering::Acquire) != gen_id {
+                        glib::ControlFlow::Break
+                    } else {
+                        glib::ControlFlow::Continue
+                    }
+                }
+                Err(mpsc::TryRecvError::Disconnected) => glib::ControlFlow::Break,
+            },
+        );
+    }
+
     {
         let render = render.clone();
+        let last_query = last_query.clone();
         entry.connect_search_changed(move |entry| {
             let text = entry.text().to_string();
+            *last_query.borrow_mut() = text.clone();
             render(&text);
         });
     }
@@ -243,7 +293,9 @@ pub fn show_with_recent(
 
     {
         let popover_clone = popover.clone();
+        let generation = walker_generation.clone();
         popover.connect_closed(move |_| {
+            generation.fetch_add(1, Ordering::AcqRel);
             popover_clone.unparent();
         });
     }
@@ -398,7 +450,12 @@ fn is_path_within_root(root: Option<&Path>, path: &Path) -> bool {
     canon_path.starts_with(&canon_root)
 }
 
-fn walk_workspace(root: &Path) -> Vec<FileEntry> {
+fn walker_thread(
+    root: &Path,
+    gen_id: u64,
+    generation: &AtomicU64,
+    tx: &mpsc::Sender<WalkerMessage>,
+) {
     let walker = WalkBuilder::new(root)
         .hidden(false)
         .git_ignore(true)
@@ -408,9 +465,13 @@ fn walk_workspace(root: &Path) -> Vec<FileEntry> {
         .parents(true)
         .build();
 
-    let mut out: Vec<FileEntry> = Vec::with_capacity(1024);
+    let mut batch: Vec<FileEntry> = Vec::with_capacity(WALKER_BATCH_SIZE);
+    let mut total: usize = 0;
     for dent in walker.flatten() {
-        if out.len() >= MAX_INDEXED_FILES {
+        if generation.load(Ordering::Acquire) != gen_id {
+            return;
+        }
+        if total >= MAX_INDEXED_FILES {
             break;
         }
         let ft = match dent.file_type() {
@@ -435,14 +496,24 @@ fn walk_workspace(root: &Path) -> Vec<FileEntry> {
             .ok()
             .and_then(|m| m.modified().ok())
             .unwrap_or(SystemTime::UNIX_EPOCH);
-        out.push(FileEntry {
+        batch.push(FileEntry {
             path: path.to_path_buf(),
             basename,
             rel_display,
             mtime,
         });
+        total += 1;
+        if batch.len() >= WALKER_BATCH_SIZE {
+            let to_send = std::mem::replace(&mut batch, Vec::with_capacity(WALKER_BATCH_SIZE));
+            if tx.send(WalkerMessage::Batch(to_send)).is_err() {
+                return;
+            }
+        }
     }
-    out
+    if !batch.is_empty() {
+        let _ = tx.send(WalkerMessage::Batch(batch));
+    }
+    let _ = tx.send(WalkerMessage::Done);
 }
 
 fn rank(files: &[FileEntry], query: &str) -> Vec<FileEntry> {
