@@ -423,27 +423,27 @@ pub fn start(dispatch: fn(ControlCommand)) {
                 Ok(listener) => listener,
                 Err(error) => {
                     eprintln!(
-                        "limux: control socket bind failed ({}): {error}",
+                        "lyrux: control socket bind failed ({}): {error}",
                         path.display()
                     );
                     return;
                 }
             };
 
-            eprintln!("limux: control socket at {}", path.display());
+            eprintln!("lyrux: control socket at {}", path.display());
             let active_connections = Arc::new(AtomicUsize::new(0));
 
             for stream in listener.incoming() {
                 match stream {
                     Ok(stream) => {
                         let Some(slot) = ConnectionSlot::try_acquire(active_connections.clone()) else {
-                            eprintln!("limux: rejecting control client, too many active connections");
+                            eprintln!("lyrux: rejecting control client, too many active connections");
                             continue;
                         };
                         let peer = match auth::authorize_peer(&stream, control_mode) {
                             Ok(peer) => peer,
                             Err(error) => {
-                                eprintln!("limux: rejected control client: {error}");
+                                eprintln!("lyrux: rejected control client: {error}");
                                 continue;
                             }
                         };
@@ -454,7 +454,7 @@ pub fn start(dispatch: fn(ControlCommand)) {
                                 let _slot = slot;
                                 if let Err(error) = handle_client(stream, dispatch.as_ref()) {
                                     eprintln!(
-                                        "limux: control connection error for pid={} uid={}: {error}",
+                                        "lyrux: control connection error for pid={} uid={}: {error}",
                                         peer.pid, peer.uid
                                     );
                                 }
@@ -462,7 +462,7 @@ pub fn start(dispatch: fn(ControlCommand)) {
                             .ok();
                     }
                     Err(error) => {
-                        eprintln!("limux: control accept error: {error}");
+                        eprintln!("lyrux: control accept error: {error}");
                     }
                 }
             }

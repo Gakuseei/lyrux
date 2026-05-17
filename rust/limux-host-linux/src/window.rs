@@ -266,7 +266,7 @@ fn request_session_save(state: &State) {
 fn save_session_now(state: &State) {
     let session = snapshot_session_state(state);
     if let Err(err) = layout_state::save_session_atomic(&session) {
-        eprintln!("limux: failed to save session state: {err}");
+        eprintln!("lyrux: failed to save session state: {err}");
     }
 }
 
@@ -749,7 +749,7 @@ pub fn build_window(app: &adw::Application) {
     )));
     let loaded_config = app_config::load();
     for warning in &loaded_config.warnings {
-        eprintln!("limux: {warning}");
+        eprintln!("lyrux: {warning}");
     }
     let config = Rc::new(RefCell::new(loaded_config.config));
     let background_opacity =
@@ -757,7 +757,7 @@ pub fn build_window(app: &adw::Application) {
 
     let shortcuts = Rc::new(shortcut_config::load_shortcuts_for_display(&display));
     for warning in &shortcuts.warnings {
-        eprintln!("limux: {warning}");
+        eprintln!("lyrux: {warning}");
     }
 
     let provider = gtk::CssProvider::new();
@@ -4251,7 +4251,7 @@ fn spawn_new_instance(state: &State) -> bool {
         Ok(exe) => exe,
         Err(err) => {
             let detail = format!("Failed to resolve the current Lyrux executable: {err}");
-            eprintln!("limux: {detail}");
+            eprintln!("lyrux: {detail}");
             show_runtime_error(state, "Failed to open a new Lyrux instance", &detail);
             return false;
         }
@@ -4261,7 +4261,7 @@ fn spawn_new_instance(state: &State) -> bool {
         Ok(_) => true,
         Err(err) => {
             let detail = format!("Failed to launch a new Lyrux instance: {err}");
-            eprintln!("limux: {detail}");
+            eprintln!("lyrux: {detail}");
             show_runtime_error(state, "Failed to open a new Lyrux instance", &detail);
             false
         }
@@ -4335,7 +4335,7 @@ fn font_size_after_delta(current: Option<f32>, default: f32, delta: f32) -> f32 
 
 fn show_font_size_save_error(state: &State, err: String) {
     let detail = format!("Failed to save Lyrux settings: {err}");
-    eprintln!("limux: {detail}");
+    eprintln!("lyrux: {detail}");
     show_runtime_error(state, "Failed to save settings", &detail);
 }
 

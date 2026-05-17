@@ -945,7 +945,7 @@ pub fn create_terminal(
         gl_area.connect_realize(move |gl_area| {
             gl_area.make_current();
             if let Some(err) = gl_area.error() {
-                eprintln!("limux: GLArea error after make_current: {err}");
+                eprintln!("lyrux: GLArea error after make_current: {err}");
                 return;
             }
 
@@ -985,7 +985,7 @@ pub fn create_terminal(
                 unsafe {
                     drop(Box::from_raw(clipboard_context));
                 }
-                eprintln!("limux: failed to create ghostty surface");
+                eprintln!("lyrux: failed to create ghostty surface");
                 return;
             }
             unsafe {

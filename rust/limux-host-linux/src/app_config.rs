@@ -325,7 +325,7 @@ fn backup_invalid_existing_config_with_detail(path: &Path, detail: &str) -> Resu
         )
     })?;
     eprintln!(
-        "limux: {detail}; backed up `{}` to `{}` before rewriting settings",
+        "lyrux: {detail}; backed up `{}` to `{}` before rewriting settings",
         path.display(),
         backup_path.display()
     );
