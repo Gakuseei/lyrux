@@ -69,11 +69,41 @@ pub const RECOVER_BTN_DISCARD: &str = "Discard";
 
 pub const FIND_PLACEHOLDER: &str = "Find";
 pub const REPLACE_PLACEHOLDER: &str = "Replace";
+pub const REPLACE_ENTRY_PLACEHOLDER: &str = "Replace with…";
 pub const GOTO_LINE_TITLE: &str = "Go to line";
 pub const GOTO_LINE_PROMPT: &str = "Line number";
 pub const REPLACE_BTN: &str = "Replace";
 pub const REPLACE_ALL_BTN: &str = "Replace all";
 pub const GOTO_BTN: &str = "Go";
+
+pub const FIND_PREV_TOOLTIP: &str = "Previous match (Shift+Enter)";
+pub const FIND_NEXT_TOOLTIP: &str = "Next match (Enter)";
+pub const FIND_CASE_TOOLTIP: &str = "Match case";
+pub const FIND_WORD_TOOLTIP: &str = "Match whole word";
+pub const FIND_REGEX_TOOLTIP: &str = "Use regex";
+pub const FIND_TOGGLE_REPLACE_TOOLTIP: &str = "Toggle replace";
+pub const FIND_CLOSE_TOOLTIP: &str = "Close (Esc)";
+pub const FIND_COUNT_NONE: &str = "No matches";
+pub const FIND_REGEX_INVALID: &str = "Invalid regex";
+pub const FIND_CASE_LABEL: &str = "Aa";
+pub const FIND_WORD_LABEL: &str = "\\b";
+pub const FIND_REGEX_LABEL: &str = ".*";
+pub const FIND_TOGGLE_REPLACE_LABEL: &str = "⇄";
+pub const FIND_PREV_LABEL: &str = "←";
+pub const FIND_NEXT_LABEL: &str = "→";
+pub const FIND_CLOSE_LABEL: &str = "×";
+
+pub fn find_count(n: u32, m: u32) -> String {
+    format!("{n} of {m}")
+}
+
+pub fn find_count_pending(m: u32) -> String {
+    format!("{m} matches")
+}
+
+pub fn find_replaced(n: u32) -> String {
+    format!("{n} replaced")
+}
 
 pub const SHORTCUT_LABEL_EDITOR_TOGGLE_PANE: &str = "Open editor in focused pane";
 

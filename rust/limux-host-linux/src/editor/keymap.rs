@@ -18,9 +18,6 @@ pub struct SaveTransform {
 
 pub type SaveTransformFn = Rc<dyn Fn() -> SaveTransform>;
 
-const FIND_BAR_KEY: &str = "lyrux-find-bar";
-const SEARCH_ENTRY_KEY: &str = "lyrux-search-entry";
-const REPLACE_ENTRY_KEY: &str = "lyrux-replace-entry";
 const SEARCH_CONTEXT_KEY: &str = "lyrux-search-ctx";
 
 pub fn install(
@@ -588,7 +585,7 @@ fn place_cursor_on_line(buffer: &sourceview5::Buffer, line: i32) {
     buffer.place_cursor(&iter);
 }
 
-fn ensure_search_context(state: &EditorTabState) -> sourceview5::SearchContext {
+pub(crate) fn ensure_search_context(state: &EditorTabState) -> sourceview5::SearchContext {
     let widget: gtk4::Widget = state.root.clone().upcast();
     unsafe {
         if let Some(ptr) = widget.data::<sourceview5::SearchContext>(SEARCH_CONTEXT_KEY) {
@@ -606,138 +603,11 @@ fn ensure_search_context(state: &EditorTabState) -> sourceview5::SearchContext {
 }
 
 pub(crate) fn show_find_bar(state: &EditorTabState, with_replace: bool) {
-    let ctx = ensure_search_context(state);
-    let bar = ensure_find_bar(state, &ctx, with_replace);
-    bar.set_search_mode(true);
-    let widget: gtk4::Widget = state.root.clone().upcast();
-    unsafe {
-        if let Some(ptr) = widget.data::<gtk4::SearchEntry>(SEARCH_ENTRY_KEY) {
-            let entry = ptr.as_ref().clone();
-            entry.grab_focus();
-        }
-    }
-}
-
-fn ensure_find_bar(
-    state: &EditorTabState,
-    ctx: &sourceview5::SearchContext,
-    with_replace: bool,
-) -> gtk4::SearchBar {
-    let widget: gtk4::Widget = state.root.clone().upcast();
-    unsafe {
-        if let Some(ptr) = widget.data::<gtk4::SearchBar>(FIND_BAR_KEY) {
-            let bar = ptr.as_ref().clone();
-            ensure_replace_widgets(state, ctx, &bar, with_replace);
-            return bar;
-        }
-    }
-
-    let row = gtk4::Box::new(gtk4::Orientation::Horizontal, 6);
-    let entry = gtk4::SearchEntry::builder()
-        .placeholder_text(strings::FIND_PLACEHOLDER)
-        .build();
-    entry.set_hexpand(true);
-    row.append(&entry);
-
-    let bar = gtk4::SearchBar::builder()
-        .child(&row)
-        .search_mode_enabled(true)
-        .show_close_button(true)
-        .build();
-    bar.connect_entry(&entry);
-
-    state.root.insert_child_after(&bar, Some(&state.banner));
-
-    let settings = ctx.settings();
-    let ctx_for_search = ctx.clone();
-    entry.connect_search_changed(move |e| {
-        settings.set_search_text(Some(&e.text()));
-        let buffer = ctx_for_search.buffer();
-        let iter = buffer.iter_at_mark(&buffer.get_insert());
-        if let Some((s, _e, _wrap)) = ctx_for_search.forward(&iter) {
-            buffer.place_cursor(&s);
-        }
-    });
-
-    let ctx_for_next = ctx.clone();
-    entry.connect_activate(move |_| {
-        advance_search(&ctx_for_next);
-    });
-
-    unsafe {
-        widget.set_data::<gtk4::SearchBar>(FIND_BAR_KEY, bar.clone());
-        widget.set_data::<gtk4::SearchEntry>(SEARCH_ENTRY_KEY, entry);
-    }
-
-    ensure_replace_widgets(state, ctx, &bar, with_replace);
-    bar
-}
-
-fn ensure_replace_widgets(
-    state: &EditorTabState,
-    ctx: &sourceview5::SearchContext,
-    bar: &gtk4::SearchBar,
-    with_replace: bool,
-) {
-    if !with_replace {
-        return;
-    }
-    let widget: gtk4::Widget = state.root.clone().upcast();
-    unsafe {
-        if widget.data::<gtk4::Entry>(REPLACE_ENTRY_KEY).is_some() {
-            return;
-        }
-    }
-    let row = match bar.child().and_then(|c| c.downcast::<gtk4::Box>().ok()) {
-        Some(r) => r,
-        None => return,
-    };
-    let replace_entry = gtk4::Entry::builder()
-        .placeholder_text(strings::REPLACE_PLACEHOLDER)
-        .build();
-    let replace_btn = gtk4::Button::with_label(strings::REPLACE_BTN);
-    let replace_all_btn = gtk4::Button::with_label(strings::REPLACE_ALL_BTN);
-    row.append(&replace_entry);
-    row.append(&replace_btn);
-    row.append(&replace_all_btn);
-
-    let ctx_one = ctx.clone();
-    let entry_one = replace_entry.clone();
-    replace_btn.connect_clicked(move |_| {
-        replace_one(&ctx_one, &entry_one.text());
-    });
-    let ctx_all = ctx.clone();
-    let entry_all = replace_entry.clone();
-    replace_all_btn.connect_clicked(move |_| {
-        let _ = ctx_all.replace_all(&entry_all.text());
-    });
-
-    unsafe {
-        widget.set_data::<gtk4::Entry>(REPLACE_ENTRY_KEY, replace_entry);
-    }
-}
-
-fn replace_one(ctx: &sourceview5::SearchContext, replacement: &str) {
-    let buffer = ctx.buffer();
-    let Some((mut s, mut e)) = buffer.selection_bounds() else {
-        advance_search(ctx);
-        return;
-    };
-    let _ = ctx.replace(&mut s, &mut e, replacement);
-    advance_search(ctx);
-}
-
-fn advance_search(ctx: &sourceview5::SearchContext) {
-    let buffer = ctx.buffer();
-    let iter = buffer.iter_at_mark(&buffer.get_insert());
-    if let Some((s, e, _wrap)) = ctx.forward(&iter) {
-        buffer.select_range(&s, &e);
-    }
+    crate::editor::find_bar::show(state, with_replace);
 }
 
 pub(crate) fn find_next(state: &EditorTabState) {
-    let ctx = ensure_search_context(state);
-    advance_search(&ctx);
+    crate::editor::find_bar::find_next(state);
 }
 
 pub(crate) fn show_goto_line(state: &EditorTabState) {

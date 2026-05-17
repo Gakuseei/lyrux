@@ -1,6 +1,7 @@
 pub mod buffer;
 pub mod command_palette;
 pub mod editorconfig;
+pub mod find_bar;
 pub mod find_in_files;
 pub mod highlight;
 pub mod image_viewer;
