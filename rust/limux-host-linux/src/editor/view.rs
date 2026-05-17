@@ -30,7 +30,7 @@ impl Default for ViewConfig {
     fn default() -> Self {
         Self {
             theme_id: themes::default_id().to_string(),
-            font_family: "JetBrains Mono".into(),
+            font_family: "Lilex".into(),
             font_size: 13,
             tab_width: 4,
             insert_spaces: true,
@@ -92,7 +92,7 @@ pub fn apply_css(
     slot: &Rc<RefCell<Option<gtk::CssProvider>>>,
 ) {
     let css = format!(
-        ".sourceview, .sourceview text {{ font-family: \"{0}\", \"JetBrains Mono\", \"JetBrainsMono Nerd Font\", \"Cascadia Code\", \"Cascadia Mono\", \"Fira Code\", \"Iosevka\", \"DejaVu Sans Mono\", monospace; font-size: {1}pt; padding: 6px 12px; line-height: 1.5; }} .lyrux-sticky-header {{ font-family: \"{0}\", \"JetBrains Mono\", monospace; font-size: {1}pt; padding: 2px 12px; background: alpha(@theme_bg_color, 0.92); color: @theme_fg_color; border-bottom: 1px solid alpha(@theme_fg_color, 0.18); font-weight: 600; }}",
+        ".sourceview, .sourceview text {{ font-family: \"{0}\", \"Lilex\", \"JetBrains Mono\", \"JetBrainsMono Nerd Font\", \"Cascadia Mono\", \"Fira Code\", \"Iosevka\", \"DejaVu Sans Mono\", monospace; font-size: {1}pt; padding: 6px 12px; line-height: 1.5; }} .lyrux-sticky-header {{ font-family: \"{0}\", \"Lilex\", \"JetBrains Mono\", monospace; font-size: {1}pt; padding: 2px 12px; background: alpha(@theme_bg_color, 0.92); color: @theme_fg_color; border-bottom: 1px solid alpha(@theme_fg_color, 0.18); font-weight: 600; }}",
         cfg.font_family.replace('"', ""),
         cfg.font_size
     );

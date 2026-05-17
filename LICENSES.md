@@ -14,4 +14,6 @@
 
 ## Bundled Fonts
 
-- **JetBrains Mono** — Copyright 2020 The JetBrains Mono Project Authors, SIL Open Font License 1.1. Source: https://github.com/JetBrains/JetBrainsMono. Bundled as default editor font in AppImage. License text: `rust/limux-host-linux/assets/fonts/JetBrainsMono-LICENSE.txt`.
+- **JetBrains Mono** — Copyright 2020 The JetBrains Mono Project Authors, SIL Open Font License 1.1. Source: https://github.com/JetBrains/JetBrainsMono. Bundled in AppImage as a fallback editor font. License text: `rust/limux-host-linux/assets/fonts/JetBrainsMono-LICENSE.txt`.
+
+- **Lilex** — Copyright 2019 The Lilex Project Authors, SIL Open Font License 1.1. Source: https://github.com/mishamyrt/Lilex. Bundled as default editor font in AppImage. License text: `rust/limux-host-linux/assets/fonts/Lilex-LICENSE.txt`.

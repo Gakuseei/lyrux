@@ -45,7 +45,7 @@ fn default_theme() -> String {
     themes::default_id().to_string()
 }
 fn default_font_family() -> String {
-    "JetBrains Mono".to_string()
+    "Lilex".to_string()
 }
 fn default_font_size() -> i32 {
     13
