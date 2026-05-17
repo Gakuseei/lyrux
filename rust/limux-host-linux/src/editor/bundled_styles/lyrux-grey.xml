@@ -4,25 +4,25 @@
   <_description>Lyrux grey — matches the app chrome palette.</_description>
 
   <color name="bg"          value="#242424"/>
-  <color name="bg-sel"      value="#3a3a3a"/>
-  <color name="fg"          value="#E5E5E7"/>
-  <color name="fg-muted"    value="#9A9A9F"/>
+  <color name="bg-sel"      value="#3A3A3D"/>
+  <color name="fg"          value="#D6D6D8"/>
+  <color name="fg-muted"    value="#707074"/>
   <color name="surface0"    value="#1F1F1F"/>
-  <color name="surface1"    value="#2C2C2C"/>
-  <color name="accent"      value="#3584E4"/>
-  <color name="keyword"     value="#C075E3"/>
-  <color name="string"      value="#8AC274"/>
-  <color name="number"      value="#E8A87C"/>
-  <color name="comment"     value="#7A7A82"/>
-  <color name="type"        value="#5DADE2"/>
-  <color name="function"    value="#82C5FF"/>
-  <color name="error"       value="#E66461"/>
-  <color name="warning"     value="#E8A87C"/>
+  <color name="surface1"    value="#2A2A2A"/>
+  <color name="accent"      value="#7E9BC0"/>
+  <color name="keyword"     value="#A89AB8"/>
+  <color name="string"      value="#9CB89A"/>
+  <color name="number"      value="#C5A485"/>
+  <color name="comment"     value="#6A6A70"/>
+  <color name="type"        value="#8FA8C0"/>
+  <color name="function"    value="#A6BACF"/>
+  <color name="error"       value="#D87878"/>
+  <color name="warning"     value="#C5A485"/>
 
   <style name="text"                       foreground="fg"      background="bg"/>
   <style name="background-pattern"         background="bg"/>
   <style name="cursor"                     foreground="accent"/>
-  <style name="current-line"               background="surface0"/>
+  <style name="current-line"               background="surface1"/>
   <style name="line-numbers"               foreground="#5A5A60" background="bg"/>
   <style name="current-line-number"        foreground="fg"      background="bg" bold="true"/>
   <style name="selection"                  background="bg-sel"/>
