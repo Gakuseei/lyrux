@@ -11,6 +11,7 @@ use crate::editor::view::ViewConfig;
 pub struct StatusBar {
     pub root: gtk4::Box,
     pub wrap_button: gtk4::Button,
+    pub vim_label: gtk4::Label,
 }
 
 pub fn build(buffer: &sourceview5::Buffer, cfg: &ViewConfig) -> StatusBar {
@@ -23,6 +24,12 @@ pub fn build(buffer: &sourceview5::Buffer, cfg: &ViewConfig) -> StatusBar {
     bar.set_margin_bottom(2);
     bar.set_margin_start(8);
     bar.set_margin_end(8);
+
+    let vim_label = gtk4::Label::new(Some(""));
+    vim_label.set_xalign(0.0);
+    vim_label.set_visible(false);
+    vim_label.add_css_class("lyrux-editor-statusbar-vim");
+    bar.append(&vim_label);
 
     let line_col_label = gtk4::Label::new(Some(""));
     line_col_label.set_xalign(0.0);
@@ -99,6 +106,7 @@ pub fn build(buffer: &sourceview5::Buffer, cfg: &ViewConfig) -> StatusBar {
     StatusBar {
         root: bar,
         wrap_button,
+        vim_label,
     }
 }
 

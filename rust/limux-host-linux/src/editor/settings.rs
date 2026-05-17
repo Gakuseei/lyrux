@@ -151,6 +151,7 @@ impl EditorSettings {
             highlight_word_at_cursor: self.highlight_word_at_cursor,
             show_sticky_scroll: self.show_sticky_scroll,
             show_minimap: self.show_minimap,
+            vim_mode: self.vim_mode,
         }
     }
 }

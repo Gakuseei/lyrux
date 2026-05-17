@@ -199,7 +199,15 @@ pub fn build(current: &EditorSettings, cb: SettingsCallbacks) -> gtk4::Widget {
         },
     ));
 
-    root.append(&vim_row());
+    root.append(&bool_row(strings::SETTING_VIM, current.vim_mode, {
+        let cb = cb.on_change.clone();
+        let snapshot = current.clone();
+        move |v| {
+            let mut next = snapshot.clone();
+            next.vim_mode = v;
+            cb(&next);
+        }
+    }));
 
     root.append(&section_header(
         crate::file_panel::strings::SETTINGS_SECTION_FILE_PANEL,
@@ -460,17 +468,6 @@ fn bool_row(label: &str, initial: bool, on_change: impl Fn(bool) + 'static) -> g
     let switch = gtk4::Switch::builder().active(initial).build();
     switch.set_valign(gtk4::Align::Center);
     switch.connect_active_notify(move |s| on_change(s.is_active()));
-    row.append(&switch);
-    row
-}
-
-fn vim_row() -> gtk4::Box {
-    let row = labeled_row(strings::SETTING_VIM);
-    let switch = gtk4::Switch::builder()
-        .active(false)
-        .sensitive(false)
-        .build();
-    switch.set_valign(gtk4::Align::Center);
     row.append(&switch);
     row
 }

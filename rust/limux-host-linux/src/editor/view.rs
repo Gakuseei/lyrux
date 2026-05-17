@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 
 use std::cell::RefCell;
-use std::rc::Rc;
 
 use gtk4 as gtk;
 use sourceview5::prelude::*;
@@ -9,6 +8,10 @@ use sourceview5::prelude::*;
 use crate::editor::snippets;
 use crate::editor::strings;
 use crate::editor::themes;
+
+thread_local! {
+    static EDITOR_FONT_PROVIDER: RefCell<Option<gtk::CssProvider>> = const { RefCell::new(None) };
+}
 
 #[derive(Clone)]
 pub struct ViewConfig {
@@ -27,6 +30,7 @@ pub struct ViewConfig {
     pub highlight_word_at_cursor: bool,
     pub show_sticky_scroll: bool,
     pub show_minimap: bool,
+    pub vim_mode: bool,
 }
 
 impl Default for ViewConfig {
@@ -47,6 +51,7 @@ impl Default for ViewConfig {
             highlight_word_at_cursor: true,
             show_sticky_scroll: true,
             show_minimap: true,
+            vim_mode: false,
         }
     }
 }
@@ -105,32 +110,30 @@ pub fn apply_to_view(view: &sourceview5::View, cfg: &ViewConfig) {
     view.add_css_class("sourceview");
 }
 
-pub fn apply_css(
-    view: &sourceview5::View,
-    cfg: &ViewConfig,
-    slot: &Rc<RefCell<Option<gtk::CssProvider>>>,
-) {
+pub fn apply_css(view: &sourceview5::View, cfg: &ViewConfig) {
     let css = format!(
         ".sourceview, .sourceview text {{ font-family: \"{0}\", \"Lilex\", \"JetBrains Mono\", \"JetBrainsMono Nerd Font\", \"Cascadia Mono\", \"Fira Code\", \"Iosevka\", \"DejaVu Sans Mono\", monospace; font-size: {1}pt; padding: 6px 12px; line-height: 1.3; letter-spacing: 0; }} .lyrux-sticky-header {{ font-family: \"{0}\", \"Lilex\", \"JetBrains Mono\", monospace; font-size: {1}pt; padding: 2px 12px; background: alpha(@theme_bg_color, 0.92); color: @theme_fg_color; border-bottom: 1px solid alpha(@theme_fg_color, 0.18); font-weight: 600; }}",
         cfg.font_family.replace('"', ""),
         cfg.font_size
     );
-    let mut slot_ref = slot.borrow_mut();
-    if let Some(provider) = slot_ref.as_ref() {
-        provider.load_from_data(&css);
-        return;
-    }
-    let provider = gtk::CssProvider::new();
-    provider.load_from_data(&css);
-    if let Some(display) = gtk::gdk::Display::default() {
-        gtk::style_context_add_provider_for_display(
-            &display,
-            &provider,
-            gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
-        );
-    }
     view.add_css_class("sourceview");
-    *slot_ref = Some(provider);
+    EDITOR_FONT_PROVIDER.with(|slot| {
+        let mut slot_ref = slot.borrow_mut();
+        if let Some(provider) = slot_ref.as_ref() {
+            provider.load_from_data(&css);
+            return;
+        }
+        let provider = gtk::CssProvider::new();
+        provider.load_from_data(&css);
+        if let Some(display) = gtk::gdk::Display::default() {
+            gtk::style_context_add_provider_for_display(
+                &display,
+                &provider,
+                gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+            );
+        }
+        *slot_ref = Some(provider);
+    });
 }
 
 pub fn apply_to_buffer(buffer: &sourceview5::Buffer, cfg: &ViewConfig) {

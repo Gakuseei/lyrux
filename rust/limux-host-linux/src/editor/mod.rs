@@ -23,6 +23,7 @@ pub mod swap;
 pub mod tab_state;
 pub mod themes;
 pub mod view;
+pub mod vim;
 pub mod watcher;
 
 pub use settings::EditorSettings;
@@ -84,6 +85,7 @@ pub fn spawn_empty(cfg: &ViewConfig) -> EditorTabState {
         .build();
     let status = status_bar::build(&buffer, cfg);
     let wrap_button = status.wrap_button.clone();
+    let vim_label = status.vim_label.clone();
     let status_root = status.root;
 
     let root = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
@@ -108,16 +110,19 @@ pub fn spawn_empty(cfg: &ViewConfig) -> EditorTabState {
         suppress_dirty: Rc::new(Cell::new(false)),
         dirty_marker_cb: Rc::new(RefCell::new(None)),
         title_cb: Rc::new(RefCell::new(None)),
-        css_provider: Rc::new(RefCell::new(None)),
         swap_path: Rc::new(RefCell::new(None)),
         highlight: highlight_ctrl,
         sticky,
         minimap,
         wrap_button,
+        vim_label,
+        vim_im_context: Rc::new(RefCell::new(None)),
+        vim_key_controller: Rc::new(RefCell::new(None)),
         save_action: Rc::new(RefCell::new(None)),
         close_action: Rc::new(RefCell::new(None)),
     };
-    view::apply_css(&state.view, cfg, &state.css_provider);
+    view::apply_css(&state.view, cfg);
+    vim::apply_to_tab(&state, cfg.vim_mode);
 
     tab_state::install_dirty_tracker(
         &buffer,

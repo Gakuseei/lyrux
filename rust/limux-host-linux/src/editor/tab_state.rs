@@ -15,7 +15,6 @@ use crate::editor::view::{self, ViewConfig};
 
 pub type DirtyMarkerCb = Rc<RefCell<Option<Rc<dyn Fn(bool)>>>>;
 pub type TitleCb = Rc<RefCell<Option<Rc<dyn Fn(&str)>>>>;
-pub type ViewCssProvider = Rc<RefCell<Option<gtk4::CssProvider>>>;
 pub type ActionCb = Rc<RefCell<Option<Rc<dyn Fn()>>>>;
 
 #[derive(Clone)]
@@ -34,12 +33,14 @@ pub struct EditorTabState {
     pub suppress_dirty: Rc<Cell<bool>>,
     pub dirty_marker_cb: DirtyMarkerCb,
     pub title_cb: TitleCb,
-    pub css_provider: ViewCssProvider,
     pub swap_path: Rc<RefCell<Option<PathBuf>>>,
     pub highlight: HighlightController,
     pub sticky: StickyController,
     pub minimap: sourceview5::Map,
     pub wrap_button: gtk4::Button,
+    pub vim_label: gtk4::Label,
+    pub vim_im_context: Rc<RefCell<Option<sourceview5::VimIMContext>>>,
+    pub vim_key_controller: Rc<RefCell<Option<gtk4::EventControllerKey>>>,
     pub save_action: ActionCb,
     pub close_action: ActionCb,
 }
@@ -94,6 +95,7 @@ pub fn build(path: PathBuf, cfg: &ViewConfig) -> BuildOutcome {
 
     let status = status_bar::build(&buffer, cfg);
     let wrap_button = status.wrap_button.clone();
+    let vim_label = status.vim_label.clone();
     let status_root = status.root;
 
     let root = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
@@ -118,16 +120,19 @@ pub fn build(path: PathBuf, cfg: &ViewConfig) -> BuildOutcome {
         suppress_dirty: Rc::new(Cell::new(false)),
         dirty_marker_cb: Rc::new(RefCell::new(None)),
         title_cb: Rc::new(RefCell::new(None)),
-        css_provider: Rc::new(RefCell::new(None)),
         swap_path: Rc::new(RefCell::new(None)),
         highlight: highlight_ctrl,
         sticky,
         minimap,
         wrap_button,
+        vim_label,
+        vim_im_context: Rc::new(RefCell::new(None)),
+        vim_key_controller: Rc::new(RefCell::new(None)),
         save_action: Rc::new(RefCell::new(None)),
         close_action: Rc::new(RefCell::new(None)),
     };
-    view::apply_css(&state.view, cfg, &state.css_provider);
+    view::apply_css(&state.view, cfg);
+    crate::editor::vim::apply_to_tab(&state, cfg.vim_mode);
 
     install_dirty_tracker(
         &buffer,

@@ -407,7 +407,7 @@ fn apply_editor_settings_now(settings: &EditorSettings, system_prefers_dark: Opt
     pane::for_each_editor_tab(|state| {
         editor_view::apply_to_view(&state.view, &view_cfg);
         editor_view::apply_to_buffer(&state.buffer, &view_cfg);
-        editor_view::apply_css(&state.view, &view_cfg, &state.css_provider);
+        editor_view::apply_css(&state.view, &view_cfg);
         state
             .highlight
             .set_enabled(view_cfg.highlight_word_at_cursor);
@@ -418,6 +418,7 @@ fn apply_editor_settings_now(settings: &EditorSettings, system_prefers_dark: Opt
             .set_label(crate::editor::status_bar::wrap_label_text(
                 view_cfg.wrap_lines,
             ));
+        crate::editor::vim::apply_to_tab(state, view_cfg.vim_mode);
     });
     crate::window::apply_file_panel_columns(settings.fp_show_size, settings.fp_show_mtime);
 }

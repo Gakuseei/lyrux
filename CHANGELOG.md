@@ -35,6 +35,7 @@ Editor polish v2 + file manager polish + theme system + snippets. 43 commits.
 - Ctrl+` toggles or focuses terminal.
 - Ctrl+, opens Settings; Ctrl+Shift+, opens Keybinds editor.
 - Command palette accels auto-derive from current shortcut config.
+- Vim mode toggle in Settings — real `VimIMContext` integration with status-bar mode display and `:w`/`:q`/`:wq` routed to native save/close actions.
 
 ### Changed
 - Default editor theme: "Lyrux Grey" (was "Lyrux Dark").

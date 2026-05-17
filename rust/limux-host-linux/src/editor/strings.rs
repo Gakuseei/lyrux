@@ -23,7 +23,8 @@ pub const SETTING_INDENT_GUIDES: &str = "Show indent guides";
 pub const SETTING_HIGHLIGHT_WORD: &str = "Highlight matching word at cursor";
 pub const SETTING_STICKY_SCROLL: &str = "Sticky scroll (pin function/class headers)";
 pub const SETTING_SHOW_MINIMAP: &str = "Show minimap";
-pub const SETTING_VIM: &str = "Vim mode (coming soon)";
+pub const SETTING_VIM: &str = "Vim mode";
+pub const STATUS_VIM_NORMAL: &str = "NORMAL";
 
 pub const SETTINGS_SECTION_DISPLAY: &str = "Display";
 pub const SETTINGS_SECTION_EDITING: &str = "Editing";
