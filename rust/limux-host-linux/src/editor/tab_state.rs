@@ -81,6 +81,7 @@ pub fn build(path: PathBuf, cfg: &ViewConfig) -> BuildOutcome {
         .hexpand(true)
         .vexpand(true)
         .build();
+    view::install_file_drop_reject(&scrolled);
     let sticky = sticky_scroll::install(&view, &buffer, &scrolled, cfg.show_sticky_scroll);
 
     let minimap = build_minimap(&view, cfg.show_minimap);

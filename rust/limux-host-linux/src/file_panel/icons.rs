@@ -1,12 +1,14 @@
+pub const GENERIC_FILE_ICON: &str = "text-x-generic-symbolic";
+
 pub fn icon_for_extension(ext: &str) -> &'static str {
     match ext.to_ascii_lowercase().as_str() {
         "rs" | "ts" | "tsx" | "js" | "jsx" | "py" | "go" | "cpp" | "cc" | "cxx" | "c" | "h"
         | "hpp" | "java" | "kt" | "swift" | "rb" | "php" | "lua" | "zig" | "sh" | "bash"
         | "fish" | "zsh" => "text-x-script-symbolic",
-        "html" | "htm" | "xhtml" => "text-html",
-        "css" | "scss" | "sass" | "less" => "text-css",
-        "json" | "jsonc" => "application-json",
-        "xml" | "svg" => "text-xml",
+        "html" | "htm" | "xhtml" => "text-html-symbolic",
+        "css" | "scss" | "sass" | "less" => "text-x-generic-symbolic",
+        "json" | "jsonc" => "text-x-generic-symbolic",
+        "xml" | "svg" => "text-x-generic-symbolic",
         "yml" | "yaml" => "text-x-generic-symbolic",
         "toml" | "ini" | "cfg" | "conf" => "text-x-generic-symbolic",
         "md" | "markdown" | "rst" | "txt" => "text-x-generic-symbolic",
@@ -45,5 +47,26 @@ mod tests {
     #[test]
     fn unknown_falls_back_to_generic() {
         assert_eq!(icon_for_extension("xyz"), "text-x-generic-symbolic");
+    }
+
+    #[test]
+    fn html_uses_symbolic_icon() {
+        assert_eq!(icon_for_extension("html"), "text-html-symbolic");
+    }
+
+    #[test]
+    fn json_falls_back_to_generic_symbolic() {
+        assert_eq!(icon_for_extension("json"), "text-x-generic-symbolic");
+    }
+
+    #[test]
+    fn css_uses_symbolic_icon() {
+        assert_eq!(icon_for_extension("css"), "text-x-generic-symbolic");
+    }
+
+    #[test]
+    fn generic_constant_matches_fallback() {
+        assert_eq!(GENERIC_FILE_ICON, "text-x-generic-symbolic");
+        assert_eq!(icon_for_extension("xyz"), GENERIC_FILE_ICON);
     }
 }

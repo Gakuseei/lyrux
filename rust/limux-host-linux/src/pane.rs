@@ -75,8 +75,8 @@ pub enum PaneEmptyReason {
     MovedLastTabOut,
 }
 
-pub const DROP_OPEN_HERE: &str = "Open here";
-pub const DROP_NEW_TAB: &str = "Open as new tab";
+pub const DROP_OPEN_HERE: &str = "Open here as a new tab";
+pub const DROP_NEW_TAB: &str = "Open as a new tab";
 
 const HOST_ENTRY_CSS_CLASS: &str = "limux-host-entry";
 const TAB_RENAME_ENTRY_CSS_CLASS: &str = "limux-tab-rename-entry";
@@ -429,23 +429,40 @@ pub const PANE_CSS: &str = r#"
     border: 1px solid @error_color;
 }
 .lyrux-file-drop-overlay {
-    background: alpha(@accent_bg_color, 0.15);
-    border: 2px dashed alpha(@accent_bg_color, 0.6);
-    border-radius: 8px;
+    background: alpha(@accent_bg_color, 0.10);
+    border: 2px dashed alpha(@accent_bg_color, 0.55);
+    border-radius: 10px;
     margin: 8px;
 }
 .lyrux-file-drop-label {
-    background: @accent_bg_color;
-    color: @accent_fg_color;
-    padding: 4px 12px;
-    border-radius: 6px;
-    font-weight: bold;
+    background: alpha(@window_bg_color, 0.92);
+    color: @accent_color;
+    padding: 8px 16px;
+    border-radius: 12px;
+    border: 1px solid alpha(@accent_color, 0.4);
+    font-weight: 700;
+}
+.lyrux-pane-drop-corner {
+    background: alpha(@accent_bg_color, 0.22);
+    border: 2px solid alpha(@accent_color, 0.85);
+    border-radius: 4px;
+    min-width: 14px;
+    min-height: 14px;
+    margin: 10px;
 }
 .lyrux-tab-strip-file-drop {
-    background: alpha(@accent_bg_color, 0.18);
-    border: 2px dashed alpha(@accent_bg_color, 0.7);
+    background: alpha(@accent_bg_color, 0.12);
+    border: 2px dashed alpha(@accent_bg_color, 0.6);
     border-radius: 6px;
     margin: 2px;
+}
+.lyrux-tab-strip-drop-corner {
+    background: alpha(@accent_bg_color, 0.22);
+    border: 2px solid alpha(@accent_color, 0.85);
+    border-radius: 3px;
+    min-width: 10px;
+    min-height: 10px;
+    margin: 3px;
 }
 "#;
 
@@ -519,13 +536,35 @@ pub fn create_pane(
         .can_target(false)
         .build();
     file_drop_overlay.add_css_class("lyrux-file-drop-overlay");
+    let file_drop_inner = gtk::Overlay::new();
+    file_drop_inner.set_hexpand(true);
+    file_drop_inner.set_vexpand(true);
+    file_drop_inner.set_can_target(false);
+    let file_drop_base = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+    file_drop_base.set_hexpand(true);
+    file_drop_base.set_vexpand(true);
+    file_drop_base.set_can_target(false);
+    file_drop_inner.set_child(Some(&file_drop_base));
+    for (h, v) in [
+        (gtk::Align::Start, gtk::Align::Start),
+        (gtk::Align::End, gtk::Align::Start),
+        (gtk::Align::Start, gtk::Align::End),
+        (gtk::Align::End, gtk::Align::End),
+    ] {
+        let corner = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        corner.set_halign(h);
+        corner.set_valign(v);
+        corner.set_can_target(false);
+        corner.add_css_class("lyrux-pane-drop-corner");
+        file_drop_inner.add_overlay(&corner);
+    }
     let file_drop_label = gtk::Label::new(Some(DROP_OPEN_HERE));
     file_drop_label.set_halign(gtk::Align::Center);
     file_drop_label.set_valign(gtk::Align::Center);
-    file_drop_label.set_hexpand(true);
-    file_drop_label.set_vexpand(true);
+    file_drop_label.set_can_target(false);
     file_drop_label.add_css_class("lyrux-file-drop-label");
-    file_drop_overlay.append(&file_drop_label);
+    file_drop_inner.add_overlay(&file_drop_label);
+    file_drop_overlay.append(&file_drop_inner);
     content_overlay.add_overlay(&file_drop_overlay);
 
     let tab_strip_file_drop_overlay = gtk::Box::builder()
@@ -536,13 +575,35 @@ pub fn create_pane(
         .can_target(false)
         .build();
     tab_strip_file_drop_overlay.add_css_class("lyrux-tab-strip-file-drop");
+    let tab_strip_drop_inner = gtk::Overlay::new();
+    tab_strip_drop_inner.set_hexpand(true);
+    tab_strip_drop_inner.set_vexpand(true);
+    tab_strip_drop_inner.set_can_target(false);
+    let tab_strip_drop_base = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+    tab_strip_drop_base.set_hexpand(true);
+    tab_strip_drop_base.set_vexpand(true);
+    tab_strip_drop_base.set_can_target(false);
+    tab_strip_drop_inner.set_child(Some(&tab_strip_drop_base));
+    for (h, v) in [
+        (gtk::Align::Start, gtk::Align::Start),
+        (gtk::Align::End, gtk::Align::Start),
+        (gtk::Align::Start, gtk::Align::End),
+        (gtk::Align::End, gtk::Align::End),
+    ] {
+        let corner = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        corner.set_halign(h);
+        corner.set_valign(v);
+        corner.set_can_target(false);
+        corner.add_css_class("lyrux-tab-strip-drop-corner");
+        tab_strip_drop_inner.add_overlay(&corner);
+    }
     let tab_strip_file_drop_label = gtk::Label::new(Some(DROP_NEW_TAB));
     tab_strip_file_drop_label.set_halign(gtk::Align::Center);
     tab_strip_file_drop_label.set_valign(gtk::Align::Center);
-    tab_strip_file_drop_label.set_hexpand(true);
-    tab_strip_file_drop_label.set_vexpand(true);
+    tab_strip_file_drop_label.set_can_target(false);
     tab_strip_file_drop_label.add_css_class("lyrux-file-drop-label");
-    tab_strip_file_drop_overlay.append(&tab_strip_file_drop_label);
+    tab_strip_drop_inner.add_overlay(&tab_strip_file_drop_label);
+    tab_strip_file_drop_overlay.append(&tab_strip_drop_inner);
     tab_overlay.add_overlay(&tab_strip_file_drop_overlay);
 
     let actions = gtk::Box::builder()
@@ -4251,8 +4312,8 @@ mod tests {
 
     #[test]
     fn drop_overlay_strings_are_human_readable() {
-        assert_eq!(DROP_OPEN_HERE, "Open here");
-        assert_eq!(DROP_NEW_TAB, "Open as new tab");
+        assert_eq!(DROP_OPEN_HERE, "Open here as a new tab");
+        assert_eq!(DROP_NEW_TAB, "Open as a new tab");
     }
 
     #[test]

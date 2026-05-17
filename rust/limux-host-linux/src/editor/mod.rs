@@ -72,6 +72,7 @@ pub fn spawn_empty(cfg: &ViewConfig) -> EditorTabState {
         .hexpand(true)
         .vexpand(true)
         .build();
+    view::install_file_drop_reject(&scrolled);
     let sticky = sticky_scroll::install(&view, &buffer, &scrolled, cfg.show_sticky_scroll);
     let minimap = tab_state::build_minimap(&view, cfg.show_minimap);
     let editor_row_built =

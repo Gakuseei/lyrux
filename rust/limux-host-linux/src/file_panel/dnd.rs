@@ -6,7 +6,7 @@ use gtk4::prelude::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::file_panel::icons::icon_for_extension;
+use crate::file_panel::icons::{icon_for_extension, GENERIC_FILE_ICON};
 use crate::file_panel::model::Kind;
 use crate::file_panel::row_object::RowObject;
 
@@ -45,8 +45,13 @@ pub fn install_drag_source(
         };
         let display = WidgetExt::display(&widget_clone);
         let theme = gtk::IconTheme::for_display(&display);
+        let resolved = if theme.has_icon(icon_name) {
+            icon_name
+        } else {
+            GENERIC_FILE_ICON
+        };
         let paintable = theme.lookup_icon(
-            icon_name,
+            resolved,
             &[],
             DRAG_ICON_SIZE,
             widget_clone.scale_factor(),

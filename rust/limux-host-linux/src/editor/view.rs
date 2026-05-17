@@ -3,7 +3,6 @@
 use std::cell::RefCell;
 
 use gtk4 as gtk;
-use gtk4::prelude::WidgetExt;
 use sourceview5::prelude::*;
 
 use crate::editor::snippets;
@@ -62,7 +61,23 @@ pub fn build(buffer: &sourceview5::Buffer, cfg: &ViewConfig) -> sourceview5::Vie
     apply_to_view(&view, cfg);
     apply_to_buffer(buffer, cfg);
     install_completion(&view, buffer);
+    install_file_drop_reject(&view);
     view
+}
+
+pub fn install_file_drop_reject<W: IsA<gtk::Widget>>(widget: &W) {
+    let drop_target = gtk::DropTarget::new(
+        gtk::gdk::FileList::static_type(),
+        gtk::gdk::DragAction::empty(),
+    );
+    drop_target.set_types(&[
+        gtk::gdk::FileList::static_type(),
+        gtk4::gio::File::static_type(),
+    ]);
+    drop_target.connect_enter(|_, _, _| gtk::gdk::DragAction::empty());
+    drop_target.connect_motion(|_, _, _| gtk::gdk::DragAction::empty());
+    drop_target.connect_drop(|_, _, _, _| false);
+    widget.add_controller(drop_target);
 }
 
 fn install_completion(view: &sourceview5::View, buffer: &sourceview5::Buffer) {
