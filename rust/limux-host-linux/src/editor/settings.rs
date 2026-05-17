@@ -48,7 +48,7 @@ fn default_font_family() -> String {
     "Lilex".to_string()
 }
 fn default_font_size() -> i32 {
-    13
+    12
 }
 fn default_tab_width() -> u32 {
     4
