@@ -79,11 +79,13 @@ pub struct PerWorkspace {
 }
 
 pub type OpenFileCallback = dyn Fn(&Path);
+pub type OpenTerminalCallback = dyn Fn(&Path);
 
 pub struct Inner {
     pub root_box: gtk::Box,
     pub header: HeaderHandle,
     pub on_open_file: Option<Rc<OpenFileCallback>>,
+    pub on_open_terminal: Option<Rc<OpenTerminalCallback>>,
     // Kept on Inner so future code (DnD autoscroll, scroll restoration) can reach it.
     #[allow(dead_code)]
     pub scrolled: gtk::ScrolledWindow,
@@ -128,6 +130,7 @@ impl FilePanelHandle {
                 root_box,
                 header,
                 on_open_file: None,
+                on_open_terminal: None,
                 scrolled,
                 view,
                 sticky,
@@ -146,6 +149,10 @@ impl FilePanelHandle {
 
     pub fn set_on_open_file<F: Fn(&Path) + 'static>(&self, callback: F) {
         self.inner.borrow_mut().on_open_file = Some(Rc::new(callback));
+    }
+
+    pub fn set_on_open_terminal<F: Fn(&Path) + 'static>(&self, callback: F) {
+        self.inner.borrow_mut().on_open_terminal = Some(Rc::new(callback));
     }
 
     pub fn widget(&self) -> gtk::Widget {
@@ -753,11 +760,11 @@ impl FilePanelHandle {
             "fp-copy" => self.do_clip(ClipMode::Copy),
             "fp-paste" => self.do_paste(),
             "fp-reveal-in-fm" => self.do_reveal(),
-            "fp-open-in-terminal" => {}
-            "fp-copy-path" => {}
-            "fp-copy-relative-path" => {}
+            "fp-open-in-terminal" => self.do_open_in_terminal(),
+            "fp-copy-path" => self.do_copy_path(false),
+            "fp-copy-relative-path" => self.do_copy_path(true),
             "fp-collapse-all" => self.do_collapse_all_or_restore(),
-            "fp-expand-all" => {}
+            "fp-expand-all" => self.do_expand_all(),
             "fp-toggle-hidden" => self.do_toggle_hidden(),
             "fp-refresh" => self.do_refresh(),
             _ => {}
@@ -983,6 +990,122 @@ impl FilePanelHandle {
         let active = self.inner.borrow().active.clone();
         if let Some(active) = active {
             self.refresh_git_for(active);
+        }
+    }
+
+    fn do_open_in_terminal(&self) {
+        let root = match self.current_root() {
+            Some(r) => r,
+            None => return,
+        };
+        let target = self
+            .selected_paths()
+            .first()
+            .cloned()
+            .map(|p| {
+                if p.is_dir() {
+                    p
+                } else {
+                    p.parent().unwrap_or(&root).to_path_buf()
+                }
+            })
+            .unwrap_or(root);
+        let cb = self.inner.borrow().on_open_terminal.clone();
+        if let Some(cb) = cb {
+            cb(&target);
+        }
+    }
+
+    fn do_copy_path(&self, relative: bool) {
+        let selected = self.selected_paths();
+        let Some(path) = selected.first() else {
+            return;
+        };
+        let text = if relative {
+            let root = match self.current_root() {
+                Some(r) => r,
+                None => return,
+            };
+            match path.strip_prefix(&root) {
+                Ok(p) => p.to_string_lossy().to_string(),
+                Err(_) => path.to_string_lossy().to_string(),
+            }
+        } else {
+            path.to_string_lossy().to_string()
+        };
+        if let Some(display) = gtk4::gdk::Display::default() {
+            display.clipboard().set_text(&text);
+        }
+    }
+
+    fn do_expand_all(&self) {
+        let active = match self.inner.borrow().active.clone() {
+            Some(a) => a,
+            None => return,
+        };
+        let seeds: Vec<PathBuf> = {
+            let inner = self.inner.borrow();
+            let Some(per) = inner.cache.get(&active) else {
+                return;
+            };
+            let selected = self.selected_paths();
+            if selected.is_empty() {
+                per.model
+                    .rows
+                    .iter()
+                    .filter(|r| matches!(r.kind, crate::file_panel::model::Kind::Dir))
+                    .map(|r| r.path.clone())
+                    .collect()
+            } else {
+                selected.into_iter().filter(|p| p.is_dir()).collect()
+            }
+        };
+        const EXPAND_ALL_MAX_ROWS: usize = 5_000;
+        const EXPAND_ALL_MAX_DEPTH: u32 = 6;
+        {
+            let mut inner = self.inner.borrow_mut();
+            let store = inner.view.store.clone();
+            let Some(per) = inner.cache.get_mut(&active) else {
+                return;
+            };
+            let mut queue: Vec<PathBuf> = seeds;
+            while let Some(path) = queue.pop() {
+                if per.model.rows.len() >= EXPAND_ALL_MAX_ROWS {
+                    break;
+                }
+                let idx = match per.model.find_row(&path) {
+                    Some(i) => i,
+                    None => continue,
+                };
+                if per.model.rows[idx].depth >= EXPAND_ALL_MAX_DEPTH {
+                    continue;
+                }
+                if !matches!(
+                    per.model.rows[idx].kind,
+                    crate::file_panel::model::Kind::Dir
+                ) {
+                    continue;
+                }
+                if per.model.rows[idx].expanded {
+                    continue;
+                }
+                per.model.toggle_expand(idx);
+                let depth = per.model.rows[idx].depth;
+                let mut end = idx + 1;
+                while end < per.model.rows.len() && per.model.rows[end].depth > depth {
+                    if per.model.rows[end].depth == depth + 1
+                        && matches!(
+                            per.model.rows[end].kind,
+                            crate::file_panel::model::Kind::Dir
+                        )
+                        && !per.model.rows[end].expanded
+                    {
+                        queue.push(per.model.rows[end].path.clone());
+                    }
+                    end += 1;
+                }
+            }
+            apply_model_to_store(&per.model, &store);
         }
     }
 }

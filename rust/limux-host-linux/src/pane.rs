@@ -397,6 +397,34 @@ pub const PANE_CSS: &str = r#"
 .lyrux-editor-statusbar label {
     font-size: 11px;
 }
+.lyrux-find-bar {
+    padding: 4px 8px;
+    background: alpha(@window_fg_color, 0.03);
+}
+.lyrux-find-toggle {
+    padding: 2px 6px;
+    min-width: 24px;
+    min-height: 0;
+    font-family: monospace;
+    font-size: 11px;
+}
+.lyrux-find-toggle:checked {
+    background: alpha(@accent_bg_color, 0.25);
+    color: @accent_color;
+}
+.lyrux-find-nav {
+    padding: 2px 6px;
+    min-width: 24px;
+    min-height: 0;
+}
+.lyrux-find-count {
+    color: alpha(@window_fg_color, 0.6);
+    font-size: 11px;
+    padding: 0 8px;
+}
+.lyrux-find-invalid {
+    border: 1px solid @error_color;
+}
 "#;
 
 pub fn create_pane(
@@ -1582,6 +1610,13 @@ pub fn add_terminal_tab_to_pane(pane_widget: &gtk::Widget) {
     if let Some(internals) = find_pane_internals(pane_widget) {
         let dir = internals.working_directory.borrow().clone();
         add_terminal_tab_inner(&internals, dir.as_deref(), None);
+    }
+}
+
+pub fn add_terminal_tab_to_pane_with_cwd(pane_widget: &gtk::Widget, cwd: &std::path::Path) {
+    if let Some(internals) = find_pane_internals(pane_widget) {
+        let cwd_str = cwd.to_string_lossy().into_owned();
+        add_terminal_tab_inner(&internals, Some(cwd_str.as_str()), None);
     }
 }
 
