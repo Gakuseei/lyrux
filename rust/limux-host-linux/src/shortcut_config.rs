@@ -399,7 +399,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 71] = [
         config_key: "new_instance",
         action_name: "app.new-instance",
         default_accel: "<Ctrl><Alt>n",
-        label: "New Limux Instance",
+        label: "New Lyrux Instance",
         registers_gtk_accel: true,
         command: ShortcutCommand::NewInstance,
         scope: ShortcutScope::AppGlobal,

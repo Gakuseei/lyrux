@@ -3679,7 +3679,7 @@ pub(crate) fn create_pane_for_workspace(
                         .clone_from(previous);
                     apply_appearance(&style_manager, system_prefers_dark, &previous.appearance);
 
-                    let detail = format!("Failed to save Limux settings: {err}");
+                    let detail = format!("Failed to save Lyrux settings: {err}");
                     eprintln!("limux: {detail}");
                     show_runtime_error(
                         &state_for_config_changed,
@@ -4265,9 +4265,9 @@ fn spawn_new_instance(state: &State) -> bool {
     let exe = match std::env::current_exe() {
         Ok(exe) => exe,
         Err(err) => {
-            let detail = format!("Failed to resolve the current Limux executable: {err}");
+            let detail = format!("Failed to resolve the current Lyrux executable: {err}");
             eprintln!("limux: {detail}");
-            show_runtime_error(state, "Failed to open a new Limux instance", &detail);
+            show_runtime_error(state, "Failed to open a new Lyrux instance", &detail);
             return false;
         }
     };
@@ -4275,9 +4275,9 @@ fn spawn_new_instance(state: &State) -> bool {
     match std::process::Command::new(exe).spawn() {
         Ok(_) => true,
         Err(err) => {
-            let detail = format!("Failed to launch a new Limux instance: {err}");
+            let detail = format!("Failed to launch a new Lyrux instance: {err}");
             eprintln!("limux: {detail}");
-            show_runtime_error(state, "Failed to open a new Limux instance", &detail);
+            show_runtime_error(state, "Failed to open a new Lyrux instance", &detail);
             false
         }
     }
@@ -4349,7 +4349,7 @@ fn font_size_after_delta(current: Option<f32>, default: f32, delta: f32) -> f32 
 }
 
 fn show_font_size_save_error(state: &State, err: String) {
-    let detail = format!("Failed to save Limux settings: {err}");
+    let detail = format!("Failed to save Lyrux settings: {err}");
     eprintln!("limux: {detail}");
     show_runtime_error(state, "Failed to save settings", &detail);
 }
