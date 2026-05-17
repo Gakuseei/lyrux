@@ -71,6 +71,19 @@ pub enum ShortcutId {
     EditorSaveAll,
     WindowOpenSettings,
     WindowOpenKeybinds,
+    EditorSaveActive,
+    EditorFind,
+    EditorReplace,
+    EditorFindNext,
+    EditorFindPrevious,
+    EditorGotoLine,
+    EditorToggleComment,
+    EditorDuplicateLine,
+    EditorDeleteLine,
+    EditorMoveLineUp,
+    EditorMoveLineDown,
+    EditorSelectNextOccurrence,
+    EditorToggleWrap,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -132,6 +145,19 @@ pub enum ShortcutCommand {
     EditorSaveAll,
     WindowOpenSettings,
     WindowOpenKeybinds,
+    EditorSaveActive,
+    EditorFind,
+    EditorReplace,
+    EditorFindNext,
+    EditorFindPrevious,
+    EditorGotoLine,
+    EditorToggleComment,
+    EditorDuplicateLine,
+    EditorDeleteLine,
+    EditorMoveLineUp,
+    EditorMoveLineDown,
+    EditorSelectNextOccurrence,
+    EditorToggleWrap,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -160,6 +186,7 @@ pub struct ShortcutDefinition {
     pub command: ShortcutCommand,
     pub scope: ShortcutScope,
     pub editable_capture_policy: EditableCapturePolicy,
+    pub unbound_by_default: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -330,7 +357,7 @@ struct ShortcutConfigFile {
     shortcuts: HashMap<String, serde_json::Value>,
 }
 
-const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
+const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 71] = [
     ShortcutDefinition {
         id: ShortcutId::NewWorkspace,
         config_key: "new_workspace",
@@ -341,6 +368,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::NewWorkspace,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::CloseWorkspace,
@@ -352,6 +380,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::CloseWorkspace,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::QuitApp,
@@ -363,6 +392,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::QuitApp,
         scope: ShortcutScope::AppGlobal,
         editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::NewInstance,
@@ -374,6 +404,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::NewInstance,
         scope: ShortcutScope::AppGlobal,
         editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::ToggleSidebar,
@@ -385,6 +416,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::ToggleSidebar,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::ToggleFilePanel,
@@ -396,6 +428,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::ToggleFilePanel,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::EditorToggleCurrentPane,
@@ -407,6 +440,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::EditorToggleCurrentPane,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::ToggleTopBar,
@@ -418,6 +452,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::ToggleTopBar,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::ToggleFullscreen,
@@ -429,6 +464,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::ToggleFullscreen,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::NextWorkspace,
@@ -440,6 +476,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::NextWorkspace,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::PrevWorkspace,
@@ -451,6 +488,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::PrevWorkspace,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::CycleTabPrev,
@@ -462,6 +500,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::CycleTabPrev,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::CycleTabNext,
@@ -473,6 +512,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::CycleTabNext,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::SplitDown,
@@ -484,6 +524,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::SplitDown,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::NewTerminalInFocusedPane,
@@ -495,6 +536,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::NewTerminal,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::SplitRight,
@@ -506,6 +548,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::SplitRight,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::CloseFocusedPane,
@@ -517,6 +560,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::CloseFocusedPane,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::NewTerminal,
@@ -528,6 +572,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::NewTerminal,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::FocusLeft,
@@ -539,6 +584,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::FocusLeft,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::FocusRight,
@@ -550,6 +596,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::FocusRight,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::FocusUp,
@@ -561,6 +608,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::FocusUp,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::FocusDown,
@@ -572,6 +620,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::FocusDown,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::ActivateWorkspace1,
@@ -583,6 +632,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::ActivateWorkspace1,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::ActivateWorkspace2,
@@ -594,6 +644,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::ActivateWorkspace2,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::ActivateWorkspace3,
@@ -605,6 +656,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::ActivateWorkspace3,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::ActivateWorkspace4,
@@ -616,6 +668,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::ActivateWorkspace4,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::ActivateWorkspace5,
@@ -627,6 +680,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::ActivateWorkspace5,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::ActivateWorkspace6,
@@ -638,6 +692,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::ActivateWorkspace6,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::ActivateWorkspace7,
@@ -649,6 +704,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::ActivateWorkspace7,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::ActivateWorkspace8,
@@ -660,6 +716,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::ActivateWorkspace8,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::ActivateLastWorkspace,
@@ -671,6 +728,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::ActivateLastWorkspace,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::OpenBrowserInSplit,
@@ -682,6 +740,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::OpenBrowserInSplit,
         scope: ShortcutScope::FocusedBrowser,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::BrowserFocusLocation,
@@ -693,6 +752,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::BrowserFocusLocation,
         scope: ShortcutScope::FocusedBrowser,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::BrowserBack,
@@ -704,6 +764,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::BrowserBack,
         scope: ShortcutScope::FocusedBrowser,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::BrowserForward,
@@ -715,6 +776,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::BrowserForward,
         scope: ShortcutScope::FocusedBrowser,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::BrowserReload,
@@ -726,6 +788,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::BrowserReload,
         scope: ShortcutScope::FocusedBrowser,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::BrowserInspector,
@@ -737,6 +800,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::BrowserInspector,
         scope: ShortcutScope::FocusedBrowser,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::BrowserConsole,
@@ -748,6 +812,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::BrowserConsole,
         scope: ShortcutScope::FocusedBrowser,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::SurfaceFind,
@@ -759,6 +824,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::SurfaceFind,
         scope: ShortcutScope::FocusedSurface,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::SurfaceFindNext,
@@ -770,6 +836,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::SurfaceFindNext,
         scope: ShortcutScope::FocusedSurface,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::SurfaceFindPrevious,
@@ -781,6 +848,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::SurfaceFindPrevious,
         scope: ShortcutScope::FocusedSurface,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::SurfaceFindHide,
@@ -792,6 +860,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::SurfaceFindHide,
         scope: ShortcutScope::FocusedSurface,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::SurfaceUseSelectionForFind,
@@ -803,6 +872,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::SurfaceUseSelectionForFind,
         scope: ShortcutScope::FocusedSurface,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::TerminalClearScrollback,
@@ -814,6 +884,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::TerminalClearScrollback,
         scope: ShortcutScope::FocusedTerminal,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::TerminalCopy,
@@ -825,6 +896,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::TerminalCopy,
         scope: ShortcutScope::FocusedTerminal,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::TerminalPaste,
@@ -836,6 +908,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::TerminalPaste,
         scope: ShortcutScope::FocusedTerminal,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::TerminalIncreaseFontSize,
@@ -847,6 +920,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::TerminalIncreaseFontSize,
         scope: ShortcutScope::FocusedTerminal,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::TerminalDecreaseFontSize,
@@ -858,6 +932,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::TerminalDecreaseFontSize,
         scope: ShortcutScope::FocusedTerminal,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::TerminalResetFontSize,
@@ -869,6 +944,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::TerminalResetFontSize,
         scope: ShortcutScope::FocusedTerminal,
         editable_capture_policy: EditableCapturePolicy::BypassInEditable,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::EditorQuickOpen,
@@ -880,6 +956,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::EditorQuickOpen,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::EditorCommandPalette,
@@ -891,6 +968,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::EditorCommandPalette,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::EditorFindInFiles,
@@ -902,6 +980,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::EditorFindInFiles,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::PaneTogglePinTab,
@@ -913,6 +992,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::PaneTogglePinTab,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::EditorReopenClosedTab,
@@ -924,6 +1004,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::EditorReopenClosedTab,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::WindowToggleTerminal,
@@ -935,6 +1016,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::WindowToggleTerminal,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::EditorSaveAll,
@@ -946,6 +1028,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::EditorSaveAll,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::WindowOpenSettings,
@@ -957,6 +1040,7 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::WindowOpenSettings,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
+        unbound_by_default: false,
     },
     ShortcutDefinition {
         id: ShortcutId::WindowOpenKeybinds,
@@ -968,6 +1052,163 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 58] = [
         command: ShortcutCommand::WindowOpenKeybinds,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
+        unbound_by_default: false,
+    },
+    ShortcutDefinition {
+        id: ShortcutId::EditorSaveActive,
+        config_key: "editor_save_active",
+        action_name: "win.editor-save-active",
+        default_accel: "<Ctrl>s",
+        label: "Save active editor tab",
+        registers_gtk_accel: false,
+        command: ShortcutCommand::EditorSaveActive,
+        scope: ShortcutScope::Window,
+        editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
+        unbound_by_default: true,
+    },
+    ShortcutDefinition {
+        id: ShortcutId::EditorFind,
+        config_key: "editor_find",
+        action_name: "win.editor-find",
+        default_accel: "<Ctrl>f",
+        label: "Find in editor",
+        registers_gtk_accel: false,
+        command: ShortcutCommand::EditorFind,
+        scope: ShortcutScope::Window,
+        editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
+        unbound_by_default: true,
+    },
+    ShortcutDefinition {
+        id: ShortcutId::EditorReplace,
+        config_key: "editor_replace",
+        action_name: "win.editor-replace",
+        default_accel: "<Ctrl>h",
+        label: "Find and replace in editor",
+        registers_gtk_accel: false,
+        command: ShortcutCommand::EditorReplace,
+        scope: ShortcutScope::Window,
+        editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
+        unbound_by_default: true,
+    },
+    ShortcutDefinition {
+        id: ShortcutId::EditorFindNext,
+        config_key: "editor_find_next",
+        action_name: "win.editor-find-next",
+        default_accel: "F3",
+        label: "Find next in editor",
+        registers_gtk_accel: false,
+        command: ShortcutCommand::EditorFindNext,
+        scope: ShortcutScope::Window,
+        editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
+        unbound_by_default: true,
+    },
+    ShortcutDefinition {
+        id: ShortcutId::EditorFindPrevious,
+        config_key: "editor_find_previous",
+        action_name: "win.editor-find-previous",
+        default_accel: "<Shift>F3",
+        label: "Find previous in editor",
+        registers_gtk_accel: false,
+        command: ShortcutCommand::EditorFindPrevious,
+        scope: ShortcutScope::Window,
+        editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
+        unbound_by_default: true,
+    },
+    ShortcutDefinition {
+        id: ShortcutId::EditorGotoLine,
+        config_key: "editor_goto_line",
+        action_name: "win.editor-goto-line",
+        default_accel: "<Ctrl>g",
+        label: "Goto line",
+        registers_gtk_accel: false,
+        command: ShortcutCommand::EditorGotoLine,
+        scope: ShortcutScope::Window,
+        editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
+        unbound_by_default: true,
+    },
+    ShortcutDefinition {
+        id: ShortcutId::EditorToggleComment,
+        config_key: "editor_toggle_comment",
+        action_name: "win.editor-toggle-comment",
+        default_accel: "<Ctrl>slash",
+        label: "Toggle line comment",
+        registers_gtk_accel: false,
+        command: ShortcutCommand::EditorToggleComment,
+        scope: ShortcutScope::Window,
+        editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
+        unbound_by_default: true,
+    },
+    ShortcutDefinition {
+        id: ShortcutId::EditorDuplicateLine,
+        config_key: "editor_duplicate_line",
+        action_name: "win.editor-duplicate-line",
+        default_accel: "<Ctrl><Shift>d",
+        label: "Duplicate line",
+        registers_gtk_accel: false,
+        command: ShortcutCommand::EditorDuplicateLine,
+        scope: ShortcutScope::Window,
+        editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
+        unbound_by_default: true,
+    },
+    ShortcutDefinition {
+        id: ShortcutId::EditorDeleteLine,
+        config_key: "editor_delete_line",
+        action_name: "win.editor-delete-line",
+        default_accel: "<Ctrl><Shift>k",
+        label: "Delete line",
+        registers_gtk_accel: false,
+        command: ShortcutCommand::EditorDeleteLine,
+        scope: ShortcutScope::Window,
+        editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
+        unbound_by_default: true,
+    },
+    ShortcutDefinition {
+        id: ShortcutId::EditorMoveLineUp,
+        config_key: "editor_move_line_up",
+        action_name: "win.editor-move-line-up",
+        default_accel: "<Alt>Up",
+        label: "Move line up",
+        registers_gtk_accel: false,
+        command: ShortcutCommand::EditorMoveLineUp,
+        scope: ShortcutScope::Window,
+        editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
+        unbound_by_default: true,
+    },
+    ShortcutDefinition {
+        id: ShortcutId::EditorMoveLineDown,
+        config_key: "editor_move_line_down",
+        action_name: "win.editor-move-line-down",
+        default_accel: "<Alt>Down",
+        label: "Move line down",
+        registers_gtk_accel: false,
+        command: ShortcutCommand::EditorMoveLineDown,
+        scope: ShortcutScope::Window,
+        editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
+        unbound_by_default: true,
+    },
+    ShortcutDefinition {
+        id: ShortcutId::EditorSelectNextOccurrence,
+        config_key: "editor_select_next_occurrence",
+        action_name: "win.editor-select-next-occurrence",
+        default_accel: "<Ctrl>d",
+        label: "Select next occurrence",
+        registers_gtk_accel: false,
+        command: ShortcutCommand::EditorSelectNextOccurrence,
+        scope: ShortcutScope::Window,
+        editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
+        unbound_by_default: true,
+    },
+    ShortcutDefinition {
+        id: ShortcutId::EditorToggleWrap,
+        config_key: "editor_toggle_wrap",
+        action_name: "win.editor-toggle-wrap",
+        default_accel: "<Alt>z",
+        label: "Toggle word wrap",
+        registers_gtk_accel: false,
+        command: ShortcutCommand::EditorToggleWrap,
+        scope: ShortcutScope::Window,
+        editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
+        unbound_by_default: true,
     },
 ];
 
@@ -1249,14 +1490,26 @@ impl ResolvedShortcutConfig {
         self.shortcuts
             .iter()
             .filter_map(|shortcut| {
-                let default_binding = shortcut.definition.default_binding();
+                let definition = shortcut.definition;
                 match &shortcut.binding {
-                    Some(binding) if binding == &default_binding => None,
-                    Some(binding) => Some((
-                        shortcut.definition.config_key.to_string(),
-                        Value::String(binding.to_config_accel()),
-                    )),
-                    None => Some((shortcut.definition.config_key.to_string(), Value::Null)),
+                    Some(binding) => {
+                        let default_binding = definition.default_binding();
+                        if !definition.unbound_by_default && binding == &default_binding {
+                            None
+                        } else {
+                            Some((
+                                definition.config_key.to_string(),
+                                Value::String(binding.to_config_accel()),
+                            ))
+                        }
+                    }
+                    None => {
+                        if definition.unbound_by_default {
+                            None
+                        } else {
+                            Some((definition.config_key.to_string(), Value::Null))
+                        }
+                    }
                 }
             })
             .collect()
@@ -1328,7 +1581,11 @@ pub fn default_shortcuts() -> ResolvedShortcutConfig {
             .iter()
             .map(|definition| ResolvedShortcut {
                 definition,
-                binding: Some(definition.default_binding()),
+                binding: if definition.unbound_by_default {
+                    None
+                } else {
+                    Some(definition.default_binding())
+                },
             })
             .collect(),
         warnings: Vec::new(),
@@ -1744,7 +2001,7 @@ mod tests {
 
     #[test]
     fn definitions_cover_current_host_shortcuts() {
-        assert_eq!(definitions().len(), 58);
+        assert_eq!(definitions().len(), 71);
     }
 
     #[test]

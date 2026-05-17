@@ -1195,8 +1195,8 @@ pub fn build_window(app: &adw::Application) {
     }
 
     register_app_actions(app, &state);
-    register_window_actions(&window, &state);
     register_editor_actions(&window, &state);
+    register_window_actions(&window, &state);
     install_key_capture(&window, &state);
 
     // Any click anywhere in the window commits an active sidebar rename,
@@ -1335,6 +1335,9 @@ fn register_window_actions(window: &adw::ApplicationWindow, state: &State) {
     };
 
     for (name, command) in action_defs {
+        if window.lookup_action(name).is_some() {
+            continue;
+        }
         let action = gtk::gio::SimpleAction::new(name, None);
         let state = state.clone();
         action.connect_activate(move |_, _| {
@@ -1844,6 +1847,56 @@ fn dispatch_shortcut_command(state: &State, command: ShortcutCommand) -> bool {
         | ShortcutCommand::TerminalIncreaseFontSize
         | ShortcutCommand::TerminalDecreaseFontSize
         | ShortcutCommand::TerminalResetFontSize => dispatch_terminal_command(state, command),
+        ShortcutCommand::EditorSaveActive => {
+            dispatch_focused_editor_action(state, "editor-save-active")
+        }
+        ShortcutCommand::EditorFind => dispatch_focused_editor_action(state, "editor-find"),
+        ShortcutCommand::EditorReplace => dispatch_focused_editor_action(state, "editor-replace"),
+        ShortcutCommand::EditorFindNext => {
+            dispatch_focused_editor_action(state, "editor-find-next")
+        }
+        ShortcutCommand::EditorFindPrevious => {
+            dispatch_focused_editor_action(state, "editor-find-previous")
+        }
+        ShortcutCommand::EditorGotoLine => {
+            dispatch_focused_editor_action(state, "editor-goto-line")
+        }
+        ShortcutCommand::EditorToggleComment => {
+            dispatch_focused_editor_action(state, "editor-toggle-comment")
+        }
+        ShortcutCommand::EditorDuplicateLine => {
+            dispatch_focused_editor_action(state, "editor-duplicate-line")
+        }
+        ShortcutCommand::EditorDeleteLine => {
+            dispatch_focused_editor_action(state, "editor-delete-line")
+        }
+        ShortcutCommand::EditorMoveLineUp => {
+            dispatch_focused_editor_action(state, "editor-move-line-up")
+        }
+        ShortcutCommand::EditorMoveLineDown => {
+            dispatch_focused_editor_action(state, "editor-move-line-down")
+        }
+        ShortcutCommand::EditorSelectNextOccurrence => {
+            dispatch_focused_editor_action(state, "editor-select-next-occurrence")
+        }
+        ShortcutCommand::EditorToggleWrap => {
+            dispatch_focused_editor_action(state, "editor-toggle-wrap")
+        }
+    }
+}
+
+fn dispatch_focused_editor_action(state: &State, action_basename: &str) -> bool {
+    let window = {
+        let s = state.borrow();
+        s.window.clone()
+    };
+    let action_name = format!("win.{action_basename}");
+    match gtk::prelude::WidgetExt::activate_action(&window, &action_name, None) {
+        Ok(()) => true,
+        Err(err) => {
+            eprintln!("lyrux: failed to activate `{action_name}`: {err}");
+            false
+        }
     }
 }
 
