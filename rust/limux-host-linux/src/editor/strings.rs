@@ -176,6 +176,8 @@ pub const CMD_PANE_TOGGLE_PIN: &str = "Pane: Pin / Unpin Tab";
 pub const CMD_EDITOR_REOPEN_CLOSED: &str = "Editor: Reopen Closed Tab";
 pub const CMD_NEW_TERMINAL: &str = "Terminal: New";
 pub const CMD_NEW_TERMINAL_IN_PANE: &str = "Terminal: New in Focused Pane";
+pub const CMD_TOGGLE_TERMINAL: &str = "Terminal: Toggle / Focus";
+pub const SHORTCUT_LABEL_TOGGLE_TERMINAL: &str = "Toggle or focus terminal";
 pub const CMD_OPEN_BROWSER_IN_SPLIT: &str = "Browser: Open in Split";
 pub const CMD_QUIT_APP: &str = "Application: Quit";
 

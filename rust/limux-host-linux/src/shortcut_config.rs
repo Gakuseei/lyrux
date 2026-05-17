@@ -67,6 +67,7 @@ pub enum ShortcutId {
     EditorFindInFiles,
     PaneTogglePinTab,
     EditorReopenClosedTab,
+    WindowToggleTerminal,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -124,6 +125,7 @@ pub enum ShortcutCommand {
     EditorFindInFiles,
     PaneTogglePinTab,
     EditorReopenClosedTab,
+    WindowToggleTerminal,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -322,7 +324,7 @@ struct ShortcutConfigFile {
     shortcuts: HashMap<String, serde_json::Value>,
 }
 
-const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 54] = [
+const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 55] = [
     ShortcutDefinition {
         id: ShortcutId::NewWorkspace,
         config_key: "new_workspace",
@@ -916,6 +918,17 @@ const SHORTCUT_DEFINITIONS: [ShortcutDefinition; 54] = [
         command: ShortcutCommand::EditorReopenClosedTab,
         scope: ShortcutScope::Window,
         editable_capture_policy: EditableCapturePolicy::AlwaysCapture,
+    },
+    ShortcutDefinition {
+        id: ShortcutId::WindowToggleTerminal,
+        config_key: "window_toggle_terminal",
+        action_name: "win.toggle-or-focus-terminal",
+        default_accel: "<Ctrl>grave",
+        label: "Toggle or focus terminal",
+        registers_gtk_accel: false,
+        command: ShortcutCommand::WindowToggleTerminal,
+        scope: ShortcutScope::Window,
+        editable_capture_policy: EditableCapturePolicy::BypassInEditable,
     },
 ];
 
@@ -1685,7 +1698,7 @@ mod tests {
 
     #[test]
     fn definitions_cover_current_host_shortcuts() {
-        assert_eq!(definitions().len(), 54);
+        assert_eq!(definitions().len(), 55);
     }
 
     #[test]

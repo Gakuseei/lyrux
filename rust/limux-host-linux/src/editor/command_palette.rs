@@ -195,6 +195,11 @@ const COMMANDS: &[CommandEntry] = &[
         accel: None,
     },
     CommandEntry {
+        label: strings::CMD_TOGGLE_TERMINAL,
+        action_name: "win.toggle-or-focus-terminal",
+        accel: Some("Ctrl+`"),
+    },
+    CommandEntry {
         label: strings::CMD_NEW_TERMINAL_IN_PANE,
         action_name: "win.new-terminal-in-focused-pane",
         accel: None,

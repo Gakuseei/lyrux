@@ -1683,6 +1683,58 @@ pub fn add_terminal_tab_to_pane(pane_widget: &gtk::Widget) {
     }
 }
 
+pub fn toggle_or_focus_terminal_in_pane(pane_widget: &gtk::Widget) {
+    let Some(internals) = find_pane_internals(pane_widget) else {
+        return;
+    };
+
+    enum Outcome {
+        FocusActive,
+        Activate(String),
+        Spawn,
+    }
+
+    let outcome = {
+        let ts = internals.tab_state.borrow();
+        let active_is_terminal = ts
+            .active_tab
+            .as_deref()
+            .and_then(|id| ts.tabs.iter().find(|entry| entry.id == id))
+            .map(|entry| matches!(entry.kind, TabKind::Terminal { .. }))
+            .unwrap_or(false);
+        if active_is_terminal {
+            Outcome::FocusActive
+        } else if let Some(entry) = ts
+            .tabs
+            .iter()
+            .find(|entry| matches!(entry.kind, TabKind::Terminal { .. }))
+        {
+            Outcome::Activate(entry.id.clone())
+        } else {
+            Outcome::Spawn
+        }
+    };
+
+    match outcome {
+        Outcome::FocusActive => {
+            focus_active_tab_in_pane(pane_widget);
+        }
+        Outcome::Activate(id) => {
+            activate_tab(
+                &internals.tab_strip,
+                &internals.content_stack,
+                &internals.tab_state,
+                &id,
+            );
+            (internals.callbacks.on_state_changed)();
+        }
+        Outcome::Spawn => {
+            let dir = internals.working_directory.borrow().clone();
+            add_terminal_tab_inner(&internals, dir.as_deref(), None);
+        }
+    }
+}
+
 pub fn add_terminal_tab_to_pane_with_cwd(pane_widget: &gtk::Widget, cwd: &std::path::Path) {
     if let Some(internals) = find_pane_internals(pane_widget) {
         let cwd_str = cwd.to_string_lossy().into_owned();

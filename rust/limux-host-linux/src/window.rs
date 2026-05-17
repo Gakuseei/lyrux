@@ -1690,6 +1690,12 @@ fn dispatch_shortcut_command(state: &State, command: ShortcutCommand) -> bool {
             }
             true
         }
+        ShortcutCommand::WindowToggleTerminal => {
+            if let Some((_ws_id, pane_widget)) = find_focused_pane(state) {
+                pane::toggle_or_focus_terminal_in_pane(&pane_widget);
+            }
+            true
+        }
         ShortcutCommand::EditorFindInFiles => {
             if let Some((_ws_id, pane_widget)) = find_focused_pane(state) {
                 let root = quick_open_root_for(state, &pane_widget);
