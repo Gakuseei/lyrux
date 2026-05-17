@@ -1,7 +1,11 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use gtk4 as gtk;
 use gtk4::glib;
 use gtk4::prelude::*;
 
+use crate::file_panel::dnd;
 use crate::file_panel::model::{GitStatus, Kind, ListChange, TreeModel};
 use crate::file_panel::row_object::RowObject;
 
@@ -115,6 +119,11 @@ pub fn build_list_view() -> ViewState {
         row_box.append(&size_lbl);
         row_box.append(&mtime_lbl);
         row_box.append(&marker);
+        let drag_row: Rc<RefCell<Option<RowObject>>> = Rc::new(RefCell::new(None));
+        dnd::install_drag_source(&row_box, Rc::clone(&drag_row));
+        unsafe {
+            row_box.set_data("limux-fp-drag-row", drag_row);
+        }
         item.set_child(Some(&row_box));
     });
     let show_size_c = show_size.clone();
@@ -129,7 +138,29 @@ pub fn build_list_view() -> ViewState {
             Some(b) => b,
             None => return,
         };
+        unsafe {
+            if let Some(cell) = row_box
+                .data::<Rc<RefCell<Option<RowObject>>>>("limux-fp-drag-row")
+                .map(|ptr| ptr.as_ref().clone())
+            {
+                *cell.borrow_mut() = Some(row_obj.clone());
+            }
+        }
         bind_row(&row_box, &row_obj, show_size_c.get(), show_mtime_c.get());
+    });
+    factory.connect_unbind(|_, item| {
+        let item = item.downcast_ref::<gtk::ListItem>().unwrap();
+        let Some(row_box) = item.child().and_then(|w| w.downcast::<gtk::Box>().ok()) else {
+            return;
+        };
+        unsafe {
+            if let Some(cell) = row_box
+                .data::<Rc<RefCell<Option<RowObject>>>>("limux-fp-drag-row")
+                .map(|ptr| ptr.as_ref().clone())
+            {
+                *cell.borrow_mut() = None;
+            }
+        }
     });
     let list_view = gtk::ListView::new(Some(selection.clone()), Some(factory));
     list_view.add_css_class("limux-fp-listview");
