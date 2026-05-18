@@ -22,8 +22,79 @@ ICONS_DIR="${ROOT_DIR}/rust/limux-host-linux/icons"
 APP_ICONS_DIR="${ROOT_DIR}/rust/limux-host-linux/icons/app"
 DESKTOP_FILE="${ROOT_DIR}/rust/limux-host-linux/dev.lyrux.linux.desktop"
 METADATA_FILE="${ROOT_DIR}/rust/limux-host-linux/dev.lyrux.linux.metainfo.xml"
+LICENSE_FILE="${ROOT_DIR}/LICENSE"
+LICENSES_MD="${ROOT_DIR}/LICENSES.md"
+THIRD_PARTY_NOTICES="${ROOT_DIR}/THIRD-PARTY-NOTICES.txt"
+GHOSTTY_LICENSE_FILE="${ROOT_DIR}/ghostty/LICENSE"
+FONTS_LICENSE_DIR="${ROOT_DIR}/rust/limux-host-linux/assets/fonts"
 OUT_DIR="${ROOT_DIR}/dist"
 GHOSTTY_ZIG_ARGS=(-Doptimize=ReleaseFast -Dcpu=baseline)
+
+install_license_docs() {
+    local doc_dir="$1"
+
+    mkdir -p "$doc_dir/LICENSE-fonts"
+
+    if [ -f "$LICENSE_FILE" ]; then
+        cp "$LICENSE_FILE" "$doc_dir/LICENSE"
+    fi
+    if [ -f "$LICENSES_MD" ]; then
+        cp "$LICENSES_MD" "$doc_dir/LICENSES.md"
+    fi
+    if [ -f "$THIRD_PARTY_NOTICES" ]; then
+        cp "$THIRD_PARTY_NOTICES" "$doc_dir/THIRD-PARTY-NOTICES.txt"
+    fi
+    if [ -f "$GHOSTTY_LICENSE_FILE" ]; then
+        cp "$GHOSTTY_LICENSE_FILE" "$doc_dir/LICENSE-ghostty"
+    fi
+    if [ -f "$FONTS_LICENSE_DIR/JetBrainsMono-LICENSE.txt" ]; then
+        cp "$FONTS_LICENSE_DIR/JetBrainsMono-LICENSE.txt" "$doc_dir/LICENSE-fonts/JetBrainsMono-LICENSE.txt"
+    fi
+    if [ -f "$FONTS_LICENSE_DIR/Lilex-LICENSE.txt" ]; then
+        cp "$FONTS_LICENSE_DIR/Lilex-LICENSE.txt" "$doc_dir/LICENSE-fonts/Lilex-LICENSE.txt"
+    fi
+}
+
+install_debian_copyright() {
+    local copyright_path="$1"
+
+    mkdir -p "$(dirname "$copyright_path")"
+    cat > "$copyright_path" << 'COPYRIGHT_EOF'
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: Lyrux
+Upstream-Contact: Gakuseei <erikschaefer07@icloud.com>
+Source: https://github.com/Gakuseei/lyrux
+
+Files: *
+Copyright: 2024-present Manaflow, Inc.
+           2024 am-will and Limux contributors
+           2026 Gakuseei and Lyrux contributors
+License: AGPL-3.0-or-later
+ Lyrux is a derivative work of manaflow-ai/cmux (AGPL-3.0 at fork snapshot)
+ via am-will/limux. The combined work is licensed under the GNU Affero
+ General Public License v3.0 or later.
+ .
+ On Debian systems, the complete text of the GNU Affero General Public
+ License v3 can be found in /usr/share/common-licenses/AGPL-3, and the
+ full Lyrux LICENSE file is shipped at
+ /usr/share/doc/lyrux/LICENSE.
+
+Files: usr/lib/lyrux/libghostty.so
+Copyright: 2024 Mitchell Hashimoto, Ghostty contributors
+License: Expat
+ See /usr/share/doc/lyrux/LICENSE-ghostty for the full MIT (Expat) text.
+
+Files: usr/share/fonts/lyrux/JetBrainsMono-*.ttf
+Copyright: 2020 The JetBrains Mono Project Authors
+License: OFL-1.1
+ See /usr/share/doc/lyrux/LICENSE-fonts/JetBrainsMono-LICENSE.txt.
+
+Files: usr/share/fonts/lyrux/Lilex-*.ttf
+Copyright: 2019 The Lilex Project Authors
+License: OFL-1.1
+ See /usr/share/doc/lyrux/LICENSE-fonts/Lilex-LICENSE.txt.
+COPYRIGHT_EOF
+}
 
 remove_tree() {
     local path="$1"
@@ -350,6 +421,8 @@ copy_ghostty_terminfo_entries "$GHOSTTY_TERMINFO_DIR" "$TARBALL_STAGE/share/lyru
 cp "$DESKTOP_FILE" "$TARBALL_STAGE/share/applications/dev.lyrux.linux.desktop"
 cp "$METADATA_FILE" "$TARBALL_STAGE/share/metainfo/dev.lyrux.linux.metainfo.xml"
 
+install_license_docs "$TARBALL_STAGE/share/doc/lyrux"
+
 if [ -d "$ICONS_DIR/hicolor" ]; then
     cp -r "$ICONS_DIR/hicolor/scalable" "$TARBALL_STAGE/share/icons/hicolor/" 2>/dev/null || true
 fi
@@ -478,6 +551,9 @@ populate_tree "$DEB_ROOT" "/usr"
 mkdir -p "$DEB_ROOT/etc/ld.so.conf.d"
 echo "/usr/lib/lyrux" > "$DEB_ROOT/etc/ld.so.conf.d/lyrux.conf"
 
+install_license_docs "$DEB_ROOT/usr/share/doc/lyrux"
+install_debian_copyright "$DEB_ROOT/usr/share/doc/lyrux/copyright"
+
 # Control file
 INSTALLED_SIZE=$(du -sk "$DEB_ROOT" | cut -f1)
 mkdir -p "$DEB_ROOT/DEBIAN"
@@ -566,6 +642,8 @@ if [ -d "$SOURCEVIEW_DATA" ]; then
     cp -r "$SOURCEVIEW_DATA/language-specs" "${APPDIR}/usr/share/gtksourceview-5/" || true
     cp -r "$SOURCEVIEW_DATA/styles"         "${APPDIR}/usr/share/gtksourceview-5/" || true
 fi
+
+install_license_docs "$APPDIR/usr/share/doc/lyrux"
 
 # Bundled editor fonts (JetBrains Mono + Lilex, both SIL OFL 1.1)
 LYRUX_FONTS_SRC="${ROOT_DIR}/rust/limux-host-linux/assets/fonts"
